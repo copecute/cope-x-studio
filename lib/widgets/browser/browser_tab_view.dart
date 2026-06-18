@@ -2,19 +2,21 @@ import 'dart:io';
 
 import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
+import 'package:cope_x_studio/models/ftp_server_config.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/file_service.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
-import 'package:cope_x_studio/utils/path_utils.dart';
 import 'package:cope_x_studio/widgets/browser/file_thumbnail.dart';
 import 'package:cope_x_studio/widgets/browser/rename_dialog.dart';
 import 'package:cope_x_studio/widgets/shell/web_server_sheet.dart';
 import 'package:cope_x_studio/widgets/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class BrowserTabView extends StatelessWidget {
   const BrowserTabView({super.key, required this.tab});
@@ -33,7 +35,7 @@ class BrowserTabView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _BrowserToolbar(tab: tab),
-        _SearchBar(tab: tab),
+        if (tab.showSearch) _SearchBar(tab: tab),
         if (tab.hasSelection) _SelectionBar(tab: tab),
         Expanded(child: _FileListArea(tab: tab)),
       ],
@@ -96,12 +98,14 @@ class _BrowserToolbar extends StatelessWidget {
 
   bool _canGoUp() {
     if (tab.isZipViewer) return true;
-    return PathUtils.parentPath(tab.currentPath) != null;
+    if (tab.currentPath == '@home') return false;
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
+    final isWritable = !tab.currentPath.startsWith('@') || tab.currentPath.startsWith('@ftp/');
 
     return Container(
       height: 50,
@@ -125,24 +129,37 @@ class _BrowserToolbar extends StatelessWidget {
               child: Icon(Icons.folder_zip, size: 18, color: VsCodeColors.accent),
             ),
           Expanded(
-            child: Text(
-              _displayPath(),
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: AppSizes.fontSmall, color: VsCodeColors.foregroundDim),
+            child: GestureDetector(
+              onLongPress: () async {
+                final path = _displayPath();
+                await Clipboard.setData(ClipboardData(text: path));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Đã sao chép đường dẫn: $path'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                }
+              },
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Text(
+                  _displayPath(),
+                  style: const TextStyle(fontSize: AppSizes.fontSmall, color: VsCodeColors.foregroundDim),
+                ),
+              ),
             ),
           ),
-          if (!tab.isZipViewer) ...[
-            IconButton(
-              icon: const Icon(Icons.note_add_outlined, size: AppSizes.iconMedium),
-              tooltip: 'File mới',
-              onPressed: () => _createNew(context, provider, isFile: true),
+          IconButton(
+            icon: Icon(
+              Icons.search,
+              size: AppSizes.iconMedium,
+              color: tab.showSearch ? VsCodeColors.accent : null,
             ),
-            IconButton(
-              icon: const Icon(Icons.create_new_folder_outlined, size: AppSizes.iconMedium),
-              tooltip: 'Thư mục mới',
-              onPressed: () => _createNew(context, provider, isFile: false),
-            ),
-          ],
+            tooltip: 'Tìm kiếm',
+            onPressed: () => provider.toggleShowSearch(tab.id),
+          ),
           IconButton(
             icon: Icon(
               Icons.wifi_tethering,
@@ -157,6 +174,10 @@ class _BrowserToolbar extends StatelessWidget {
             tooltip: 'Thêm',
             onSelected: (value) {
               switch (value) {
+                case 'new_file':
+                  _createNew(context, provider, isFile: true);
+                case 'new_folder':
+                  _createNew(context, provider, isFile: false);
                 case 'zip_clip':
                   provider.zipClipboard(tab.id);
                 case 'zip_folder':
@@ -169,9 +190,33 @@ class _BrowserToolbar extends StatelessWidget {
                   WebServerSheet.show(context);
                 case 'settings':
                   Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+                case 'toggle_hidden':
+                  provider.toggleShowHidden();
               }
             },
             itemBuilder: (context) => [
+              if (!tab.isZipViewer && isWritable) ...[
+                const PopupMenuItem(
+                  value: 'new_file',
+                  child: Row(
+                    children: [
+                      Icon(Icons.note_add_outlined, size: 20),
+                      SizedBox(width: 10),
+                      Text('File mới'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'new_folder',
+                  child: Row(
+                    children: [
+                      Icon(Icons.create_new_folder_outlined, size: 20),
+                      SizedBox(width: 10),
+                      Text('Thư mục mới'),
+                    ],
+                  ),
+                ),
+              ],
               const PopupMenuItem(
                 value: 'settings',
                 child: Row(
@@ -179,6 +224,19 @@ class _BrowserToolbar extends StatelessWidget {
                     Icon(Icons.settings, size: 20),
                     SizedBox(width: 10),
                     Text('Cài đặt'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'toggle_hidden',
+                child: Row(
+                  children: [
+                    Icon(
+                      provider.showHidden ? Icons.visibility_off : Icons.visibility,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(provider.showHidden ? 'Ẩn tệp ẩn' : 'Hiện tệp ẩn'),
                   ],
                 ),
               ),
@@ -321,6 +379,14 @@ class _SelectionBar extends StatelessWidget {
 
   final AppTab tab;
 
+  void _sharePaths(List<String> paths) {
+    final localPaths = paths.where((p) => !p.startsWith('@')).toList();
+    if (localPaths.isEmpty) return;
+    SharePlus.instance.share(ShareParams(
+      files: localPaths.map((p) => XFile(p)).toList(),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.read<WorkspaceProvider>();
@@ -330,41 +396,63 @@ class _SelectionBar extends StatelessWidget {
     return Container(
       height: 44,
       color: VsCodeColors.selection,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         children: [
-          Text('$count đã chọn', style: const TextStyle(fontSize: AppSizes.fontSmall, fontWeight: FontWeight.w600)),
-          const Spacer(),
           IconButton(
-            icon: const Icon(Icons.copy, size: 20),
-            tooltip: 'Copy',
-            onPressed: () => provider.copyToClipboard(paths),
-          ),
-          IconButton(
-            icon: const Icon(Icons.content_cut, size: 20),
-            tooltip: 'Cut',
-            onPressed: () => provider.cutToClipboard(paths),
-          ),
-          if (!tab.isZipViewer)
-            IconButton(
-              icon: const Icon(Icons.control_point_duplicate, size: 20),
-              tooltip: 'Nhân đôi',
-              onPressed: () => provider.duplicatePaths(tab.id, paths),
-            ),
-          IconButton(
-            icon: const Icon(Icons.folder_zip_outlined, size: 20),
-            tooltip: 'Nén ZIP',
-            onPressed: () => provider.zipPaths(tab.id, paths),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, size: 20),
-            tooltip: 'Xóa',
-            onPressed: () => provider.deletePaths(tab.id, paths),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20),
-            tooltip: 'Bỏ chọn',
+            icon: const Icon(Icons.close, size: 20, color: Colors.redAccent),
+            tooltip: 'Đóng',
             onPressed: () => provider.clearSelection(tab.id),
+          ),
+          const VerticalDivider(width: 8, color: Colors.white24, indent: 8, endIndent: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  const SizedBox(width: 4),
+                  Text('$count đã chọn', style: const TextStyle(fontSize: AppSizes.fontSmall, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 20),
+                    tooltip: 'Copy',
+                    onPressed: () => provider.copyToClipboard(paths),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.content_cut, size: 20),
+                    tooltip: 'Cut',
+                    onPressed: () => provider.cutToClipboard(paths),
+                  ),
+                  if (!tab.isZipViewer)
+                    IconButton(
+                      icon: const Icon(Icons.control_point_duplicate, size: 20),
+                      tooltip: 'Nhân đôi',
+                      onPressed: () => provider.duplicatePaths(tab.id, paths),
+                    ),
+                  if (count == 1)
+                    IconButton(
+                      icon: const Icon(Icons.drive_file_rename_outline, size: 20),
+                      tooltip: 'Đổi tên',
+                      onPressed: () => _renameItem(context, provider, tab.id, paths.first),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.folder_zip_outlined, size: 20),
+                    tooltip: 'Nén ZIP',
+                    onPressed: () => provider.zipPaths(tab.id, paths),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share, size: 20),
+                    tooltip: 'Chia sẻ',
+                    onPressed: () => _sharePaths(paths),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    tooltip: 'Xóa',
+                    onPressed: () => provider.deletePaths(tab.id, paths),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -398,6 +486,49 @@ class _FileListArea extends StatelessWidget {
       );
     }
 
+    if (tab.currentPath.startsWith('@ftp/')) {
+      final error = provider.getFtpError(tab.currentPath);
+      if (error != null) {
+        return _EmptyGestureArea(
+          tab: tab,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 12),
+                  Text('Lỗi kết nối FTP:\n$error', textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => provider.refreshTab(tab.id),
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      if (provider.isFtpLoading(tab.currentPath) && entries.isEmpty) {
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Đang tải thư mục FTP...',
+                style: TextStyle(color: VsCodeColors.foregroundDim),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
     if (entries.isEmpty) {
       final emptyText = tab.searchQuery.isNotEmpty
           ? 'Không tìm thấy kết quả'
@@ -408,20 +539,29 @@ class _FileListArea extends StatelessWidget {
       );
     }
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onLongPress: () => _showBackgroundMenu(context, provider, tab),
-            onSecondaryTapDown: (d) => _showBackgroundMenu(context, provider, tab, d.globalPosition),
+    final isFtpLoading = tab.currentPath.startsWith('@ftp/') && provider.isFtpLoading(tab.currentPath);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onLongPress: () => _showBackgroundMenu(context, provider, tab),
+      onSecondaryTapDown: (d) => _showBackgroundMenu(context, provider, tab, d.globalPosition),
+      child: Stack(
+        children: [
+          ListView.builder(
+            itemCount: entries.length,
+            itemBuilder: (context, index) => _FileTile(tab: tab, entry: entries[index]),
           ),
-        ),
-        ListView.builder(
-          itemCount: entries.length,
-          itemBuilder: (context, index) => _FileTile(tab: tab, entry: entries[index]),
-        ),
-      ],
+          if (isFtpLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black38,
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -450,6 +590,37 @@ class _FileTile extends StatelessWidget {
   final AppTab tab;
   final BrowserEntry entry;
 
+  IconData _getVirtualIcon(String path) {
+    if (path == '/storage/emulated/0') return Icons.phone_android_outlined;
+    if (path == '/') return Icons.storage_outlined;
+    if (path == '@recent') return Icons.access_time_outlined;
+    if (path == '@apps') return Icons.apps_outlined;
+    if (path == '@ftp') return Icons.settings_ethernet;
+    if (path == '@display') return Icons.settings_suggest_outlined;
+    if (path == '@add_ftp_server') return Icons.add_circle_outline;
+    if (path.startsWith('@ftp/')) return Icons.dns_outlined;
+    return Icons.folder;
+  }
+
+  Color _getVirtualIconColor(String path) {
+    if (path == '/storage/emulated/0') return Colors.cyanAccent;
+    if (path == '/') return Colors.orangeAccent;
+    if (path == '@recent') return Colors.greenAccent;
+    if (path == '@apps') return Colors.purpleAccent;
+    if (path == '@ftp') return Colors.blueAccent;
+    if (path == '@display') return Colors.grey;
+    if (path == '@add_ftp_server') return VsCodeColors.accent;
+    if (path.startsWith('@ftp/')) return Colors.blueAccent;
+    return VsCodeColors.accent;
+  }
+
+  bool _isServerOrHomePath(String path) {
+    if (path.startsWith('@ftp/')) {
+      return path.split('/').length == 2;
+    }
+    return path.startsWith('@') || path == '/' || path == '/storage/emulated/0';
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
@@ -458,17 +629,38 @@ class _FileTile extends StatelessWidget {
     return Material(
       color: selected ? VsCodeColors.selection : Colors.transparent,
       child: InkWell(
-        onTap: () => provider.handleItemTap(tab.id, entry),
+        onTap: () {
+          if (entry.path == '@add_ftp_server') {
+            _showAddFtpServerDialog(context, provider);
+          } else if (entry.path == '@display') {
+            Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+          } else if (entry.path == '@recent' || entry.path == '@apps') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tính năng đang được phát triển')),
+            );
+          } else {
+            provider.handleItemTap(tab.id, entry);
+          }
+        },
         onLongPress: () {
-          if (!selected && !tab.hasSelection) {
+          if (tab.currentPath == '@ftp' && entry.path.startsWith('@ftp/') && entry.path != '@add_ftp_server') {
+            _showFtpServerContextMenu(context, provider, entry);
+          } else if (!selected && !tab.hasSelection) {
             provider.toggleSelection(tab.id, entry.path);
           } else {
             provider.toggleSelection(tab.id, entry.path);
           }
         },
-        onSecondaryTapDown: (d) => _showItemMenu(context, provider, tab, entry, d.globalPosition),
-        child: SizedBox(
-          height: AppSizes.tileHeight,
+        onSecondaryTapDown: (d) {
+          if (tab.currentPath == '@ftp' && entry.path.startsWith('@ftp/') && entry.path != '@add_ftp_server') {
+            _showFtpServerContextMenu(context, provider, entry);
+          } else {
+            _showItemMenu(context, provider, tab, entry, d.globalPosition);
+          }
+        },
+        child: Container(
+          constraints: const BoxConstraints(minHeight: AppSizes.tileHeight),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
@@ -482,7 +674,13 @@ class _FileTile extends StatelessWidget {
                       color: selected ? VsCodeColors.accent : VsCodeColors.foregroundDim,
                     ),
                   ),
-                if (entry.isZipVirtual)
+                if (entry.isVirtual && _isServerOrHomePath(entry.path))
+                  Icon(
+                    _getVirtualIcon(entry.path),
+                    size: AppSizes.thumbSize,
+                    color: _getVirtualIconColor(entry.path),
+                  )
+                else if (entry.isZipVirtual)
                   Icon(
                     entry.isDirectory ? Icons.folder : Icons.insert_drive_file,
                     size: AppSizes.thumbSize,
@@ -501,12 +699,38 @@ class _FileTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(entry.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: AppSizes.fontBody)),
-                      if (!entry.isDirectory)
+                      if (!entry.isDirectory || entry.isVirtual)
                         Text(
                           _entrySubtitle(entry),
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 12, color: VsCodeColors.foregroundDim),
                         ),
+                      if (entry.isVirtual) ...[
+                        Builder(
+                          builder: (context) {
+                            final space = provider.getDiskSpace(entry.path);
+                            final pctStr = space?['percent'];
+                            final pct = pctStr != null ? int.tryParse(pctStr) : null;
+                            if (pct != null) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(2),
+                                  child: LinearProgressIndicator(
+                                    value: pct / 100,
+                                    backgroundColor: Colors.white12,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      pct > 90 ? Colors.redAccent : VsCodeColors.accent,
+                                    ),
+                                    minHeight: 4,
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -518,9 +742,117 @@ class _FileTile extends StatelessWidget {
       ),
     );
   }
+
+  void _showFtpServerContextMenu(BuildContext context, WorkspaceProvider provider, BrowserEntry entry) {
+    final serverId = entry.path.substring(5); // @ftp/server_id
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VsCodeColors.tabBar,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                title: const Text('Xóa cấu hình máy chủ', style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(context);
+                  provider.removeFtpServer(serverId);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddFtpServerDialog(BuildContext context, WorkspaceProvider provider) {
+    final nameCtrl = TextEditingController(text: 'My FTP Server');
+    final hostCtrl = TextEditingController();
+    final portCtrl = TextEditingController(text: '21');
+    final userCtrl = TextEditingController(text: 'anonymous');
+    final passCtrl = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: VsCodeColors.tabBar,
+          title: const Text('Thêm máy chủ FTP'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Tên gợi nhớ'),
+                ),
+                TextField(
+                  controller: hostCtrl,
+                  decoration: const InputDecoration(labelText: 'Địa chỉ IP / Host'),
+                ),
+                TextField(
+                  controller: portCtrl,
+                  decoration: const InputDecoration(labelText: 'Cổng (Port)'),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: userCtrl,
+                  decoration: const InputDecoration(labelText: 'Tên đăng nhập'),
+                ),
+                TextField(
+                  controller: passCtrl,
+                  decoration: const InputDecoration(labelText: 'Mật khẩu'),
+                  obscureText: true,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final host = hostCtrl.text.trim();
+                if (host.isEmpty) return;
+                final port = int.tryParse(portCtrl.text) ?? 21;
+                final server = FtpServerConfig(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: nameCtrl.text.trim().isEmpty ? host : nameCtrl.text.trim(),
+                  host: host,
+                  port: port,
+                  username: userCtrl.text.trim(),
+                  password: passCtrl.text,
+                );
+                provider.addFtpServer(server);
+                Navigator.pop(context);
+              },
+              child: const Text('Thêm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 String _entrySubtitle(BrowserEntry entry) {
+  if (entry.path.startsWith('@ftp/')) {
+    if (entry.isDirectory) return '';
+    final sizeStr = entry.size != null ? _formatSize(entry.size!) : '';
+    final extStr = p.extension(entry.path).replaceFirst('.', '').toUpperCase();
+    if (sizeStr.isNotEmpty) {
+      return '$sizeStr · $extStr';
+    }
+    return extStr;
+  }
+  if (entry.isVirtual) {
+    return entry.subtitle ?? '';
+  }
   if (entry.isZipVirtual && entry.size != null) {
     return _formatSize(entry.size!);
   }

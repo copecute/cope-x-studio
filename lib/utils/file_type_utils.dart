@@ -17,7 +17,6 @@ class FileTypeUtils {
     '.txt', '.dart', '.js', '.ts', '.jsx', '.tsx', '.json', '.py', '.java',
     '.go', '.php', '.sql', '.md', '.yaml', '.yml', '.xml', '.html', '.htm',
     '.css', '.sh', '.rs', '.c', '.h', '.cpp', '.hpp', '.cs', '.swift', '.kt',
-    '.docx', '.xlsx', '.pptx',
   };
 
   static const _zipExts = {'.zip', '.jar', '.apks', '.xapk'};

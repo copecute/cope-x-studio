@@ -12,31 +12,42 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
-          context.read<WorkspaceProvider>().saveActiveTab();
-        },
-        const SingleActivator(LogicalKeyboardKey.keyT, control: true): () {
-          context.read<WorkspaceProvider>().newTab();
-        },
-        const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
-          final provider = context.read<WorkspaceProvider>();
-          final tab = provider.activeTab;
-          if (tab != null) provider.closeTab(tab.id);
-        },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        final provider = context.read<WorkspaceProvider>();
+        final handled = provider.handleBackNavigation();
+        if (!handled) {
+          SystemNavigator.pop();
+        }
       },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          backgroundColor: VsCodeColors.editor,
-          body: SafeArea(
-            child: Column(
-              children: [
-                const Expanded(child: TabContentView()),
-                const EditorTabBar(),
-                const StatusBar(),
-              ],
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
+            context.read<WorkspaceProvider>().saveActiveTab();
+          },
+          const SingleActivator(LogicalKeyboardKey.keyT, control: true): () {
+            context.read<WorkspaceProvider>().newTab();
+          },
+          const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
+            final provider = context.read<WorkspaceProvider>();
+            final tab = provider.activeTab;
+            if (tab != null) provider.closeTab(tab.id);
+          },
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            backgroundColor: VsCodeColors.editor,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  const Expanded(child: TabContentView()),
+                  const EditorTabBar(),
+                  const StatusBar(),
+                ],
+              ),
             ),
           ),
         ),

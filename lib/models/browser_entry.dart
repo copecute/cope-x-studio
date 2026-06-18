@@ -5,6 +5,8 @@ class BrowserEntry {
     required this.isDirectory,
     this.size,
     this.isZipVirtual = false,
+    this.subtitle,
+    this.isVirtual = false,
   });
 
   final String name;
@@ -12,4 +14,6 @@ class BrowserEntry {
   final bool isDirectory;
   final int? size;
   final bool isZipVirtual;
+  final String? subtitle;
+  final bool isVirtual;
 }

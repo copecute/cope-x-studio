@@ -60,8 +60,8 @@ class SecurityService {
   }
 
   Future<void> setPassword(String password) async {
-    if (password.length < 4) {
-      throw ArgumentError('Mật khẩu tối thiểu 4 ký tự');
+    if (password.isEmpty) {
+      throw ArgumentError('Mật khẩu không được để trống');
     }
     final salt = _randomSalt();
     await _write(_keySalt, salt);

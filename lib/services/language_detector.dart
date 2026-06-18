@@ -10,6 +10,7 @@ import 'package:highlight/languages/sql.dart';
 import 'package:highlight/languages/typescript.dart';
 import 'package:highlight/languages/xml.dart';
 import 'package:highlight/languages/yaml.dart';
+import 'package:highlight/languages/css.dart';
 import 'package:path/path.dart' as p;
 
 class LanguageDetector {
@@ -29,7 +30,7 @@ class LanguageDetector {
       '.md' || '.markdown' => 'markdown',
       '.yaml' || '.yml' => 'yaml',
       '.xml' || '.html' || '.htm' => 'xml',
-      '.css' => 'xml',
+      '.css' => 'css',
       '.sh' || '.bash' => 'bash',
       '.rs' => 'rust',
       '.c' || '.h' => 'c',
@@ -55,6 +56,7 @@ class LanguageDetector {
       'markdown' => markdown,
       'yaml' => yaml,
       'xml' => xml,
+      'css' => css,
       _ => null,
     };
   }

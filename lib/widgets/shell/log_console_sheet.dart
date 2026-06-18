@@ -57,6 +57,7 @@ class LogConsoleSheet extends StatelessWidget {
                   ? const Center(child: Text('Chưa có log', style: TextStyle(color: VsCodeColors.foregroundDim)))
                   : ListView.builder(
                       controller: scrollController,
+                      reverse: true,
                       padding: const EdgeInsets.all(12),
                       itemCount: logs.length,
                       itemBuilder: (context, index) {

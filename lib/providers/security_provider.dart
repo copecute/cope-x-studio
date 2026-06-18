@@ -13,6 +13,7 @@ class SecurityProvider extends ChangeNotifier {
   bool _lockEnabled = false;
   bool _biometricEnabled = false;
   bool _canUseBiometric = false;
+  bool _isAuthenticatingBiometric = false;
 
   bool get initialized => _initialized;
   bool get isLocked => _isLocked;
@@ -57,12 +58,19 @@ class SecurityProvider extends ChangeNotifier {
 
   Future<bool> unlockWithBiometric() async {
     if (!_biometricEnabled || !_canUseBiometric) return false;
-    final ok = await _security.authenticateBiometric();
-    if (ok) {
-      _isLocked = false;
-      notifyListeners();
+    _isAuthenticatingBiometric = true;
+    try {
+      final ok = await _security.authenticateBiometric();
+      if (ok) {
+        _isLocked = false;
+        notifyListeners();
+      }
+      return ok;
+    } finally {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _isAuthenticatingBiometric = false;
+      });
     }
-    return ok;
   }
 
   Future<void> setPassword(String password) async {
@@ -94,6 +102,7 @@ class SecurityProvider extends ChangeNotifier {
   Future<bool> verifyPassword(String password) => _security.verifyPassword(password);
 
   void onAppResumed() {
+    if (_isAuthenticatingBiometric) return;
     lock();
   }
 }

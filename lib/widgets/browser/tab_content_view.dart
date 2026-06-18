@@ -5,9 +5,8 @@ import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/widgets/browser/browser_tab_view.dart';
 import 'package:cope_x_studio/widgets/editor/code_editor_view.dart';
-import 'package:cope_x_studio/widgets/editor/docx_editor_view.dart';
-import 'package:cope_x_studio/widgets/editor/excel_editor_view.dart';
-import 'package:cope_x_studio/widgets/editor/pptx_viewer.dart';
+import 'package:cope_x_studio/widgets/editor/pdf_viewer_view.dart';
+import 'package:cope_x_studio/widgets/editor/media_viewer_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -62,7 +61,7 @@ class _EditorInTab extends StatelessWidget {
                   style: const TextStyle(fontSize: AppSizes.fontBody, fontWeight: FontWeight.w500),
                 ),
               ),
-              if (editor.type != EditorTabType.pptx)
+              if (editor.type == EditorTabType.text)
                 TextButton.icon(
                   onPressed: () => provider.saveTab(tab.id),
                   icon: const Icon(Icons.save_outlined, size: 20),
@@ -79,9 +78,8 @@ class _EditorInTab extends StatelessWidget {
   Widget _buildEditor(EditorTab editor) {
     return switch (editor.type) {
       EditorTabType.text => CodeEditorView(tab: editor),
-      EditorTabType.docx => DocxEditorView(tab: editor),
-      EditorTabType.excel => ExcelEditorView(tab: editor),
-      EditorTabType.pptx => PptxViewer(tab: editor),
+      EditorTabType.pdf => PdfReaderView(tab: editor),
+      EditorTabType.media => MediaViewerView(tab: editor),
       EditorTabType.empty => const SizedBox.shrink(),
     };
   }

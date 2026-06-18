@@ -24,7 +24,7 @@ class PathGuard {
   String resolve(String? pathParam) {
     if (pathParam == null || pathParam.trim().isEmpty) return defaultRoot;
 
-    final decoded = Uri.decodeComponent(pathParam.trim());
+    final decoded = pathParam.trim();
     final resolved = p.isAbsolute(decoded)
         ? p.normalize(decoded)
         : p.normalize(p.join(defaultRoot, decoded));

@@ -12,7 +12,7 @@ class FileAccessException implements Exception {
 }
 
 class FileService {
-  List<FileSystemEntity> listDirectory(String dirPath) {
+  List<FileSystemEntity> listDirectory(String dirPath, {bool showHidden = false}) {
     final dir = Directory(dirPath);
     if (!dir.existsSync()) return [];
 
@@ -27,7 +27,7 @@ class FileService {
     for (final entity in raw) {
       try {
         final name = p.basename(entity.path);
-        if (name.startsWith('.') || name == 'Thumbs.db' || name == 'desktop.ini') {
+        if (!showHidden && (name.startsWith('.') || name == 'Thumbs.db' || name == 'desktop.ini')) {
           continue;
         }
         if (entity is Directory) {

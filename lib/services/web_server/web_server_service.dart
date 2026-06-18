@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cope_x_studio/services/archive_service.dart';
 import 'package:cope_x_studio/services/file_service.dart';
+import 'package:cope_x_studio/services/thumbnail_service.dart';
 import 'package:cope_x_studio/services/web_server/path_guard.dart';
 import 'package:cope_x_studio/services/web_server/web_ui.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
@@ -51,6 +52,7 @@ class WebServerService {
       ..get('/api/info', _apiInfo)
       ..get('/api/list', _apiList)
       ..get('/api/file', _apiFile)
+      ..get('/api/thumb', _apiThumb)
       ..get('/api/read', _apiRead)
       ..post('/api/mkdir', _apiMkdir)
       ..post('/api/create', _apiCreate)
@@ -173,8 +175,9 @@ class WebServerService {
         return _json({'path': '@roots', 'entries': entries});
       }
 
+      final showHidden = request.url.queryParameters['showHidden'] == 'true';
       final dirPath = _guard!.resolve(pathParam);
-      final entities = _fileService.listDirectory(dirPath);
+      final entities = _fileService.listDirectory(dirPath, showHidden: showHidden);
       final entries = entities.map((entity) {
         final isDir = entity is Directory;
         int? size;
@@ -208,16 +211,41 @@ class WebServerService {
       if (!file.existsSync()) return _jsonError('Không tìm thấy file', 404);
 
       final mime = lookupMimeType(filePath) ?? 'application/octet-stream';
-      final bytes = await file.readAsBytes();
+      final length = await file.length();
       final download = request.url.queryParameters['download'] == '1';
       final headers = <String, String>{
         'Content-Type': mime,
-        'Content-Length': '${bytes.length}',
+        'Content-Length': '$length',
       };
       if (download) {
-        headers['Content-Disposition'] = 'attachment; filename="${p.basename(filePath)}"';
+        final filename = p.basename(filePath);
+        final encodedFilename = Uri.encodeComponent(filename);
+        headers['Content-Disposition'] = 'attachment; filename="$encodedFilename"; filename*=UTF-8\'\'$encodedFilename';
       }
-      return Response.ok(bytes, headers: headers);
+      return Response.ok(file.openRead(), headers: headers);
+    } catch (e) {
+      return _jsonError('$e');
+    }
+  }
+
+  Future<Response> _apiThumb(Request request) async {
+    try {
+      final filePath = _guard!.resolve(request.url.queryParameters['path']);
+      if (_fileService.isDirectory(filePath)) {
+        return _jsonError('Không thể lấy thumbnail của thư mục', 400);
+      }
+      final bytes = await ThumbnailService.instance.load(filePath);
+      if (bytes == null || bytes.isEmpty) {
+        return Response(404, body: 'No thumbnail');
+      }
+      return Response.ok(
+        bytes,
+        headers: {
+          'Content-Type': 'image/png',
+          'Content-Length': '${bytes.length}',
+          'Cache-Control': 'max-age=3600',
+        },
+      );
     } catch (e) {
       return _jsonError('$e');
     }

@@ -60,10 +60,9 @@ class _TabItem extends StatelessWidget {
   IconData get _icon {
     if (tab.isEditing && tab.editor != null) {
       return switch (tab.editor!.type) {
-        EditorTabType.docx => Icons.description_outlined,
-        EditorTabType.excel => Icons.table_chart_outlined,
-        EditorTabType.pptx => Icons.slideshow_outlined,
         EditorTabType.text => Icons.code,
+        EditorTabType.pdf => Icons.picture_as_pdf,
+        EditorTabType.media => Icons.play_circle_fill,
         EditorTabType.empty => Icons.tab_outlined,
       };
     }

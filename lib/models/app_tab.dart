@@ -17,6 +17,7 @@ class AppTab extends Equatable {
     this.zipArchivePath,
     this.zipInnerPath = '',
     this.listRevision = 0,
+    this.showSearch = false,
   }) : id = id ?? const Uuid().v4();
 
   final String id;
@@ -28,6 +29,7 @@ class AppTab extends Equatable {
   final String? zipArchivePath;
   final String zipInnerPath;
   final int listRevision;
+  final bool showSearch;
 
   bool get isBrowsing => mode == TabMode.browser;
   bool get isEditing => mode == TabMode.editor && editor != null;
@@ -54,6 +56,7 @@ class AppTab extends Equatable {
     String? zipArchivePath,
     String? zipInnerPath,
     int? listRevision,
+    bool? showSearch,
     bool clearEditor = false,
     bool clearSelection = false,
     bool clearZip = false,
@@ -68,6 +71,7 @@ class AppTab extends Equatable {
       zipArchivePath: clearZip ? null : (zipArchivePath ?? this.zipArchivePath),
       zipInnerPath: clearZip ? '' : (zipInnerPath ?? this.zipInnerPath),
       listRevision: listRevision ?? this.listRevision,
+      showSearch: showSearch ?? this.showSearch,
     );
   }
 
@@ -84,5 +88,6 @@ class AppTab extends Equatable {
         zipArchivePath,
         zipInnerPath,
         listRevision,
+        showSearch,
       ];
 }

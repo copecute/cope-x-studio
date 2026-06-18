@@ -72,6 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final security = context.watch<SecurityProvider>();
+    final workspace = context.watch<WorkspaceProvider>();
 
     return Scaffold(
       backgroundColor: VsCodeColors.editor,
@@ -179,6 +180,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
                   : null,
             ),
+          const Divider(height: 40, color: VsCodeColors.border),
+          const Text(
+            'Hiển thị',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Hiển thị tệp tin ẩn'),
+            subtitle: const Text('Hiện tệp tin bắt đầu bằng dấu chấm hoặc tệp hệ thống'),
+            value: workspace.showHidden,
+            onChanged: (v) {
+              workspace.setShowHidden(v);
+            },
+          ),
           const Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Web Server',
