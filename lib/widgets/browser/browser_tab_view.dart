@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cope_x_studio/models/app_tab.dart';
@@ -7,7 +8,9 @@ import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/file_service.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/app_path_utils.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
+import 'package:cope_x_studio/utils/path_utils.dart';
 import 'package:cope_x_studio/widgets/browser/file_thumbnail.dart';
 import 'package:cope_x_studio/widgets/browser/rename_dialog.dart';
 import 'package:cope_x_studio/widgets/shell/web_server_sheet.dart';
@@ -31,13 +34,111 @@ class BrowserTabView extends StatelessWidget {
       return _PermissionGate(provider: provider);
     }
 
+    final hasZipError = tab.isZipViewer &&
+        tab.zipArchivePath != null &&
+        provider.getZipError(tab.zipArchivePath!) != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _BrowserToolbar(tab: tab),
+        if (provider.isFileOperationOverlayForTab(tab.id))
+          LinearProgressIndicator(
+            minHeight: 2,
+            backgroundColor: Colors.transparent,
+            value: provider.archiveProgressForTab(tab.id) > 0
+                ? provider.archiveProgressForTab(tab.id)
+                : null,
+            valueColor: const AlwaysStoppedAnimation<Color>(VsCodeColors.accent),
+          ),
         if (tab.showSearch) _SearchBar(tab: tab),
         if (tab.hasSelection) _SelectionBar(tab: tab),
-        Expanded(child: _FileListArea(tab: tab)),
+        Expanded(
+          child: Stack(
+            children: [
+              hasZipError
+                  ? _ZipUnlockView(
+                      tab: tab,
+                      zipPath: tab.zipArchivePath!,
+                      error: provider.getZipError(tab.zipArchivePath!)!,
+                    )
+                  : _FileListArea(tab: tab),
+              if (provider.isFileOperationOverlayForTab(tab.id))
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 320),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 220,
+                              child: LinearProgressIndicator(
+                                minHeight: 6,
+                                borderRadius: BorderRadius.circular(3),
+                                value: provider.archiveProgressForTab(tab.id) > 0
+                                    ? provider.archiveProgressForTab(tab.id)
+                                    : null,
+                                backgroundColor: Colors.white24,
+                                valueColor: const AlwaysStoppedAnimation<Color>(VsCodeColors.accent),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              provider.fileOperationOverlayTitleForTab(tab.id),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                            if (provider.archiveProgressLabelForTab(tab.id) != null) ...[
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  provider.archiveProgressLabelForTab(tab.id)!,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                  style: const TextStyle(
+                                    color: VsCodeColors.foregroundDim,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (provider.archiveProgressForTab(tab.id) > 0) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '${(provider.archiveProgressForTab(tab.id) * 100).toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  color: VsCodeColors.accent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                            if (provider.fileOperationCanCancelForTab(tab.id)) ...[
+                              const SizedBox(height: 24),
+                              OutlinedButton.icon(
+                                onPressed: () => provider.cancelArchiveExtraction(tab.id),
+                                icon: const Icon(Icons.close, size: 18),
+                                label: const Text('Hủy'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: Colors.white54),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -93,7 +194,7 @@ class _BrowserToolbar extends StatelessWidget {
       if (tab.zipInnerPath.isEmpty) return zip;
       return '$zip/${tab.zipInnerPath}';
     }
-    return tab.currentPath;
+    return PathUtils.displayName(tab.currentPath);
   }
 
   bool _canGoUp() {
@@ -123,11 +224,17 @@ class _BrowserToolbar extends StatelessWidget {
             tooltip: 'Làm mới',
             onPressed: () => provider.refreshTab(tab.id),
           ),
-          if (tab.isZipViewer)
+          if (tab.isZipViewer) ...[
+            IconButton(
+              icon: const Icon(Icons.unarchive_outlined, size: AppSizes.iconMedium, color: VsCodeColors.accent),
+              tooltip: 'Giải nén',
+              onPressed: () => _handleUnzip(context, provider, tab.id, tab.zipArchivePath!),
+            ),
             const Padding(
               padding: EdgeInsets.only(right: 6),
               child: Icon(Icons.folder_zip, size: 18, color: VsCodeColors.accent),
             ),
+          ],
           Expanded(
             child: GestureDetector(
               onLongPress: () async {
@@ -182,7 +289,7 @@ class _BrowserToolbar extends StatelessWidget {
                   provider.zipClipboard(tab.id);
                 case 'zip_folder':
                   if (!tab.isZipViewer) {
-                    provider.zipPaths(tab.id, [tab.currentPath]);
+                    unawaited(_handleZip(context, provider, tab.id, [tab.currentPath]));
                   }
                 case 'clear_selection':
                   provider.clearSelection(tab.id);
@@ -246,7 +353,7 @@ class _BrowserToolbar extends StatelessWidget {
                   children: [
                     Icon(Icons.wifi_tethering, size: 20),
                     SizedBox(width: 10),
-                    Text('Web Server (port 2910)'),
+                    Text('Web Server'),
                   ],
                 ),
               ),
@@ -438,7 +545,7 @@ class _SelectionBar extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.folder_zip_outlined, size: 20),
                     tooltip: 'Nén ZIP',
-                    onPressed: () => provider.zipPaths(tab.id, paths),
+                    onPressed: () => _handleZip(context, provider, tab.id, paths),
                   ),
                   IconButton(
                     icon: const Icon(Icons.share, size: 20),
@@ -529,10 +636,136 @@ class _FileListArea extends StatelessWidget {
       }
     }
 
+    if (tab.isZipViewer && provider.isZipListing && entries.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Đang đọc nội dung ZIP...',
+              style: TextStyle(color: VsCodeColors.foregroundDim),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (tab.currentPath == '/' && provider.isShellLoading('/')) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Đang đọc Root...',
+              style: TextStyle(color: VsCodeColors.foregroundDim),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (tab.currentPath == '/') {
+      final shellError = provider.getShellError('/');
+      if (shellError != null && entries.isEmpty) {
+        return _EmptyGestureArea(
+          tab: tab,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 12),
+                  Text('Không thể đọc Root:\n$shellError', textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => provider.refreshTab(tab.id),
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (AppPathUtils.isAppsList(tab.currentPath) && provider.isAppsLoading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Đang tải danh sách ứng dụng...',
+              style: TextStyle(color: VsCodeColors.foregroundDim),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (AppPathUtils.isAppsList(tab.currentPath)) {
+      final appsError = provider.appsError;
+      if (appsError != null && entries.isEmpty) {
+        return _EmptyGestureArea(
+          tab: tab,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Không thể tải ứng dụng:\n$appsError',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => provider.refreshTab(tab.id),
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (tab.currentPath == '@recent' && provider.isRecentLoading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Đang quét tập tin gần đây...',
+              style: TextStyle(color: VsCodeColors.foregroundDim),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (entries.isEmpty) {
       final emptyText = tab.searchQuery.isNotEmpty
           ? 'Không tìm thấy kết quả'
-          : (tab.isZipViewer ? 'ZIP trống' : 'Thư mục trống');
+          : (tab.currentPath == '@recent'
+              ? 'Không tìm thấy tập tin gần đây'
+              : (AppPathUtils.isAppsList(tab.currentPath)
+                  ? 'Không có ứng dụng'
+                  : (tab.isZipViewer ? 'ZIP trống' : 'Thư mục trống')));
       return _EmptyGestureArea(
         tab: tab,
         child: Center(child: Text(emptyText, style: const TextStyle(fontSize: 16))),
@@ -540,6 +773,9 @@ class _FileListArea extends StatelessWidget {
     }
 
     final isFtpLoading = tab.currentPath.startsWith('@ftp/') && provider.isFtpLoading(tab.currentPath);
+    final isZipOpening = tab.isZipViewer &&
+        tab.zipArchivePath != null &&
+        provider.isZipOpening(tab.zipArchivePath!);
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -557,6 +793,38 @@ class _FileListArea extends StatelessWidget {
                 color: Colors.black38,
                 child: const Center(
                   child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          if (isZipOpening)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black54,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Đang giải nén và mở file...',
+                        style: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: 15),
+                      ),
+                      if (provider.zipOpeningLabel != null) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            provider.zipOpeningLabel!,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -584,6 +852,44 @@ class _EmptyGestureArea extends StatelessWidget {
   }
 }
 
+class _AppIconTile extends StatefulWidget {
+  const _AppIconTile({required this.packageName});
+
+  final String packageName;
+
+  @override
+  State<_AppIconTile> createState() => _AppIconTileState();
+}
+
+class _AppIconTileState extends State<_AppIconTile> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<WorkspaceProvider>().ensureAppIcon(widget.packageName);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = context.watch<WorkspaceProvider>().appIcon(widget.packageName);
+    if (bytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.memory(
+          bytes,
+          width: AppSizes.thumbSize,
+          height: AppSizes.thumbSize,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+        ),
+      );
+    }
+    return Icon(Icons.android, size: AppSizes.thumbSize, color: VsCodeColors.accent);
+  }
+}
+
 class _FileTile extends StatelessWidget {
   const _FileTile({required this.tab, required this.entry});
 
@@ -595,6 +901,8 @@ class _FileTile extends StatelessWidget {
     if (path == '/') return Icons.storage_outlined;
     if (path == '@recent') return Icons.access_time_outlined;
     if (path == '@apps') return Icons.apps_outlined;
+    if (path == AppPathUtils.systemListPath) return Icons.settings_system_daydream_outlined;
+    if (path == AppPathUtils.userListPath) return Icons.install_mobile_outlined;
     if (path == '@ftp') return Icons.settings_ethernet;
     if (path == '@display') return Icons.settings_suggest_outlined;
     if (path == '@add_ftp_server') return Icons.add_circle_outline;
@@ -607,6 +915,8 @@ class _FileTile extends StatelessWidget {
     if (path == '/') return Colors.orangeAccent;
     if (path == '@recent') return Colors.greenAccent;
     if (path == '@apps') return Colors.purpleAccent;
+    if (path == AppPathUtils.systemListPath) return Colors.orangeAccent;
+    if (path == AppPathUtils.userListPath) return Colors.lightGreenAccent;
     if (path == '@ftp') return Colors.blueAccent;
     if (path == '@display') return Colors.grey;
     if (path == '@add_ftp_server') return VsCodeColors.accent;
@@ -621,6 +931,47 @@ class _FileTile extends StatelessWidget {
     return path.startsWith('@') || path == '/' || path == '/storage/emulated/0';
   }
 
+  Widget _buildLeadingIcon(WorkspaceProvider provider) {
+    if (AppPathUtils.isAppPackage(entry.path)) {
+      final package = AppPathUtils.packageFromPath(entry.path);
+      if (entry.iconBytes != null) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.memory(
+            entry.iconBytes!,
+            width: AppSizes.thumbSize,
+            height: AppSizes.thumbSize,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+        );
+      }
+      if (package != null) {
+        return _AppIconTile(packageName: package);
+      }
+      return Icon(Icons.android, size: AppSizes.thumbSize, color: VsCodeColors.accent);
+    }
+    if (entry.isVirtual && _isServerOrHomePath(entry.path)) {
+      return Icon(
+        _getVirtualIcon(entry.path),
+        size: AppSizes.thumbSize,
+        color: _getVirtualIconColor(entry.path),
+      );
+    }
+    if (entry.isZipVirtual) {
+      return Icon(
+        entry.isDirectory ? Icons.folder : Icons.insert_drive_file,
+        size: AppSizes.thumbSize,
+        color: entry.isDirectory ? VsCodeColors.accent : VsCodeColors.foregroundDim,
+      );
+    }
+    return FileThumbnail(
+      path: entry.path,
+      isDirectory: entry.isDirectory,
+      size: AppSizes.thumbSize,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
@@ -631,18 +982,26 @@ class _FileTile extends StatelessWidget {
       child: InkWell(
         onTap: () {
           if (entry.path == '@add_ftp_server') {
-            _showAddFtpServerDialog(context, provider);
+            _showFtpServerDialog(context, provider);
           } else if (entry.path == '@display') {
             Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
-          } else if (entry.path == '@recent' || entry.path == '@apps') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Tính năng đang được phát triển')),
-            );
           } else {
             provider.handleItemTap(tab.id, entry);
           }
         },
         onLongPress: () {
+          if (AppPathUtils.isAppPackage(entry.path)) {
+            final box = context.findRenderObject() as RenderBox?;
+            final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+            _showAppMenu(context, provider, entry, pos);
+            return;
+          }
+          if (tab.currentPath == '@recent' && !entry.isDirectory && !entry.isVirtual) {
+            final box = context.findRenderObject() as RenderBox?;
+            final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+            _showItemMenu(context, provider, tab, entry, pos);
+            return;
+          }
           if (tab.currentPath == '@ftp' && entry.path.startsWith('@ftp/') && entry.path != '@add_ftp_server') {
             _showFtpServerContextMenu(context, provider, entry);
           } else if (!selected && !tab.hasSelection) {
@@ -652,6 +1011,10 @@ class _FileTile extends StatelessWidget {
           }
         },
         onSecondaryTapDown: (d) {
+          if (AppPathUtils.isAppPackage(entry.path)) {
+            _showAppMenu(context, provider, entry, d.globalPosition);
+            return;
+          }
           if (tab.currentPath == '@ftp' && entry.path.startsWith('@ftp/') && entry.path != '@add_ftp_server') {
             _showFtpServerContextMenu(context, provider, entry);
           } else {
@@ -674,24 +1037,7 @@ class _FileTile extends StatelessWidget {
                       color: selected ? VsCodeColors.accent : VsCodeColors.foregroundDim,
                     ),
                   ),
-                if (entry.isVirtual && _isServerOrHomePath(entry.path))
-                  Icon(
-                    _getVirtualIcon(entry.path),
-                    size: AppSizes.thumbSize,
-                    color: _getVirtualIconColor(entry.path),
-                  )
-                else if (entry.isZipVirtual)
-                  Icon(
-                    entry.isDirectory ? Icons.folder : Icons.insert_drive_file,
-                    size: AppSizes.thumbSize,
-                    color: entry.isDirectory ? VsCodeColors.accent : VsCodeColors.foregroundDim,
-                  )
-                else
-                  FileThumbnail(
-                    path: entry.path,
-                    isDirectory: entry.isDirectory,
-                    size: AppSizes.thumbSize,
-                  ),
+                _buildLeadingIcon(provider),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -744,7 +1090,8 @@ class _FileTile extends StatelessWidget {
   }
 
   void _showFtpServerContextMenu(BuildContext context, WorkspaceProvider provider, BrowserEntry entry) {
-    final serverId = entry.path.substring(5); // @ftp/server_id
+    final serverId = entry.path.substring(5);
+    final server = provider.getFtpServer(serverId);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: VsCodeColors.tabBar,
@@ -753,6 +1100,15 @@ class _FileTile extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (server != null)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Chỉnh sửa cấu hình'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showFtpServerDialog(context, provider, existing: server);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
                 title: const Text('Xóa cấu hình máy chủ', style: TextStyle(color: Colors.redAccent)),
@@ -768,19 +1124,24 @@ class _FileTile extends StatelessWidget {
     );
   }
 
-  void _showAddFtpServerDialog(BuildContext context, WorkspaceProvider provider) {
-    final nameCtrl = TextEditingController(text: 'My FTP Server');
-    final hostCtrl = TextEditingController();
-    final portCtrl = TextEditingController(text: '21');
-    final userCtrl = TextEditingController(text: 'anonymous');
-    final passCtrl = TextEditingController();
+  void _showFtpServerDialog(
+    BuildContext context,
+    WorkspaceProvider provider, {
+    FtpServerConfig? existing,
+  }) {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? 'My FTP Server');
+    final hostCtrl = TextEditingController(text: existing?.host ?? '');
+    final portCtrl = TextEditingController(text: '${existing?.port ?? 21}');
+    final userCtrl = TextEditingController(text: existing?.username ?? 'anonymous');
+    final passCtrl = TextEditingController(text: existing?.password ?? '');
 
     showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: VsCodeColors.tabBar,
-          title: const Text('Thêm máy chủ FTP'),
+          title: Text(isEdit ? 'Chỉnh sửa máy chủ FTP' : 'Thêm máy chủ FTP'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -820,18 +1181,35 @@ class _FileTile extends StatelessWidget {
                 final host = hostCtrl.text.trim();
                 if (host.isEmpty) return;
                 final port = int.tryParse(portCtrl.text) ?? 21;
-                final server = FtpServerConfig(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: nameCtrl.text.trim().isEmpty ? host : nameCtrl.text.trim(),
-                  host: host,
-                  port: port,
-                  username: userCtrl.text.trim(),
-                  password: passCtrl.text,
-                );
-                provider.addFtpServer(server);
+                final name = nameCtrl.text.trim().isEmpty ? host : nameCtrl.text.trim();
+                final username = userCtrl.text.trim();
+                final password = passCtrl.text;
+
+                if (isEdit) {
+                  provider.updateFtpServer(
+                    existing.copyWith(
+                      name: name,
+                      host: host,
+                      port: port,
+                      username: username,
+                      password: password,
+                    ),
+                  );
+                } else {
+                  provider.addFtpServer(
+                    FtpServerConfig(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: name,
+                      host: host,
+                      port: port,
+                      username: username,
+                      password: password,
+                    ),
+                  );
+                }
                 Navigator.pop(context);
               },
-              child: const Text('Thêm'),
+              child: Text(isEdit ? 'Lưu' : 'Thêm'),
             ),
           ],
         );
@@ -841,6 +1219,9 @@ class _FileTile extends StatelessWidget {
 }
 
 String _entrySubtitle(BrowserEntry entry) {
+  if (entry.subtitle != null && entry.subtitle!.isNotEmpty) {
+    return entry.subtitle!;
+  }
   if (entry.path.startsWith('@ftp/')) {
     if (entry.isDirectory) return '';
     final sizeStr = entry.size != null ? _formatSize(entry.size!) : '';
@@ -891,6 +1272,20 @@ void _showBackgroundMenu(
     return;
   }
 
+  if (tab.currentPath == '@home' || tab.currentPath == '@ftp' || tab.currentPath == '@apps' || AppPathUtils.isAppsList(tab.currentPath)) {
+    _showMenu(context, position, [
+      _menuItem('Làm mới', Icons.refresh, () => provider.refreshTab(tab.id)),
+    ]);
+    return;
+  }
+
+  if (tab.currentPath == '/') {
+    _showMenu(context, position, [
+      _menuItem('Làm mới', Icons.refresh, () => provider.refreshTab(tab.id)),
+    ]);
+    return;
+  }
+
   final hasClipboard = provider.clipboard != null && provider.clipboard!.paths.isNotEmpty;
   _showMenu(context, position, [
     _menuItem('Paste', Icons.content_paste, () => provider.pasteTo(tab.id, tab.currentPath), enabled: hasClipboard),
@@ -912,6 +1307,26 @@ void _showBackgroundMenu(
   ]);
 }
 
+void _showAppMenu(
+  BuildContext context,
+  WorkspaceProvider provider,
+  BrowserEntry entry,
+  Offset? position,
+) {
+  final package = AppPathUtils.packageFromPath(entry.path);
+  if (package == null) return;
+
+  _showMenu(context, position, [
+    _menuItem('Mở ứng dụng', Icons.launch, () => provider.openSelectedApp(package)),
+    _menuItem('Thông tin ứng dụng', Icons.info_outline, () => provider.openAppInfo(package)),
+    _menuItem('Sao chép APK', Icons.copy, () => provider.copyAppApk(package)),
+    _menuItem('Chia sẻ APK', Icons.share, () => provider.shareAppApk(package)),
+    _menuItem('Xem trên Play Store', Icons.shop_outlined, () => provider.openAppOnPlayStore(package)),
+    _menuItem('Backup APK (Trích xuất)', Icons.save_alt_outlined, () => provider.extractAppApk(package)),
+    _menuItem('Gỡ cài đặt', Icons.delete_outline, () => provider.uninstallSelectedApp(package)),
+  ]);
+}
+
 void _showItemMenu(
   BuildContext context,
   WorkspaceProvider provider,
@@ -922,11 +1337,18 @@ void _showItemMenu(
   final paths = _targetPaths(provider, tab, entry.path);
   final isDir = entry.isDirectory;
   final path = entry.path;
+  if (AppPathUtils.isAppPackage(path)) {
+    _showAppMenu(context, provider, entry, position);
+    return;
+  }
+  final isArchiveFile = !isDir && !entry.isZipVirtual && FileTypeUtils.isArchive(path);
   final isZipFile = !isDir && !entry.isZipVirtual && FileTypeUtils.isZip(path);
   final hasClipboard = provider.clipboard != null && provider.clipboard!.paths.isNotEmpty;
   final pasteDir = tab.isZipViewer ? null : tab.currentPath;
 
   _showMenu(context, position, [
+    if (tab.currentPath == '@recent' && !isDir)
+      _menuItem('Xem vị trí file', Icons.place_outlined, () => provider.revealFileLocation(tab.id, path)),
     if (!tab.isZipViewer && !isDir)
       _menuItem('Mở trong app', Icons.edit_document, () {
         if (FileTypeUtils.isEditableInApp(path)) {
@@ -937,6 +1359,10 @@ void _showItemMenu(
       }),
     if (!tab.isZipViewer && !isDir)
       _menuItem('Mở bằng ứng dụng khác', Icons.open_in_browser, () => provider.openWithSystem(path)),
+    if (tab.isZipViewer && !isDir) ...[
+      _menuItem('Mở file', Icons.edit_document, () => provider.openZipFile(tab.id, tab.zipArchivePath!, path, password: provider.getZipPassword(tab.zipArchivePath!))),
+      _menuItem('Chia sẻ', Icons.share, () => provider.shareZipFile(tab.zipArchivePath!, path, password: provider.getZipPassword(tab.zipArchivePath!))),
+    ],
     if (isZipFile)
       _menuItem('Xem nội dung ZIP', Icons.folder_zip, () => provider.openZipView(tab.id, path)),
     if (isDir && tab.isZipViewer)
@@ -944,9 +1370,9 @@ void _showItemMenu(
     if (isDir && !tab.isZipViewer)
       _menuItem('Mở', Icons.folder_open, () => provider.navigateTo(tab.id, path)),
     if (!tab.isZipViewer)
-      _menuItem('Nén ZIP', Icons.folder_zip_outlined, () => provider.zipPaths(tab.id, paths)),
-    if (isZipFile)
-      _menuItem('Giải nén', Icons.unarchive_outlined, () => provider.unzipFile(tab.id, path)),
+      _menuItem('Nén ZIP', Icons.folder_zip_outlined, () => _handleZip(context, provider, tab.id, paths)),
+    if (isArchiveFile)
+      _menuItem('Giải nén', Icons.unarchive_outlined, () => _handleUnzip(context, provider, tab.id, path)),
     const PopupMenuDivider(),
     if (!tab.isZipViewer) ...[
       _menuItem('Copy', Icons.copy, () => provider.copyToClipboard(paths)),
@@ -956,6 +1382,8 @@ void _showItemMenu(
       if (paths.length == 1)
         _menuItem('Đổi tên', Icons.drive_file_rename_outline, () => _renameItem(context, provider, tab.id, path)),
       _menuItem('Xóa', Icons.delete_outline, () => provider.deletePaths(tab.id, paths)),
+    ] else ...[
+      _menuItem('Copy', Icons.copy, () => provider.copyToClipboard(paths)),
     ],
   ]);
 }
@@ -982,5 +1410,220 @@ Future<void> _renameItem(BuildContext context, WorkspaceProvider provider, Strin
   final newName = await RenameDialog.showForPath(context, path);
   if (newName != null) {
     await provider.renamePath(tabId, path, newName);
+  }
+}
+
+Future<void> _handleZip(BuildContext context, WorkspaceProvider provider, String tabId, List<String> paths) async {
+  final password = await _showZipCreateDialog(context);
+  if (!context.mounted || password == null) return;
+  await provider.zipPaths(tabId, paths, password: password.isEmpty ? null : password);
+}
+
+Future<void> _handleUnzip(BuildContext context, WorkspaceProvider provider, String tabId, String path) async {
+  if (FileTypeUtils.isRar(path) || FileTypeUtils.is7z(path)) {
+    final format = FileTypeUtils.archiveFormatName(path);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Định dạng $format chưa được hỗ trợ giải nén.')),
+    );
+    return;
+  }
+  
+  if (FileTypeUtils.isTar(path)) {
+    await provider.unzipFile(tabId, path);
+    return;
+  }
+  
+  final isProtected = await provider.isZipPasswordProtected(path);
+  if (!context.mounted) return;
+  String? password = provider.getZipPassword(path);
+  if (isProtected && (password == null || password.isEmpty)) {
+    password = await _showPasswordDialog(context, 'Giải nén file ZIP có mật khẩu');
+    if (password == null) return;
+  }
+  await provider.unzipFile(tabId, path, password: password);
+}
+
+
+Future<String?> _showZipCreateDialog(BuildContext context) {
+  return showDialog<String?>(
+    context: context,
+    builder: (context) => const _ZipPasswordDialog(
+      title: 'Nén file ZIP',
+      optional: true,
+    ),
+  );
+}
+
+
+Future<String?> _showPasswordDialog(BuildContext context, String title) {
+  return showDialog<String>(
+    context: context,
+    builder: (context) => _ZipPasswordDialog(title: title),
+  );
+}
+
+class _ZipPasswordDialog extends StatefulWidget {
+  const _ZipPasswordDialog({
+    required this.title,
+    this.optional = false,
+  });
+
+  final String title;
+  final bool optional;
+
+  @override
+  State<_ZipPasswordDialog> createState() => _ZipPasswordDialogState();
+}
+
+class _ZipPasswordDialogState extends State<_ZipPasswordDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: VsCodeColors.sidebar,
+      title: Text(
+        widget.title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      content: TextField(
+        controller: _controller,
+        obscureText: true,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: widget.optional ? 'Mật khẩu (tùy chọn)' : 'Mật khẩu',
+          labelStyle: const TextStyle(color: Colors.white70),
+          border: const OutlineInputBorder(),
+          enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+          focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
+        ),
+        autofocus: true,
+        onSubmitted: (_) => Navigator.pop(context, _controller.text),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          style: FilledButton.styleFrom(backgroundColor: VsCodeColors.accent),
+          child: Text(widget.optional ? 'Nén' : 'Đồng ý'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ZipUnlockView extends StatefulWidget {
+  const _ZipUnlockView({
+    required this.tab,
+    required this.zipPath,
+    required this.error,
+  });
+
+  final AppTab tab;
+  final String zipPath;
+  final String error;
+
+  @override
+  State<_ZipUnlockView> createState() => _ZipUnlockViewState();
+}
+
+class _ZipUnlockViewState extends State<_ZipUnlockView> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<WorkspaceProvider>();
+    final isWrongPwd = widget.error.toLowerCase().contains('mật khẩu') ||
+        widget.error.toLowerCase().contains('password') ||
+        widget.error.toLowerCase().contains('bad crc');
+
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 320),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(Icons.lock_outline, size: 56, color: VsCodeColors.accent),
+            const SizedBox(height: 16),
+            Text(
+              p.basename(widget.zipPath),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isWrongPwd
+                  ? 'Mật khẩu sai. Vui lòng nhập lại.'
+                  : 'File nén được bảo vệ bằng mật khẩu.',
+              style: const TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _controller,
+              obscureText: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Mật khẩu',
+                hintStyle: TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: VsCodeColors.sidebar,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderSide: BorderSide.none),
+              ),
+              onSubmitted: (_) {
+                provider.unlockZip(widget.tab.id, widget.zipPath, _controller.text);
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => provider.navigateUp(widget.tab.id),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                    child: const Text('Hủy'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      provider.unlockZip(widget.tab.id, widget.zipPath, _controller.text);
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: VsCodeColors.accent,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Mở khóa'),
+                  ),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
   }
 }

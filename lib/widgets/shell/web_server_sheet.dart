@@ -225,13 +225,6 @@ class _WebServerSheetState extends State<WebServerSheet> {
                   },
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  'Thông báo ongoing hiển thị QR và nút dừng server.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-              ),
             ],
             const SizedBox(height: 16),
           ],

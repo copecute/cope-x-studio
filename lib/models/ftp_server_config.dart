@@ -39,6 +39,23 @@ class FtpServerConfig {
     );
   }
 
+  FtpServerConfig copyWith({
+    String? name,
+    String? host,
+    int? port,
+    String? username,
+    String? password,
+  }) {
+    return FtpServerConfig(
+      id: id,
+      name: name ?? this.name,
+      host: host ?? this.host,
+      port: port ?? this.port,
+      username: username ?? this.username,
+      password: password ?? this.password,
+    );
+  }
+
   String toJson() => jsonEncode(toMap());
 
   factory FtpServerConfig.fromJson(String source) =>

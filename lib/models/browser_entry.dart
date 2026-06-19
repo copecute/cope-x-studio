@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class BrowserEntry {
   const BrowserEntry({
     required this.name,
@@ -7,6 +9,7 @@ class BrowserEntry {
     this.isZipVirtual = false,
     this.subtitle,
     this.isVirtual = false,
+    this.iconBytes,
   });
 
   final String name;
@@ -16,4 +19,6 @@ class BrowserEntry {
   final bool isZipVirtual;
   final String? subtitle;
   final bool isVirtual;
+  final Uint8List? iconBytes;
 }
+

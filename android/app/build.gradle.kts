@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.copecute.xstudio.cope_x_studio"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {

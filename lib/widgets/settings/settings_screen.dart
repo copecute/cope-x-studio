@@ -144,17 +144,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               workspace.setShowHidden(v);
             },
           ),
-          const Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Web Server',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Cấu hình Web Server trong menu trình duyệt → Web Server. '
-            'Có thể chọn thư mục chia sẻ, mật khẩu riêng và quét QR để truy cập nhanh.',
-            style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.4),
-          ),
         ],
       ),
     );
@@ -194,7 +183,7 @@ class _AppLockTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 13, color: VsCodeColors.foregroundDim, height: 1.3),
+                      style: const TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim, height: 1.3),
                     ),
                   ],
                 ),

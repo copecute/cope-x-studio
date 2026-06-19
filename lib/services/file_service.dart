@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cope_x_studio/utils/entry_progress_tracker.dart';
 import 'package:path/path.dart' as p;
 
 class FileAccessException implements Exception {
@@ -80,6 +81,69 @@ class FileService {
   }
 
   Future<void> delete(String path) async {
+    await deletePath(path);
+  }
+
+  /// Đếm số mục sẽ bị xóa (file + thư mục, gồm cả nội dung đệ quy).
+  Future<int> countDeletionItems(String path) async {
+    final type = FileSystemEntity.typeSync(path);
+    if (type == FileSystemEntityType.notFound) return 0;
+    if (type == FileSystemEntityType.file) return 1;
+    if (type == FileSystemEntityType.directory) {
+      var count = 1;
+      final dir = Directory(path);
+      if (!dir.existsSync()) return 0;
+      await for (final _ in dir.list(recursive: true, followLinks: false)) {
+        count++;
+      }
+      return count;
+    }
+    return 1;
+  }
+
+  Future<int> countDeletionItemsInPaths(List<String> paths) async {
+    var total = 0;
+    for (final path in paths) {
+      total += await countDeletionItems(path);
+    }
+    return total;
+  }
+
+  /// Xóa và báo tiến độ theo từng mục.
+  Future<void> deletePathWithProgress(
+    String path,
+    EntryProgressTracker tracker,
+    void Function(String name, double progress) onProgress,
+  ) async {
+    final type = FileSystemEntity.typeSync(path);
+    if (type == FileSystemEntityType.file) {
+      final file = File(path);
+      if (file.existsSync()) {
+        await file.delete();
+      }
+      onProgress(p.basename(path), tracker.advance());
+      return;
+    }
+    if (type == FileSystemEntityType.directory) {
+      final dir = Directory(path);
+      if (!dir.existsSync()) return;
+
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File) {
+          await entity.delete();
+          onProgress(p.basename(entity.path), tracker.advance());
+        } else if (entity is Directory) {
+          await deletePathWithProgress(entity.path, tracker, onProgress);
+        }
+      }
+      if (dir.existsSync()) {
+        await dir.delete();
+        onProgress(p.basename(path), tracker.advance());
+      }
+    }
+  }
+
+  Future<void> deletePath(String path) async {
     final entity = FileSystemEntity.typeSync(path);
     if (entity == FileSystemEntityType.directory) {
       await Directory(path).delete(recursive: true);

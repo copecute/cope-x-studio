@@ -93,14 +93,14 @@ class WebServerNotificationService {
         summaryText: url,
         hideExpandedLargeIcon: true,
       ),
-      actions: const [
-        AndroidNotificationAction(
-          _stopActionId,
-          'Dừng server',
-          showsUserInterface: false,
-          cancelNotification: false,
-        ),
-      ],
+      // actions: const [
+      //   AndroidNotificationAction(
+      //     _stopActionId,
+      //     'Dừng server',
+      //     showsUserInterface: false,
+      //     cancelNotification: false,
+      //   ),
+      // ],
     );
   }
 
