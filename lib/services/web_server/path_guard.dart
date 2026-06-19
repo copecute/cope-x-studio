@@ -15,11 +15,14 @@ class PathGuard {
   PathGuard({
     required String defaultRoot,
     List<String>? knownRoots,
+    bool restrictToRoots = false,
   })  : defaultRoot = p.normalize(defaultRoot),
-        knownRoots = (knownRoots ?? [defaultRoot]).map(p.normalize).toList();
+        knownRoots = (knownRoots ?? [defaultRoot]).map(p.normalize).toList(),
+        restrictToRoots = restrictToRoots;
 
   final String defaultRoot;
   final List<String> knownRoots;
+  final bool restrictToRoots;
 
   String resolve(String? pathParam) {
     if (pathParam == null || pathParam.trim().isEmpty) return defaultRoot;
@@ -32,7 +35,22 @@ class PathGuard {
     if (resolved.contains('\u0000')) {
       throw PathGuardException('Đường dẫn không hợp lệ');
     }
+
+    if (restrictToRoots && !_isWithinKnownRoots(resolved)) {
+      throw PathGuardException('Ngoài thư mục chia sẻ');
+    }
     return resolved;
+  }
+
+  bool _isWithinKnownRoots(String path) {
+    final normalized = p.normalize(path);
+    for (final root in knownRoots) {
+      final r = p.normalize(root);
+      if (normalized == r || normalized.startsWith('$r${p.separator}')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   bool existsOrParentExists(String path) {

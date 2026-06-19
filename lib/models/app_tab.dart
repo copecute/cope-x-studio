@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 
 enum TabMode { browser, editor, zipViewer }
 
-/// Mỗi tab = 1 pane duyệt file độc lập (kiểu X-plore).
+/// mỗi tab = 1 pane duyệt file độc lập
 class AppTab extends Equatable {
   AppTab({
     String? id,

@@ -19,6 +19,10 @@ class SecurityService {
   static const _keySalt = 'app_password_salt';
   static const _keyLockEnabled = 'app_lock_enabled';
   static const _keyBiometricEnabled = 'biometric_enabled';
+  static const _keyWebServerPasswordHash = 'web_server_password_hash';
+  static const _keyWebServerPasswordSalt = 'web_server_password_salt';
+  static const _keyWebServerUseAppPassword = 'web_server_use_app_password';
+  static const _keyWebServerSharedRoot = 'web_server_shared_root';
 
   final FlutterSecureStorage _storage;
   final LocalAuthentication _localAuth;
@@ -35,6 +39,67 @@ class SecurityService {
 
   Future<bool> get isBiometricEnabled async =>
       (await _read(_keyBiometricEnabled)) == 'true';
+
+  Future<bool> get hasWebServerPassword async =>
+      (await _read(_keyWebServerPasswordHash)) != null;
+
+  Future<bool> get webServerUseAppPassword async {
+    final saved = await _read(_keyWebServerUseAppPassword);
+    if (saved != null) return saved == 'true';
+    return await isLockEnabled && await hasPassword;
+  }
+
+  Future<String?> get webServerSharedRoot async => await _read(_keyWebServerSharedRoot);
+
+  Future<bool> verifyWebServerPassword(String password) async {
+    final hash = await _read(_keyWebServerPasswordHash);
+    if (hash == null) return false;
+    final salt = await _read(_keyWebServerPasswordSalt);
+    if (salt == null) return false;
+    return _hashPassword(password, salt) == hash;
+  }
+
+  Future<void> setWebServerPassword(String password) async {
+    if (password.isEmpty) {
+      throw ArgumentError('Mật khẩu không được để trống');
+    }
+    final salt = _randomSalt();
+    await _write(_keyWebServerPasswordSalt, salt);
+    await _write(_keyWebServerPasswordHash, _hashPassword(password, salt));
+    await _write(_keyWebServerUseAppPassword, 'false');
+  }
+
+  Future<void> updateWebServerPassword(String newPassword) async {
+    if (newPassword.isEmpty) {
+      throw ArgumentError('Mật khẩu không được để trống');
+    }
+    if (!await hasWebServerPassword) {
+      throw StateError('Chưa có mật khẩu Web Server');
+    }
+    final salt = _randomSalt();
+    await _write(_keyWebServerPasswordSalt, salt);
+    await _write(_keyWebServerPasswordHash, _hashPassword(newPassword, salt));
+  }
+
+  Future<void> clearWebServerPassword() async {
+    await _delete(_keyWebServerPasswordHash);
+    await _delete(_keyWebServerPasswordSalt);
+  }
+
+  Future<void> setWebServerUseAppPassword(bool useApp) async {
+    await _write(_keyWebServerUseAppPassword, useApp ? 'true' : 'false');
+    if (useApp) {
+      await clearWebServerPassword();
+    }
+  }
+
+  Future<void> setWebServerSharedRoot(String? path) async {
+    if (path == null || path.trim().isEmpty) {
+      await _delete(_keyWebServerSharedRoot);
+    } else {
+      await _write(_keyWebServerSharedRoot, path.trim());
+    }
+  }
 
   Future<bool> canUseBiometric() async {
     if (kIsWeb || _useMemory) return false;
@@ -67,6 +132,29 @@ class SecurityService {
     await _write(_keySalt, salt);
     await _write(_keyPasswordHash, _hashPassword(password, salt));
     await _write(_keyLockEnabled, 'true');
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    if (newPassword.isEmpty) {
+      throw ArgumentError('Mật khẩu không được để trống');
+    }
+    if (!await hasPassword) {
+      throw StateError('Chưa có mật khẩu');
+    }
+    final salt = _randomSalt();
+    await _write(_keySalt, salt);
+    await _write(_keyPasswordHash, _hashPassword(newPassword, salt));
+  }
+
+  Future<void> setLockEnabled(bool enabled) async {
+    if (enabled) {
+      if (!await hasPassword) {
+        throw StateError('Cần đặt mật khẩu trước');
+      }
+      await _write(_keyLockEnabled, 'true');
+    } else {
+      await _write(_keyLockEnabled, 'false');
+    }
   }
 
   Future<void> changePassword(String currentPassword, String newPassword) async {

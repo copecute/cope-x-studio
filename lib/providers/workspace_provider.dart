@@ -13,8 +13,10 @@ import 'package:cope_x_studio/services/open_with_service.dart';
 import 'package:cope_x_studio/services/permission_service.dart';
 import 'package:cope_x_studio/services/thumbnail_service.dart';
 import 'package:cope_x_studio/services/web_server/web_server_service.dart';
+import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/services/storage_roots.dart';
+import 'package:cope_x_studio/utils/network_utils.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
 import 'package:cope_x_studio/utils/path_utils.dart';
 import 'package:file_picker/file_picker.dart';
@@ -83,6 +85,7 @@ class WorkspaceProvider extends ChangeNotifier {
   bool get permissionChecked => _permissionChecked;
   bool get showHidden => _showHidden;
   bool get isWebServerRunning => _webServerService.isRunning;
+  String get defaultBrowsePath => StorageRoots.defaultRoot(_permissionService);
   String? get webServerRoot => _webServerService.rootPath;
   List<String> get webServerUrls {
     if (!_webServerService.isRunning) return [];
@@ -90,6 +93,9 @@ class WorkspaceProvider extends ChangeNotifier {
         .map((a) => 'http://$a:${WebServerService.port}')
         .toList();
   }
+
+  String? get webServerUrl =>
+      NetworkUtils.buildPreferredUrl(_webServerService.addresses, WebServerService.port);
 
   void clearLogs() {
     _logHistory.clear();
@@ -1596,20 +1602,33 @@ class WorkspaceProvider extends ChangeNotifier {
 
   Future<void> startWebServer() async {
     try {
-      final roots = StorageRoots.discover(_permissionService);
-      final defaultRoot = StorageRoots.defaultRoot(_permissionService);
+      final sharedRoot = _security?.webServerSharedRoot;
+      final restrictToRoots = sharedRoot != null && sharedRoot.isNotEmpty;
+      final roots = restrictToRoots
+          ? [sharedRoot]
+          : StorageRoots.discover(_permissionService);
+      final defaultRoot = restrictToRoots
+          ? sharedRoot
+          : StorageRoots.defaultRoot(_permissionService);
+
       Future<bool> Function(String password)? verifier;
-      if (_security != null && _security!.hasPassword) {
-        verifier = (pwd) => _security!.verifyPassword(pwd);
+      if (_security != null) {
+        verifier = await _security!.buildWebServerVerifier();
       }
+
       final addresses = await _webServerService.start(
         defaultRoot: defaultRoot,
         knownRoots: roots,
+        restrictToRoots: restrictToRoots,
         asyncPasswordVerifier: verifier,
       );
       final authNote = verifier != null ? ' (có mật khẩu)' : '';
-      final urls = addresses.map((a) => 'http://$a:${WebServerService.port}').join(', ');
-      _log('Web server$authNote: $urls — toàn quyền bộ nhớ');
+      final url = NetworkUtils.buildPreferredUrl(addresses, WebServerService.port);
+      final scopeNote = restrictToRoots ? ' — thư mục: $sharedRoot' : ' — toàn bộ bộ nhớ';
+      _log('Web server$authNote: ${url ?? addresses.join(', ')}$scopeNote');
+      if (url != null) {
+        await WebServerNotificationService.instance.showRunning(url: url);
+      }
       notifyListeners();
     } catch (e) {
       _log('Lỗi bật web server: $e');
@@ -1625,6 +1644,7 @@ class WorkspaceProvider extends ChangeNotifier {
 
   Future<void> stopWebServer() async {
     await _webServerService.stop();
+    await WebServerNotificationService.instance.cancel();
     _log('Đã tắt web server');
     notifyListeners();
   }
@@ -1685,6 +1705,7 @@ class WorkspaceProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WebServerNotificationService.instance.cancel();
     _webServerService.stop();
     super.dispose();
   }

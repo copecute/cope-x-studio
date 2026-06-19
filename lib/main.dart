@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cope_x_studio/app.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
+import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
 import 'package:cope_x_studio/services/media/media_player_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,6 +37,10 @@ Future<void> main() async {
   final workspace = WorkspaceProvider();
   final security = SecurityProvider();
   workspace.attachSecurity(security);
+
+  await WebServerNotificationService.instance.init(
+    onStop: workspace.stopWebServer,
+  );
 
   runApp(
     MultiProvider(
@@ -77,7 +82,9 @@ class _BootstrapAppState extends State<_BootstrapApp> with WidgetsBindingObserve
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      widget.security.onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
       widget.workspace.recheckPermissions();
       widget.security.onAppResumed();
     }

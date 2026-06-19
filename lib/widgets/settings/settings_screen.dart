@@ -12,61 +12,61 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _currentCtrl = TextEditingController();
-  final _newCtrl = TextEditingController();
-  final _confirmCtrl = TextEditingController();
-  String? _message;
-  bool _isError = false;
+  Future<void> _showPasswordSheet() async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: VsCodeColors.sidebar,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => const _AppLockPasswordSheet(),
+    );
+    if (!mounted || result == null) return;
 
-  @override
-  void dispose() {
-    _currentCtrl.dispose();
-    _newCtrl.dispose();
-    _confirmCtrl.dispose();
-    super.dispose();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result == 'changed' ? 'Đã đổi mật khẩu' : 'Đã đặt mật khẩu'),
+      ),
+    );
+    await context.read<WorkspaceProvider>().restartWebServerIfRunning();
   }
 
-  void _showMsg(String msg, {bool error = false}) {
-    setState(() {
-      _message = msg;
-      _isError = error;
-    });
-  }
+  Future<void> _onLockToggle(bool enabled) async {
+    final security = context.read<SecurityProvider>();
 
-  Future<void> _setNewPassword(SecurityProvider security) async {
-    final p1 = _newCtrl.text;
-    final p2 = _confirmCtrl.text;
-    if (p1 != p2) {
-      _showMsg('Mật khẩu xác nhận không khớp', error: true);
+    if (enabled) {
+      if (!security.hasPassword) {
+        await _showPasswordSheet();
+        return;
+      }
+      try {
+        await security.setLockEnabled(true);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
       return;
     }
+
     try {
-      if (security.hasPassword) {
-        await security.changePassword(_currentCtrl.text, p1);
-      } else {
-        await security.setPassword(p1);
-      }
-      _currentCtrl.clear();
-      _newCtrl.clear();
-      _confirmCtrl.clear();
-      _showMsg('Đã lưu mật khẩu');
+      await security.setLockEnabled(false);
       if (!mounted) return;
       await context.read<WorkspaceProvider>().restartWebServerIfRunning();
     } catch (e) {
-      _showMsg('$e', error: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
-  Future<void> _removePassword(SecurityProvider security) async {
-    try {
-      await security.removePassword(_currentCtrl.text);
-      _currentCtrl.clear();
-      _showMsg('Đã tắt khóa ứng dụng');
-      if (!mounted) return;
-      await context.read<WorkspaceProvider>().restartWebServerIfRunning();
-    } catch (e) {
-      _showMsg('$e', error: true);
+  String _appLockSubtitle(SecurityProvider security) {
+    if (security.isLockEnabled) {
+      return 'Yêu cầu mật khẩu sau 1 phút rời app. Chạm để đổi mật khẩu.';
     }
+    if (security.hasPassword) {
+      return 'Khóa đang tắt. Chạm để đổi mật khẩu.';
+    }
+    return 'Chạm để đặt mật khẩu, sau đó bật switch để kích hoạt.';
   }
 
   @override
@@ -88,63 +88,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          Text(
-            security.hasPassword
-                ? 'Ứng dụng và Web Server (port 2910) được bảo vệ bằng mật khẩu này.'
-                : 'Đặt mật khẩu để khóa app khi mở lại và yêu cầu đăng nhập khi truy cập Web Server.',
-            style: const TextStyle(color: VsCodeColors.foregroundDim, height: 1.4),
+          _AppLockTile(
+            enabled: security.isLockEnabled,
+            subtitle: _appLockSubtitle(security),
+            onTap: _showPasswordSheet,
+            onToggle: _onLockToggle,
           ),
-          const SizedBox(height: 20),
-          if (security.hasPassword)
-            TextField(
-              controller: _currentCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Mật khẩu hiện tại',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          if (security.hasPassword) const SizedBox(height: 12),
-          TextField(
-            controller: _newCtrl,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: security.hasPassword ? 'Mật khẩu mới' : 'Mật khẩu',
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _confirmCtrl,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Xác nhận mật khẩu',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              FilledButton(
-                onPressed: () => _setNewPassword(security),
-                child: Text(security.hasPassword ? 'Đổi mật khẩu' : 'Đặt mật khẩu'),
-              ),
-              if (security.hasPassword) ...[
-                const SizedBox(width: 12),
-                TextButton(
-                  onPressed: () => _removePassword(security),
-                  child: const Text('Tắt khóa', style: TextStyle(color: Colors.redAccent)),
-                ),
-              ],
-            ],
-          ),
-          if (_message != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _message!,
-              style: TextStyle(color: _isError ? Colors.redAccent : Colors.greenAccent),
-            ),
-          ],
           const Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Sinh trắc học',
@@ -202,9 +151,179 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Web Server có toàn quyền truy cập bộ nhớ thiết bị (theo quyền app). '
-            'Khi đã đặt mật khẩu, trình duyệt sẽ hỏi đăng nhập (HTTP Basic Auth) — dùng mật khẩu app, tên đăng nhập tùy ý.',
+            'Cấu hình Web Server trong menu trình duyệt → Web Server. '
+            'Có thể chọn thư mục chia sẻ, mật khẩu riêng và quét QR để truy cập nhanh.',
             style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppLockTile extends StatelessWidget {
+  const _AppLockTile({
+    required this.enabled,
+    required this.subtitle,
+    required this.onTap,
+    required this.onToggle,
+  });
+
+  final bool enabled;
+  final String subtitle;
+  final VoidCallback onTap;
+  final ValueChanged<bool> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Khóa ứng dụng', style: TextStyle(fontSize: 16)),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 13, color: VsCodeColors.foregroundDim, height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Container(
+          width: 1,
+          height: 40,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          color: VsCodeColors.border.withValues(alpha: 0.6),
+        ),
+        Switch(value: enabled, onChanged: onToggle),
+      ],
+    );
+  }
+}
+
+class _AppLockPasswordSheet extends StatefulWidget {
+  const _AppLockPasswordSheet();
+
+  @override
+  State<_AppLockPasswordSheet> createState() => _AppLockPasswordSheetState();
+}
+
+class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
+  final _ctrl = TextEditingController();
+  bool _obscure = true;
+  String? _error;
+  bool _saving = false;
+  late final bool _wasChanging;
+
+  @override
+  void initState() {
+    super.initState();
+    _wasChanging = context.read<SecurityProvider>().hasPassword;
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+
+    final password = _ctrl.text;
+    if (password.isEmpty) {
+      setState(() => _error = 'Mật khẩu không được để trống');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    final security = context.read<SecurityProvider>();
+    try {
+      if (_wasChanging) {
+        await security.updatePassword(password);
+      } else {
+        await security.setPassword(password);
+      }
+      if (!mounted) return;
+      Navigator.pop(context, _wasChanging ? 'changed' : 'set');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = '$e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _wasChanging ? 'Đổi mật khẩu' : 'Đặt mật khẩu',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Mật khẩu dùng để khóa app khi mở lại (sau 1 phút rời app).',
+            style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            obscureText: _obscure,
+            autofocus: true,
+            enabled: !_saving,
+            decoration: InputDecoration(
+              labelText: 'Mật khẩu',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+            onSubmitted: (_) => _save(),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(_wasChanging ? 'Lưu mật khẩu' : 'Đặt mật khẩu'),
           ),
         ],
       ),

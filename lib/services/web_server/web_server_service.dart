@@ -39,6 +39,7 @@ class WebServerService {
   Future<List<String>> start({
     required String defaultRoot,
     required List<String> knownRoots,
+    bool restrictToRoots = false,
     bool Function(String password)? passwordVerifier,
     Future<bool> Function(String password)? asyncPasswordVerifier,
   }) async {
@@ -46,7 +47,11 @@ class WebServerService {
 
     _passwordVerifier = passwordVerifier;
     _asyncPasswordVerifier = asyncPasswordVerifier;
-    _guard = PathGuard(defaultRoot: defaultRoot, knownRoots: knownRoots);
+    _guard = PathGuard(
+      defaultRoot: defaultRoot,
+      knownRoots: knownRoots,
+      restrictToRoots: restrictToRoots,
+    );
     final router = Router()
       ..get('/', _serveUi)
       ..get('/api/info', _apiInfo)
