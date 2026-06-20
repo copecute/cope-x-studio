@@ -1,12 +1,16 @@
 import 'dart:async';
 
+import 'package:cope_x_studio/l10n/app_locale.dart';
 import 'package:cope_x_studio/models/app_theme_mode.dart';
 import 'package:cope_x_studio/models/root_access_mode.dart';
 import 'package:cope_x_studio/models/text_encoding.dart';
+import 'package:cope_x_studio/providers/locale_provider.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:cope_x_studio/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -31,9 +35,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (!mounted || result == null) return;
 
+    final l10n = context.l10n;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(result == 'changed' ? 'Đã đổi mật khẩu' : 'Đã đặt mật khẩu'),
+        content: Text(result == 'changed' ? l10n.passwordChanged : l10n.passwordSet),
       ),
     );
     await context.read<WorkspaceProvider>().restartWebServerIfRunning();
@@ -66,14 +71,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  String _appLockSubtitle(SecurityProvider security) {
+  String _appLockSubtitle(SecurityProvider security, AppLocalizations l10n) {
     if (security.isLockEnabled) {
-      return 'Yêu cầu mật khẩu sau 1 phút rời app. Chạm để đổi mật khẩu.';
+      return l10n.appLockSubtitleActive;
     }
     if (security.hasPassword) {
-      return 'Khóa đang tắt. Chạm để đổi mật khẩu.';
+      return l10n.appLockSubtitleInactive;
     }
-    return 'Chạm để đặt mật khẩu, sau đó bật switch để kích hoạt.';
+    return l10n.appLockSubtitleSetup;
   }
 
   Future<void> _onRootAccessModeChanged(RootAccessMode mode) async {
@@ -99,6 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showEncodingSheet() async {
     final workspace = context.read<WorkspaceProvider>();
+    final l10n = context.l10n;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: VsCodeColors.sidebar,
@@ -113,18 +119,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         maxChildSize: 0.95,
         builder: (_, scrollController) => Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text(
-                'Mã hóa văn bản',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                l10n.textEncodingSheetTitle,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Dùng khi mở và lưu file văn bản trong trình soạn thảo.',
-                style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
+                l10n.textEncodingSheetSubtitle,
+                style: const TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
               ),
             ),
             const SizedBox(height: 8),
@@ -156,48 +162,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final security = context.watch<SecurityProvider>();
     final workspace = context.watch<WorkspaceProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
 
     return Scaffold(
       backgroundColor: VsCodeColors.editor,
       appBar: AppBar(
-        title: const Text('Cài đặt'),
+        title: Text(l10n.settings),
         backgroundColor: VsCodeColors.tabBar,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Khóa ứng dụng',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.sectionAppLock,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           _AppLockTile(
+            title: l10n.appLockTitle,
             enabled: security.isLockEnabled,
-            subtitle: _appLockSubtitle(security),
+            subtitle: _appLockSubtitle(security, l10n),
             onTap: _showPasswordSheet,
             onToggle: _onLockToggle,
           ),
           Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Sinh trắc học',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.language,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          RadioListTile<Locale>(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.languageEnglish),
+            value: AppLocale.english,
+            groupValue: localeProvider.locale,
+            onChanged: (_) => localeProvider.setLocale(AppLocale.english),
+          ),
+          RadioListTile<Locale>(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.languageVietnamese),
+            value: AppLocale.vietnamese,
+            groupValue: localeProvider.locale,
+            onChanged: (_) => localeProvider.setLocale(AppLocale.vietnamese),
+          ),
+          Divider(height: 40, color: VsCodeColors.border),
+          Text(
+            l10n.sectionBiometrics,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           if (!security.canUseBiometric)
             Text(
-              'Thiết bị không hỗ trợ vân tay / Face ID.',
+              l10n.biometricNotSupported,
               style: TextStyle(color: VsCodeColors.foregroundDim),
             )
           else
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Mở khóa bằng sinh trắc học'),
+              title: Text(l10n.biometricUnlockTitle),
               subtitle: Text(
                 security.hasPassword
-                    ? 'Dùng vân tay hoặc Face ID thay mật khẩu'
-                    : 'Cần đặt mật khẩu trước',
+                    ? l10n.biometricUnlockSubtitle
+                    : l10n.biometricNeedsPassword,
               ),
               value: security.isBiometricEnabled,
               onChanged: security.hasPassword
@@ -215,9 +244,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   : null,
             ),
           Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Truy cập Root',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.sectionRootAccess,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           ...RootAccessMode.values.map(
@@ -236,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           SizedBox(width: 8),
                           Text(
-                            'Đang kiểm tra quyền siêu người dùng...',
+                            l10n.checkingSuperuser,
                             style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
                           ),
                         ],
@@ -256,15 +285,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Hiển thị',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.sectionDisplay,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Hiển thị tệp tin ẩn'),
-            subtitle: const Text('Hiện tệp tin bắt đầu bằng dấu chấm hoặc tệp hệ thống'),
+            title: Text(l10n.showHiddenFiles),
+            subtitle: Text(l10n.showHiddenFilesSubtitle),
             value: workspace.showHidden,
             onChanged: (v) {
               workspace.setShowHidden(v);
@@ -272,30 +301,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Mở APK như ZIP'),
-            subtitle: const Text(
-              'Duyệt file APK như ZIP. Tắt để mở bằng trình cài đặt hệ thống.',
-            ),
+            title: Text(l10n.openApkAsZip),
+            subtitle: Text(l10n.openApkAsZipSubtitle),
             value: workspace.openApkAsZip,
             onChanged: workspace.setOpenApkAsZip,
           ),
           Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Văn bản & trình soạn thảo',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.sectionTextEditor,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Mã hóa văn bản'),
+            title: Text(l10n.textEncoding),
             subtitle: Text(workspace.textEncoding.label),
             trailing: const Icon(Icons.chevron_right),
             onTap: _showEncodingSheet,
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Cỡ chữ trình soạn thảo (${workspace.editorFontSize.toInt()})'),
-            subtitle: const Text('Chỉ áp dụng trong trình soạn thảo, không ảnh hưởng giao diện chung'),
+            title: Text(l10n.editorFontSize(workspace.editorFontSize.toInt())),
+            subtitle: Text(l10n.editorFontSizeSubtitle),
             trailing: SizedBox(
               width: 140,
               child: Slider(
@@ -310,27 +337,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Hiển thị số dòng'),
-            subtitle: const Text('Cột số dòng bên trái trong trình soạn thảo'),
+            title: Text(l10n.editorLineNumbers),
+            subtitle: Text(l10n.editorLineNumbersSubtitle),
             value: workspace.editorShowLineNumbers,
             onChanged: workspace.setEditorShowLineNumbers,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Xuống dòng tự động (Word wrap)'),
-            subtitle: const Text('Tự xuống dòng khi văn bản dài hơn chiều rộng màn hình'),
+            title: Text(l10n.editorWordWrap),
+            subtitle: Text(l10n.editorWordWrapSubtitle),
             value: workspace.editorWordWrap,
             onChanged: workspace.setEditorWordWrap,
           ),
           Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Giao diện & thao tác',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.sectionUiAndActions,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Chế độ giao diện',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          Text(
+            l10n.themeModeTitle,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           ...AppThemeMode.values.map(
             (mode) => RadioListTile<AppThemeMode>(
@@ -346,7 +373,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Kích thước hiển thị (${(workspace.uiScale * 100).round()}%)'),
+            title: Text(l10n.uiScale((workspace.uiScale * 100).round())),
             subtitle: Slider(
               value: workspace.uiScale,
               min: 0.8,
@@ -358,44 +385,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Toàn màn hình'),
-            subtitle: const Text('Ẩn thanh trạng thái và điều hướng hệ thống'),
+            title: Text(l10n.fullscreen),
+            subtitle: Text(l10n.fullscreenSubtitle),
             value: workspace.fullscreenEnabled,
             onChanged: workspace.setFullscreenEnabled,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Rung khi hoàn tất thao tác'),
-            subtitle: const Text('Phản hồi rung nhẹ sau khi sao chép, di chuyển hoặc xóa'),
+            title: Text(l10n.hapticFeedback),
+            subtitle: Text(l10n.hapticFeedbackSubtitle),
             value: workspace.hapticEnabled,
             onChanged: workspace.setHapticEnabled,
           ),
           Divider(height: 40, color: VsCodeColors.border),
-          const Text(
-            'Ứng dụng',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          Text(
+            l10n.sectionApplication,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Nhớ đường dẫn gần nhất'),
-            subtitle: const Text('Mở lại tab và thư mục khi khởi động lại app'),
+            title: Text(l10n.rememberLastPath),
+            subtitle: Text(l10n.rememberLastPathSubtitle),
             value: workspace.rememberLastPath,
             onChanged: workspace.setRememberLastPath,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Yêu cầu xác nhận khi thoát'),
-            subtitle: const Text('Hiện hộp thoại trước khi đóng ứng dụng'),
+            title: Text(l10n.requireExitConfirmation),
+            subtitle: Text(l10n.requireExitConfirmationSubtitle),
             value: workspace.requireExitConfirmation,
             onChanged: workspace.setRequireExitConfirmation,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Sử dụng thùng rác'),
-            subtitle: const Text(
-              'Xóa file sẽ chuyển vào /copecute/.trash và tự xóa sau 30 ngày',
-            ),
+            title: Text(l10n.useTrash),
+            subtitle: Text(l10n.useTrashSubtitle),
             value: workspace.useTrash,
             onChanged: workspace.setUseTrash,
           ),
@@ -407,12 +432,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _AppLockTile extends StatelessWidget {
   const _AppLockTile({
+    required this.title,
     required this.enabled,
     required this.subtitle,
     required this.onTap,
     required this.onToggle,
   });
 
+  final String title;
   final bool enabled;
   final String subtitle;
   final VoidCallback onTap;
@@ -434,7 +461,7 @@ class _AppLockTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Khóa ứng dụng', style: TextStyle(fontSize: 16)),
+                    Text(title, style: const TextStyle(fontSize: 16)),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
@@ -489,7 +516,7 @@ class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
 
     final password = _ctrl.text;
     if (password.isEmpty) {
-      setState(() => _error = 'Mật khẩu không được để trống');
+      setState(() => _error = context.l10n.passwordEmptyError);
       return;
     }
 
@@ -518,6 +545,7 @@ class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -530,12 +558,12 @@ class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            _wasChanging ? 'Đổi mật khẩu' : 'Đặt mật khẩu',
+            _wasChanging ? l10n.changePassword : l10n.setPassword,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
-            'Mật khẩu dùng để khóa app khi mở lại (sau 1 phút rời app).',
+            l10n.passwordHint,
             style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.4),
           ),
           const SizedBox(height: 16),
@@ -545,7 +573,7 @@ class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
             autofocus: true,
             enabled: !_saving,
             decoration: InputDecoration(
-              labelText: 'Mật khẩu',
+              labelText: l10n.passwordLabel,
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
@@ -567,7 +595,7 @@ class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_wasChanging ? 'Lưu mật khẩu' : 'Đặt mật khẩu'),
+                : Text(_wasChanging ? l10n.savePassword : l10n.setPassword),
           ),
         ],
       ),

@@ -1,0 +1,132 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Cope X Studio",
+  "@appTitle": {
+    "description": "Application title shown in the task switcher and about screens."
+  },
+
+  "settings": "Settings",
+  "back": "Back",
+  "cancel": "Cancel",
+  "ok": "OK",
+  "confirm": "Confirm",
+  "save": "Save",
+  "close": "Close",
+  "delete": "Delete",
+  "rename": "Rename",
+  "search": "Search",
+  "retry": "Retry",
+  "done": "Done",
+
+  "shortcutApps": "App manager",
+  "@shortcutApps": {
+    "description": "Label for the @apps system shortcut."
+  },
+  "shortcutSdCard": "SD card",
+  "shortcutInternalStorage": "Internal storage",
+  "shortcutSystemAppsSubtitle": "System · Settings",
+
+  "extractingProgress": "Extracting: {percent}%",
+  "@extractingProgress": {
+    "description": "Archive extraction progress message.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "45"
+      }
+    }
+  },
+
+  "storageFreeOfTotal": "{free} free of {total}",
+  "@storageFreeOfTotal": {
+    "description": "Storage volume free space summary.",
+    "placeholders": {
+      "free": {
+        "type": "String",
+        "example": "12 GB"
+      },
+      "total": {
+        "type": "String",
+        "example": "64 GB"
+      }
+    }
+  },
+
+  "language": "Language",
+  "languageEnglish": "English",
+  "languageVietnamese": "Vietnamese",
+
+  "sectionAppLock": "App lock",
+  "sectionBiometrics": "Biometrics",
+  "sectionRootAccess": "Root access",
+  "sectionDisplay": "Display",
+  "sectionTextEditor": "Text & editor",
+  "sectionUiAndActions": "UI & actions",
+  "sectionApplication": "Application",
+
+  "appLockTitle": "App lock",
+  "appLockSubtitleActive": "Password required after 1 minute away. Tap to change password.",
+  "appLockSubtitleInactive": "Lock is off. Tap to change password.",
+  "appLockSubtitleSetup": "Tap to set a password, then enable the switch to activate.",
+  "passwordChanged": "Password changed",
+  "passwordSet": "Password set",
+  "changePassword": "Change password",
+  "setPassword": "Set password",
+  "passwordHint": "Password used to lock the app when reopened (after 1 minute away).",
+  "passwordLabel": "Password",
+  "passwordEmptyError": "Password cannot be empty",
+  "savePassword": "Save password",
+
+  "biometricNotSupported": "This device does not support fingerprint / Face ID.",
+  "biometricUnlockTitle": "Unlock with biometrics",
+  "biometricUnlockSubtitle": "Use fingerprint or Face ID instead of password",
+  "biometricNeedsPassword": "Set a password first",
+
+  "checkingSuperuser": "Checking superuser access...",
+
+  "showHiddenFiles": "Show hidden files",
+  "showHiddenFilesSubtitle": "Show dotfiles and system files",
+  "openApkAsZip": "Open APK as ZIP",
+  "openApkAsZipSubtitle": "Browse APK files as ZIP. Turn off to open with the system installer.",
+
+  "textEncoding": "Text encoding",
+  "textEncodingSheetTitle": "Text encoding",
+  "textEncodingSheetSubtitle": "Used when opening and saving text files in the editor.",
+  "editorFontSize": "Editor font size ({size})",
+  "@editorFontSize": {
+    "placeholders": {
+      "size": {
+        "type": "int",
+        "example": "13"
+      }
+    }
+  },
+  "editorFontSizeSubtitle": "Applies only in the editor, not the rest of the UI",
+  "editorLineNumbers": "Show line numbers",
+  "editorLineNumbersSubtitle": "Line number column on the left in the editor",
+  "editorWordWrap": "Word wrap",
+  "editorWordWrapSubtitle": "Wrap long lines to fit the screen width",
+
+  "themeModeTitle": "Theme mode",
+  "uiScale": "Display scale ({percent}%)",
+  "@uiScale": {
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "100"
+      }
+    }
+  },
+  "fullscreen": "Fullscreen",
+  "fullscreenSubtitle": "Hide the status bar and system navigation",
+  "hapticFeedback": "Haptic feedback on completion",
+  "hapticFeedbackSubtitle": "Light vibration after copy, move, or delete",
+
+  "rememberLastPath": "Remember last path",
+  "rememberLastPathSubtitle": "Reopen tabs and folders after restarting the app",
+  "requireExitConfirmation": "Confirm before exit",
+  "requireExitConfirmationSubtitle": "Show a dialog before closing the app",
+  "useTrash": "Use trash",
+  "useTrashSubtitle": "Deleted files go to /copecute/.trash and are removed after 30 days"
+}

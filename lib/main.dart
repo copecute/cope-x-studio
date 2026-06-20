@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:cope_x_studio/app.dart';
+import 'package:cope_x_studio/providers/locale_provider.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
@@ -39,7 +40,10 @@ Future<void> main() async {
 
   final workspace = WorkspaceProvider();
   final security = SecurityProvider();
+  final localeProvider = LocaleProvider();
   workspace.attachSecurity(security);
+
+  await localeProvider.init();
 
   await WebServerNotificationService.instance.init(
     onStop: workspace.stopWebServer,
@@ -50,6 +54,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider.value(value: workspace),
         ChangeNotifierProvider.value(value: security),
+        ChangeNotifierProvider.value(value: localeProvider),
         // Expose handler as a singleton — MediaViewerView reads it via context.read
         Provider<MediaPlayerHandler>.value(value: audioHandler),
       ],
