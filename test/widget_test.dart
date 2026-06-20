@@ -1,4 +1,5 @@
 import 'package:cope_x_studio/app.dart';
+import 'package:cope_x_studio/providers/locale_provider.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/security_service.dart';
@@ -12,14 +13,17 @@ void main() {
     final security = SecurityProvider(
       securityService: SecurityService(inMemory: true),
     );
+    final localeProvider = LocaleProvider();
     workspace.attachSecurity(security);
     await workspace.initPermissions();
     await security.init();
+    await localeProvider.init();
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: workspace),
           ChangeNotifierProvider.value(value: security),
+          ChangeNotifierProvider.value(value: localeProvider),
         ],
         child: const CopeXStudioApp(),
       ),

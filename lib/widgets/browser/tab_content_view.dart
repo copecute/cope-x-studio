@@ -3,6 +3,7 @@ import 'package:cope_x_studio/models/editor_tab.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/widgets/browser/browser_tab_view.dart';
 import 'package:cope_x_studio/widgets/editor/code_editor_view.dart';
 import 'package:cope_x_studio/widgets/editor/pdf_viewer_view.dart';
@@ -38,6 +39,7 @@ class _EditorInTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final provider = context.read<WorkspaceProvider>();
 
     return Column(
@@ -51,7 +53,7 @@ class _EditorInTab extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back, size: AppSizes.iconMedium),
-                tooltip: 'Quay lại duyệt file',
+                tooltip: l10n.backToBrowser,
                 onPressed: () => provider.closeEditorInTab(tab.id),
               ),
               Expanded(
@@ -65,7 +67,7 @@ class _EditorInTab extends StatelessWidget {
                 TextButton.icon(
                   onPressed: () => provider.saveTab(tab.id),
                   icon: const Icon(Icons.save_outlined, size: 20),
-                  label: const Text('Lưu'),
+                  label: Text(l10n.save),
                 ),
             ],
           ),
@@ -94,7 +96,7 @@ class _NoTabPlaceholder extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: context.read<WorkspaceProvider>().newTab,
         icon: const Icon(Icons.add),
-        label: const Text('Tạo tab duyệt file'),
+        label: Text(context.l10n.createBrowserTab),
       ),
     );
   }

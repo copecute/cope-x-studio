@@ -1,3 +1,5 @@
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
+
 enum RootAccessMode {
   disabled,
   normal,
@@ -7,20 +9,17 @@ enum RootAccessMode {
 
 extension RootAccessModeLabels on RootAccessMode {
   String get label => switch (this) {
-        RootAccessMode.disabled => 'Vô hiệu hóa',
-        RootAccessMode.normal => 'Bình thường',
-        RootAccessMode.superuser => 'Siêu người dùng',
-        RootAccessMode.superuserMountWritable => 'Siêu người dùng + mount writable',
+        RootAccessMode.disabled => L10nScope.current.rootAccessDisabled,
+        RootAccessMode.normal => L10nScope.current.rootAccessNormal,
+        RootAccessMode.superuser => L10nScope.current.rootAccessSuperuser,
+        RootAccessMode.superuserMountWritable => L10nScope.current.rootAccessSuperuserWritable,
       };
 
   String get description => switch (this) {
-        RootAccessMode.disabled => 'Thư mục gốc không được hiển thị',
-        RootAccessMode.normal =>
-          'Hiển thị thư mục gốc theo cách bình thường, hoạt động trên mọi thiết bị',
-        RootAccessMode.superuser =>
-          'Truy cập thông qua sử dụng siêu người dùng, hoạt động trên các thiết bị toàn quyền điều khiển',
-        RootAccessMode.superuserMountWritable =>
-          'Chế độ siêu người dùng, cho phép thay đổi trong các thư mục chỉ được đọc',
+        RootAccessMode.disabled => L10nScope.current.rootAccessDisabledDesc,
+        RootAccessMode.normal => L10nScope.current.rootAccessNormalDesc,
+        RootAccessMode.superuser => L10nScope.current.rootAccessSuperuserDesc,
+        RootAccessMode.superuserMountWritable => L10nScope.current.rootAccessSuperuserWritableDesc,
       };
 
   bool get usesSuperuser =>

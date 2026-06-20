@@ -1,4 +1,8 @@
-const String webUiHtml = r'''<!DOCTYPE html>
+import 'dart:convert';
+
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
+
+const String _webUiHtmlTemplate = r'''<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -427,7 +431,7 @@ async function uploadFiles(files){
       if(!r.ok)throw new Error(j.error||'Upload failed');
       count++;
     }
-    setStatus('Đã tải lên '+count+' file thành công', 'success');
+    setStatus(_uploadSuccessMsg(count), 'success');
     loadDir();
   }catch(e){setStatus('Lỗi upload: '+e.message, 'error')}
   document.getElementById('fileInput').value='';
@@ -484,7 +488,7 @@ async function zipAndDownload(paths){
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({paths, dest: currentPath})
     });
-    setStatus('Đã nén thành công: ' + r.name + '. Đang tải xuống...', 'success');
+    setStatus(_zipSuccessDl(r.name), 'success');
     downloadFile(r.path);
     loadDir();
   } catch(e) {
@@ -497,7 +501,7 @@ function selectAll(){
     selected.add(e.path);
   });
   render();
-  setStatus('Đã chọn tất cả ' + selected.size + ' mục', 'info');
+  setStatus(_selectedAllMsg(selected.size), 'info');
 }
 
 function deselectAll(){
@@ -639,3 +643,95 @@ init();
 </script>
 </body>
 </html>''';
+
+/// Localized Web Server UI HTML (template is Vietnamese; replacements use [L10nScope]).
+String buildWebUiHtml() {
+  final l = L10nScope.current;
+  final lang = L10nScope.locale.languageCode;
+  var html = _webUiHtmlTemplate.replaceFirst('<html lang="vi">', '<html lang="$lang">');
+
+  String e(String value) =>
+      value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+  final replacements = <String, String>{
+    'Cope X Studio': l.appTitle,
+    'Web Server': l.webServer,
+    'Online': l.online,
+    'Sẵn sàng': l.webReady,
+    'OUTPUT': l.output,
+    '💾 Ổ đĩa': '💾 ${e(l.webDisk)}',
+    '⬆ Lên': '⬆ ${e(l.webGoUp)}',
+    '↻ Làm mới': '↻ ${e(l.refresh)}',
+    '田 Lưới': '田 ${e(l.webGridView)}',
+    '☰ Danh sách': '☰ ${e(l.webListView)}',
+    '👁️ Hiện file ẩn': '👁️ ${e(l.showHiddenFilesToggle)}',
+    '👁️ Ẩn file ẩn': '👁️ ${e(l.hideHiddenFilesToggle)}',
+    '⬆ Tải lên': '⬆ ${e(l.webUpload)}',
+    '⬇ Tải xuống': '⬇ ${e(l.webDownload)}',
+    '☑ Chọn tất cả': '☑ ${e(l.selectAll)}',
+    '☐ Bỏ chọn tất cả': '☐ ${e(l.deselectAll)}',
+    '📁 Thư mục mới': '📁 ${e(l.newFolder)}',
+    '📄 File mới': '📄 ${e(l.newFile)}',
+    '🗜 Nén ZIP': '🗜 ${e(l.zipFileTitle)}',
+    '✏ Đổi tên': '✏ ${e(l.rename)}',
+    '🗑 Xóa': '🗑 ${e(l.delete)}',
+    'Thư mục trống': e(l.emptyFolder),
+    'Tên': e(l.propertyName),
+    'Kích thước': e(l.propertySize),
+    'Thao tác': e(l.webActions),
+    'Hủy': e(l.cancel),
+    'Lưu': e(l.save),
+    'Đóng': e(l.close),
+    'Tạo': e(l.webCreate),
+    'Đổi tên': e(l.rename),
+    'Giải nén': e(l.extract),
+    'Chỉnh sửa': e(l.webEdit),
+    'Tải xuống': e(l.webDownload),
+    'Xóa logs': e(l.webClearLogs),
+    'Đóng panel': e(l.webClosePanel),
+    '🏠 Gốc': '🏠 ${e(l.webRoot)}',
+    'Đang tải...': e(l.webLoading),
+    'Lỗi: ': '${e(l.webError)}: ',
+    ' mục': ' ${e(l.webItems)}',
+    'Đang tải lên...': e(l.webUploading),
+    'Chưa chọn mục để tải xuống': e(l.webNoSelectionDownload),
+    'Không có file nào được chọn để tải xuống': e(l.webNoFilesDownload),
+    'Đang tải xuống ': '${e(l.webDownloading)} ',
+    'Phát hiện thư mục hoặc tải trên 5 mục, tiến hành nén ZIP...': e(l.webZipAndDownload),
+    'Lỗi nén zip: ': '${e(l.webZipError)}: ',
+    'Đã bỏ chọn tất cả': e(l.webDeselectedAll),
+    'Đã lưu thành công': e(l.webSavedSuccess),
+    'Sửa file: ': '${e(l.webEditFile)}: ',
+    'Xem: ': '${e(l.webViewFile)}: ',
+    'Tên thư mục mới': e(l.webNewFolderName),
+    'Tên file mới': e(l.webNewFileName),
+    'Chọn 1 mục để đổi tên': e(l.webSelectOneRename),
+    'Chưa chọn mục': e(l.webNoSelection),
+    'Đã nén thành công: ': '${e(l.webZipSuccess)}: ',
+    'Đã giải nén thành công: ': '${e(l.webUnzipSuccess)}: ',
+    'Lỗi upload: ': '${e(l.webUploadError)}: ',
+    'Đã chọn tất cả ': '${e(l.webSelectedAll)} ',
+  };
+
+  for (final entry in replacements.entries) {
+    html = html.replaceAll(entry.key, entry.value);
+  }
+
+  final countSentinel = 987654321;
+  final uploadTpl = jsonEncode(l.webUploadSuccessCount(countSentinel))
+      .replaceAll('$countSentinel', "'+n+'");
+  final zipDlTpl = jsonEncode(l.webZipSuccessDownloading('{name}'))
+      .replaceAll('{name}', "'+name+'");
+  final selectedTpl = jsonEncode(l.webSelectedAllCount(countSentinel))
+      .replaceAll('$countSentinel', "'+n+'");
+  html = html.replaceFirst(
+    'init();',
+    '''
+function _uploadSuccessMsg(n){return $uploadTpl;}
+function _zipSuccessDl(name){return $zipDlTpl;}
+function _selectedAllMsg(n){return $selectedTpl;}
+init();''',
+  );
+
+  return html;
+}

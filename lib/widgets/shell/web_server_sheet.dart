@@ -3,7 +3,9 @@ import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/web_server/web_server_service.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
-import 'package:flutter/material.dart';import 'package:flutter/services.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -76,6 +78,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final provider = context.watch<WorkspaceProvider>();
     final security = context.watch<SecurityProvider>();
     final running = provider.isWebServerRunning;
@@ -97,9 +100,9 @@ class _WebServerSheetState extends State<WebServerSheet> {
                 children: [
                   Icon(Icons.wifi_tethering, color: VsCodeColors.accent, size: 24),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Web Server',
+                      l10n.webServer,
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -113,16 +116,16 @@ class _WebServerSheetState extends State<WebServerSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Chia sẻ file qua Wi‑Fi. Thiết bị khác mở địa chỉ hoặc quét QR để truy cập.',
+                l10n.shareViaWifi,
                 style: TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim, height: 1.4),
               ),
             ),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: const Text('Thư mục chia sẻ'),
+              title: Text(l10n.sharedFolder),
               subtitle: Text(
-                sharedRoot ?? 'Toàn bộ bộ nhớ thiết bị',
+                sharedRoot ?? l10n.entireStorage,
                 style: TextStyle(fontSize: 12, color: VsCodeColors.foregroundDim),
               ),
               trailing: PopupMenuButton<String>(
@@ -135,17 +138,17 @@ class _WebServerSheetState extends State<WebServerSheet> {
                   }
                 },
                 itemBuilder: (ctx) => [
-                  const PopupMenuItem(value: 'pick', child: Text('Chọn thư mục')),
+                  PopupMenuItem(value: 'pick', child: Text(l10n.pickFolder)),
                   if (sharedRoot != null)
-                    const PopupMenuItem(value: 'clear', child: Text('Toàn bộ bộ nhớ')),
+                    PopupMenuItem(value: 'clear', child: Text(l10n.entireStorage)),
                 ],
               ),
             ),
             if (canUseAppPassword)
               SwitchListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Dùng mật khẩu khóa app'),
-                subtitle: const Text('HTTP Basic Auth — tên đăng nhập tùy ý', style: TextStyle(fontSize: 12)),
+                title: Text(l10n.useAppLockPassword),
+                subtitle: Text(l10n.httpBasicAuthHint, style: TextStyle(fontSize: 12)),
                 value: useAppPassword,
                 onChanged: running
                     ? null
@@ -157,11 +160,11 @@ class _WebServerSheetState extends State<WebServerSheet> {
             if (!useAppPassword || !canUseAppPassword)
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Mật khẩu Web Server'),
+                title: Text(l10n.webServerPassword),
                 subtitle: Text(
                   security.hasWebServerPassword
-                      ? 'Đã đặt — chạm để đổi'
-                      : 'Chưa đặt — ai trong mạng đều truy cập được',
+                      ? l10n.webServerPasswordSet
+                      : l10n.webServerPasswordUnset,
                   style: TextStyle(
                     fontSize: 12,
                     color: security.hasWebServerPassword
@@ -174,10 +177,10 @@ class _WebServerSheetState extends State<WebServerSheet> {
               ),
             SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: Text(running ? 'Đang chạy — port ${WebServerService.port}' : 'Bật server'),
+              title: Text(running ? l10n.serverRunning(WebServerService.port) : l10n.startServer),
               subtitle: running
                   ? Text(
-                      sharedRoot != null ? 'Chỉ: $sharedRoot' : 'Toàn bộ bộ nhớ',
+                      sharedRoot != null ? l10n.onlyFolder(sharedRoot) : l10n.entireStorage,
                       style: const TextStyle(fontSize: 12),
                     )
                   : null,
@@ -216,11 +219,11 @@ class _WebServerSheetState extends State<WebServerSheet> {
                 title: SelectableText(url, style: const TextStyle(fontSize: 15)),
                 trailing: IconButton(
                   icon: const Icon(Icons.copy, size: 20),
-                  tooltip: 'Sao chép',
+                  tooltip: l10n.copy,
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: url));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã sao chép địa chỉ'), duration: Duration(seconds: 2)),
+                      SnackBar(content: Text(l10n.addressCopied), duration: Duration(seconds: 2)),
                     );
                   },
                 ),
@@ -255,9 +258,10 @@ class _WebServerPasswordSheetState extends State<_WebServerPasswordSheet> {
   }
 
   void _save() {
+    final l10n = context.l10n;
     final password = _ctrl.text;
     if (password.isEmpty) {
-      setState(() => _error = 'Mật khẩu không được để trống');
+      setState(() => _error = l10n.passwordEmptyError);
       return;
     }
     Navigator.pop(context, password);
@@ -265,6 +269,7 @@ class _WebServerPasswordSheetState extends State<_WebServerPasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -277,7 +282,7 @@ class _WebServerPasswordSheetState extends State<_WebServerPasswordSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            widget.hasPassword ? 'Đổi mật khẩu Web Server' : 'Đặt mật khẩu Web Server',
+            widget.hasPassword ? l10n.changeWebServerPassword : l10n.setWebServerPassword,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
@@ -286,7 +291,7 @@ class _WebServerPasswordSheetState extends State<_WebServerPasswordSheet> {
             obscureText: _obscure,
             autofocus: true,
             decoration: InputDecoration(
-              labelText: 'Mật khẩu',
+              labelText: l10n.passwordLabel,
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
@@ -302,13 +307,13 @@ class _WebServerPasswordSheetState extends State<_WebServerPasswordSheet> {
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _save,
-            child: Text(widget.hasPassword ? 'Lưu' : 'Đặt mật khẩu'),
+            child: Text(widget.hasPassword ? l10n.save : l10n.setPassword),
           ),
           if (widget.hasPassword) ...[
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.pop(context, 'cleared'),
-              child: const Text('Xóa mật khẩu', style: TextStyle(color: Colors.redAccent)),
+              child: Text(l10n.removeWebServerPassword, style: TextStyle(color: Colors.redAccent)),
             ),
           ],
         ],

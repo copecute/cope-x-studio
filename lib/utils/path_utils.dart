@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:cope_x_studio/services/permission_service.dart';
 import 'package:cope_x_studio/utils/app_path_utils.dart';
 import 'package:path/path.dart' as p;
@@ -24,18 +25,19 @@ class PathUtils {
   }
 
   static String displayName(String path) {
+    final l10n = L10nScope.current;
     switch (path) {
       case '@home':
-        return 'Trang chủ';
+        return l10n.shortcutHome;
       case '@recent':
-        return 'Các tập tin gần đây';
+        return l10n.shortcutRecent;
       case '@ftp':
-        return 'FTP';
+        return l10n.shortcutFtp;
       case '@apps':
-        return 'Trình quản lý ứng dụng';
+        return l10n.shortcutApps;
     }
     if (AppPathUtils.isAppsList(path)) {
-      return AppPathUtils.isSystemList(path) ? 'Hệ thống' : 'Cài đặt';
+      return AppPathUtils.isSystemList(path) ? l10n.systemApps : l10n.userApps;
     }
     if (AppPathUtils.isAppPackage(path)) {
       final pkg = AppPathUtils.packageFromPath(path);

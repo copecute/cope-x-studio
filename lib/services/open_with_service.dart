@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:cope_x_studio/services/file_service.dart';
 import 'package:cope_x_studio/services/platform_bridge.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
@@ -38,12 +39,13 @@ class OpenWithService {
   }
 
   Future<String> openResultMessage(OpenResult result) async {
+    final l10n = L10nScope.current;
     return switch (result.type) {
-      ResultType.done => 'Đã mở trình cài đặt',
-      ResultType.noAppToOpen => 'Không tìm thấy trình cài đặt gói',
-      ResultType.fileNotFound => 'File không tồn tại',
-      ResultType.permissionDenied => 'Không có quyền mở file',
-      ResultType.error => 'Lỗi: ${result.message}',
+      ResultType.done => l10n.openWithDone,
+      ResultType.noAppToOpen => l10n.openWithNoApp,
+      ResultType.fileNotFound => l10n.openWithFileNotFound,
+      ResultType.permissionDenied => l10n.openWithPermissionDenied,
+      ResultType.error => l10n.openWithError(result.message),
     };
   }
 }

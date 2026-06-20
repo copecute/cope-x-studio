@@ -1,11 +1,9 @@
 {
   "@@locale": "en",
-
   "appTitle": "Cope X Studio",
   "@appTitle": {
     "description": "Application title shown in the task switcher and about screens."
   },
-
   "settings": "Settings",
   "back": "Back",
   "cancel": "Cancel",
@@ -18,7 +16,6 @@
   "search": "Search",
   "retry": "Retry",
   "done": "Done",
-
   "shortcutApps": "App manager",
   "@shortcutApps": {
     "description": "Label for the @apps system shortcut."
@@ -26,7 +23,6 @@
   "shortcutSdCard": "SD card",
   "shortcutInternalStorage": "Internal storage",
   "shortcutSystemAppsSubtitle": "System · Settings",
-
   "extractingProgress": "Extracting: {percent}%",
   "@extractingProgress": {
     "description": "Archive extraction progress message.",
@@ -37,7 +33,6 @@
       }
     }
   },
-
   "storageFreeOfTotal": "{free} free of {total}",
   "@storageFreeOfTotal": {
     "description": "Storage volume free space summary.",
@@ -52,11 +47,9 @@
       }
     }
   },
-
   "language": "Language",
   "languageEnglish": "English",
   "languageVietnamese": "Vietnamese",
-
   "sectionAppLock": "App lock",
   "sectionBiometrics": "Biometrics",
   "sectionRootAccess": "Root access",
@@ -64,7 +57,6 @@
   "sectionTextEditor": "Text & editor",
   "sectionUiAndActions": "UI & actions",
   "sectionApplication": "Application",
-
   "appLockTitle": "App lock",
   "appLockSubtitleActive": "Password required after 1 minute away. Tap to change password.",
   "appLockSubtitleInactive": "Lock is off. Tap to change password.",
@@ -77,19 +69,15 @@
   "passwordLabel": "Password",
   "passwordEmptyError": "Password cannot be empty",
   "savePassword": "Save password",
-
   "biometricNotSupported": "This device does not support fingerprint / Face ID.",
   "biometricUnlockTitle": "Unlock with biometrics",
   "biometricUnlockSubtitle": "Use fingerprint or Face ID instead of password",
   "biometricNeedsPassword": "Set a password first",
-
   "checkingSuperuser": "Checking superuser access...",
-
   "showHiddenFiles": "Show hidden files",
   "showHiddenFilesSubtitle": "Show dotfiles and system files",
   "openApkAsZip": "Open APK as ZIP",
   "openApkAsZipSubtitle": "Browse APK files as ZIP. Turn off to open with the system installer.",
-
   "textEncoding": "Text encoding",
   "textEncodingSheetTitle": "Text encoding",
   "textEncodingSheetSubtitle": "Used when opening and saving text files in the editor.",
@@ -107,7 +95,6 @@
   "editorLineNumbersSubtitle": "Line number column on the left in the editor",
   "editorWordWrap": "Word wrap",
   "editorWordWrapSubtitle": "Wrap long lines to fit the screen width",
-
   "themeModeTitle": "Theme mode",
   "uiScale": "Display scale ({percent}%)",
   "@uiScale": {
@@ -122,11 +109,1069 @@
   "fullscreenSubtitle": "Hide the status bar and system navigation",
   "hapticFeedback": "Haptic feedback on completion",
   "hapticFeedbackSubtitle": "Light vibration after copy, move, or delete",
-
   "rememberLastPath": "Remember last path",
   "rememberLastPathSubtitle": "Reopen tabs and folders after restarting the app",
   "requireExitConfirmation": "Confirm before exit",
   "requireExitConfirmationSubtitle": "Show a dialog before closing the app",
   "useTrash": "Use trash",
-  "useTrashSubtitle": "Deleted files go to /copecute/.trash and are removed after 30 days"
+  "useTrashSubtitle": "Deleted files go to /copecute/.trash and are removed after 30 days",
+  "add": "Add",
+  "copy": "Copy",
+  "cut": "Cut",
+  "paste": "Paste",
+  "share": "Share",
+  "refresh": "Refresh",
+  "parentFolder": "Parent folder",
+  "extract": "Extract",
+  "searchInFolder": "Search in folder...",
+  "hideHiddenFilesToggle": "Hide hidden files",
+  "showHiddenFilesToggle": "Show hidden files",
+  "pleaseWait": "Please wait...",
+  "understood": "Got it",
+  "grantPermission": "Grant permission",
+  "storagePermissionTitle": "All-files access required",
+  "storagePermissionBody": "Enable MANAGE_EXTERNAL_STORAGE to browse all storage.",
+  "newFile": "New file",
+  "newFolder": "New folder",
+  "selectedCount": "{count} selected",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "duplicate": "Duplicate",
+  "installApk": "Install APK",
+  "openAs": "Open as",
+  "openWithSystem": "Open with another app",
+  "openInNewTab": "Open in new tab",
+  "revealLocation": "Show file location",
+  "details": "Details",
+  "openApp": "Open app",
+  "appInfo": "App info",
+  "copyApk": "Copy APK",
+  "shareApk": "Share APK",
+  "viewPlayStore": "View on Play Store",
+  "backupApk": "Backup APK (Extract)",
+  "uninstall": "Uninstall",
+  "openAsText": "Text",
+  "openAsImage": "Image",
+  "openAsAudio": "Audio",
+  "openAsVideo": "Video",
+  "openAsArchive": "Archive",
+  "viewModeList": "List",
+  "viewModeGrid": "Grid",
+  "viewModeTree": "Folder tree",
+  "emptyFolder": "Folder is empty",
+  "emptyZip": "ZIP is empty",
+  "noApps": "No apps",
+  "noRecentFiles": "No recent files",
+  "noSearchResults": "No results found",
+  "loadingFtp": "Loading FTP folder...",
+  "loadingZip": "Reading ZIP contents...",
+  "loadingDirectory": "Reading folder...",
+  "loadingApps": "Loading app list...",
+  "scanningStorage": "Scanning storage...",
+  "scanningRecent": "Scanning recent files...",
+  "extractingAndOpening": "Extracting and opening file...",
+  "ftpConnectionError": "FTP connection error",
+  "cannotReadDirectory": "Cannot read folder",
+  "cannotReadPath": "Cannot read {name}",
+  "@cannotReadPath": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotLoadApps": "Cannot load apps",
+  "pathCopied": "Path copied: {path}",
+  "@pathCopied": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "noFilesToZip": "No files to compress",
+  "formatNotSupportedExtract": "Format {format} is not supported for extraction.",
+  "@formatNotSupportedExtract": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "zipPasswordExtractTitle": "Extract password-protected ZIP",
+  "zipFileTitle": "Compress to ZIP",
+  "fileName": "File name",
+  "passwordProtect": "Password protect",
+  "compress": "Compress",
+  "passwordOptional": "Password (optional)",
+  "wrongPasswordRetry": "Wrong password. Please try again.",
+  "zipPasswordProtected": "Archive is password protected.",
+  "unlock": "Unlock",
+  "editFtpConfig": "Edit configuration",
+  "deleteFtpServer": "Delete server configuration",
+  "editFtpServer": "Edit FTP server",
+  "addFtpServer": "Add FTP server",
+  "displayName": "Display name",
+  "hostAddress": "IP address / Host",
+  "port": "Port (Port)",
+  "username": "Username",
+  "itemCount": "{count} items",
+  "@itemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "zipCurrentFolder": "Compress current folder",
+  "zipRecentFiles": "Compress recent files",
+  "zipCopiedItems": "Compress copied items",
+  "deselectAll": "Deselect all",
+  "select": "Select",
+  "selectAll": "Select all",
+  "move": "Move",
+  "shortcutHome": "Home",
+  "shortcutRecent": "Recent files",
+  "shortcutFtp": "FTP",
+  "shortcutAddFtp": "+ Add server",
+  "deviceStorage": "Device storage",
+  "systemApps": "System",
+  "userApps": "Settings",
+  "systemApp": "System app",
+  "userApp": "User-installed app",
+  "accessDenied": "Access denied",
+  "superuserNotGranted": "Superuser access not granted",
+  "superuserRevertedNormal": "Superuser access not granted — reverted to Normal",
+  "wrongPassword": "Wrong password",
+  "cancelUnzip": "Extraction cancelled",
+  "cancelZip": "Compression cancelled",
+  "cancelPaste": "Paste cancelled",
+  "cancelDuplicate": "Duplicate cancelled",
+  "cancelOperation": "Operation cancelled",
+  "rollingBack": "Rolling back...",
+  "zipping": "Compressing...",
+  "deleting": "Deleting...",
+  "pasting": "Pasting...",
+  "duplicating": "Duplicating...",
+  "moving": "Moving...",
+  "moveProgress": "Move: {name} ({percent}%)",
+  "@moveProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "pasteProgress": "Paste: {name} ({percent}%)",
+  "@pasteProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "duplicateProgress": "Duplicate: {name} ({percent}%)",
+  "@duplicateProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteProgress": "Delete: {name} ({percent}%)",
+  "@deleteProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "zipProgress": "Compress: {name} ({percent}%)",
+  "@zipProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "unzipProgress": "Extract: {name} ({percent}%)",
+  "@unzipProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "openFileProgress": "Opening {name}...",
+  "@openFileProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ready": "Ready",
+  "notSaved": "Unsaved",
+  "saved": "Saved",
+  "deleteStopped": "Delete stopped",
+  "exitAppTitle": "Exit app",
+  "exitAppBody": "Are you sure you want to exit Cope X Studio?",
+  "exit": "Exit",
+  "webServer": "Web Server",
+  "shareViaWifi": "Share files over Wi‑Fi. Other devices can open the address or scan the QR code.",
+  "sharedFolder": "Shared folder",
+  "pickFolder": "Choose folder",
+  "entireStorage": "Entire device storage",
+  "useAppLockPassword": "Use app lock password",
+  "httpBasicAuthHint": "HTTP Basic Auth — any username",
+  "webServerPassword": "Web Server password",
+  "webServerPasswordSet": "Set — tap to change",
+  "webServerPasswordUnset": "Not set — anyone on the network can access",
+  "serverRunning": "Running — port {port}",
+  "@serverRunning": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "startServer": "Start server",
+  "onlyFolder": "Only: {path}",
+  "@onlyFolder": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "addressCopied": "Address copied",
+  "changeWebServerPassword": "Change Web Server password",
+  "setWebServerPassword": "Set Web Server password",
+  "removeWebServerPassword": "Remove password",
+  "consoleLog": "Console Log",
+  "clearLog": "Clear log",
+  "noLogsYet": "No logs yet",
+  "newBrowserTab": "New file browser tab",
+  "pickSharedFolder": "Choose shared folder",
+  "cannotReadFolder": "Cannot read folder",
+  "noSubfolders": "No subfolders",
+  "selectThisFolder": "Select this folder",
+  "enterPasswordUnlock": "Enter password to unlock",
+  "wrongPasswordLock": "Incorrect password",
+  "biometrics": "Biometrics",
+  "loading": "Loading...",
+  "loadingFile": "Loading file...",
+  "cannotLoadFile": "Cannot load file",
+  "formatNotSupported": "Format not supported",
+  "previous": "Previous",
+  "next": "Next",
+  "rewind10s": "Rewind 10s",
+  "forward10s": "Forward 10s",
+  "playlist": "Playlist",
+  "nowPlaying": "Now playing",
+  "exitFullscreen": "Exit fullscreen",
+  "rotatePortrait": "Rotate portrait",
+  "rotateLandscape": "Rotate landscape",
+  "undo": "Undo",
+  "redo": "Redo",
+  "findReplace": "Find & Replace",
+  "hideLineNumbers": "Hide line numbers",
+  "showLineNumbersToggle": "Show line numbers",
+  "disableWordWrap": "Disable word wrap",
+  "enableWordWrap": "Enable word wrap",
+  "decreaseFontSize": "Decrease font size",
+  "increaseFontSize": "Increase font size",
+  "notFound": "Not found",
+  "findHint": "Find...",
+  "replaceHint": "Replace...",
+  "replace": "Replace",
+  "replaceAll": "All",
+  "backToBrowser": "Back to file browser",
+  "createBrowserTab": "New file browser tab",
+  "propertyDetails": "Details",
+  "loadingProperties": "Loading info...",
+  "cannotReadProperties": "Cannot read info: {error}",
+  "@cannotReadProperties": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "propertyName": "Name",
+  "propertyType": "Type",
+  "propertyLocation": "Location",
+  "propertyItemCount": "Item count",
+  "propertySize": "Size",
+  "propertyFiles": "Files",
+  "propertySubfolders": "Subfolders",
+  "propertyModified": "Modified",
+  "propertyAccessed": "Accessed",
+  "propertyNotes": "Notes",
+  "propertyResolution": "Resolution",
+  "propertyDuration": "Duration",
+  "propertyCamera": "Camera",
+  "propertyCapturedAt": "Captured at",
+  "propertyDateModified": "Date modified",
+  "propertyOrientation": "Orientation",
+  "propertyTitle": "Title",
+  "propertyArtist": "Artist",
+  "propertyGenre": "Genre",
+  "propertyYear": "Year",
+  "folderType": "Folder",
+  "fileType": "File",
+  "fileTypeExt": "File {ext}",
+  "@fileTypeExt": {
+    "placeholders": {
+      "ext": {
+        "type": "String"
+      }
+    }
+  },
+  "themeDark": "Dark",
+  "themeLight": "Light",
+  "themeSystem": "System",
+  "rootAccessDisabled": "Disabled",
+  "rootAccessNormal": "Normal",
+  "rootAccessSuperuser": "Superuser",
+  "rootAccessSuperuserWritable": "Superuser + mount writable",
+  "rootAccessDisabledDesc": "Root directories are not shown",
+  "rootAccessNormalDesc": "Show root directories normally, works on all devices",
+  "rootAccessSuperuserDesc": "Access via superuser, works on rooted devices",
+  "rootAccessSuperuserWritableDesc": "Superuser mode allowing writes to read-only directories",
+  "openWithDone": "Opened with installer",
+  "openWithNoApp": "No app found to open package",
+  "openWithFileNotFound": "File does not exist",
+  "openWithPermissionDenied": "No permission to open file",
+  "openWithError": "Error: {message}",
+  "@openWithError": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "operationCancelled": "Operation cancelled",
+  "storageFreeSlash": "{free}/{total} free",
+  "@storageFreeSlash": {
+    "placeholders": {
+      "free": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "treeLoading": "Loading folder tree...",
+  "webServerRunningNotification": "Web Server is running",
+  "webServerNotificationChannel": "Notifications when Web Server is running",
+  "untitled": "Untitled",
+  "video": "Video",
+  "pdf": "PDF",
+  "online": "Online",
+  "output": "OUTPUT",
+  "unzipping": "Extracting...",
+  "passwordRequired": "Please enter a password",
+  "wrongPasswordOrCorrupt": "Wrong password or corrupt file",
+  "webDisk": "Disk",
+  "webGoUp": "Up",
+  "webUpload": "Upload",
+  "webDownload": "Download",
+  "webActions": "Actions",
+  "webRoot": "Root",
+  "webReady": "Ready",
+  "webEditFile": "Edit file",
+  "webViewFile": "View",
+  "webNewFolderName": "New folder name",
+  "webNewFileName": "New file name",
+  "webCreate": "Create",
+  "webEdit": "Edit",
+  "webClearLogs": "Clear logs",
+  "webClosePanel": "Close panel",
+  "webItems": "items",
+  "webLoading": "Loading...",
+  "webError": "Error",
+  "webUploading": "Uploading...",
+  "webUploadSuccess": "Uploaded successfully",
+  "webUploadSuccessCount": "Uploaded {count} files successfully",
+  "@webUploadSuccessCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "webUploadError": "Upload error",
+  "webNoSelectionDownload": "No items selected to download",
+  "webNoFilesDownload": "No files selected to download",
+  "webDownloading": "Downloading",
+  "webZipAndDownload": "Zipping for download...",
+  "webZipSuccessDownload": "Zipped successfully. Downloading...",
+  "webZipError": "Zip error",
+  "webSelectedAll": "Selected all",
+  "webSelectedAllCount": "Selected all {count} items",
+  "@webSelectedAllCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "webDeselectedAll": "Deselected all",
+  "webSavedSuccess": "Saved successfully",
+  "webSelectOneRename": "Select 1 item to rename",
+  "webNoSelection": "No items selected",
+  "webDeleteConfirm": "Delete {count} items?",
+  "webZipSuccess": "Zipped successfully",
+  "webZipSuccessDownloading": "Zipped successfully: {name}. Downloading...",
+  "@webZipSuccessDownloading": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "webUnzipSuccess": "Extracted successfully",
+  "webGridView": "Grid",
+  "webListView": "List",
+  "@webDeleteConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logUnlockZip": "Unlocked ZIP: {name}",
+  "logUnlockError": "Unlock error: {error}",
+  "logEnableManageStorage": "Enable All files access in Settings",
+  "logGrantedAllFilesAccess": "All-files access granted",
+  "logEnableManageAllFiles": "Enable manage all files access in Settings",
+  "logNewTab": "New tab: {name}",
+  "logFileLocation": "Location: {path}",
+  "logViewZip": "View ZIP: {name}",
+  "logRecentAdded": "Added {count} recent files",
+  "logRecentScanned": "Scanned {count} recent files",
+  "logRecentScanError": "Recent scan error: {error}",
+  "logAppsAdded": "Added {count} apps ({type})",
+  "logAppsLoaded": "Loaded {count} apps",
+  "logAppsLoadError": "App load error: {error}",
+  "logAppsTypeSystem": "system",
+  "logAppsTypeUser": "user",
+  "logReadItemsRoot": "Read {count} items at Root",
+  "logReadItemsAt": "Read {count} items at {location}",
+  "logReadError": "Read error {location}: {error}",
+  "logOpenAppInfo": "Opening app info",
+  "logOpenAppInfoError": "App info error: {error}",
+  "logApkCopied": "APK copied: {name}",
+  "logApkCopyError": "APK copy error: {error}",
+  "logApkShared": "APK shared: {name}",
+  "logApkShareError": "APK share error: {error}",
+  "logPlayStoreError": "Play Store error: {error}",
+  "logApkBackup": "APK backed up → {path}",
+  "logApkBackupError": "APK backup error: {error}",
+  "logUninstall": "Uninstall: {name}",
+  "logUninstallError": "Uninstall error: {error}",
+  "logLaunchApp": "Launch app: {package}",
+  "logOpenAppError": "Open app error: {error}",
+  "logHomeLoadError": "Home load error: {error}",
+  "logFtpError": "FTP error: {error}",
+  "logZipReadError": "ZIP read error: {error}",
+  "logFileOpened": "Opened {name}",
+  "logFormatNotSupportedOpen": "Format {format} is not supported.",
+  "logFtpFileLoadError": "FTP file load error: {error}",
+  "logCreateFile": "Created file: {name}",
+  "logCreateFolder": "Created folder: {name}",
+  "logCopiedItems": "Copied {count} items",
+  "logCutItems": "Cut {count} items",
+  "logCannotPasteInZip": "Cannot paste inside ZIP",
+  "logPasteSuccess": "Paste successful",
+  "logPasteError": "Paste error: {error}",
+  "logDuplicateSuccess": "Duplicated {count} items",
+  "logDuplicateError": "Duplicate error: {error}",
+  "logDeletePartialNotice": "Deleted items cannot be restored. Remaining items were not deleted.",
+  "logMovedToTrash": "Moved {count} items to trash",
+  "logDeletedItems": "Deleted {count} items",
+  "logDeleteError": "Delete error: {error}",
+  "logRenamedTo": "Renamed to {name}",
+  "logZippedTo": "Compressed to {name}",
+  "logUnzipTo": "Extracted to {folder}",
+  "logUnzipError": "Extract error: {error}",
+  "logApkNotFound": "APK file not found",
+  "logInstallApkError": "APK install error: {error}",
+  "logOpeningFromZip": "Opening file from ZIP...",
+  "logPrepareShareFromZip": "Preparing to share file from ZIP...",
+  "logShareFileError": "Share file error: {error}",
+  "logFormatNotSupportedDirect": "Format {format} is not supported for direct extraction.",
+  "logFileSaved": "Saved {name}",
+  "logSaveError": "Save error: {error}",
+  "logWebServerStarted": "Web server{auth}: {url}{scope}",
+  "logWebServerAuthWith": " (password)",
+  "logWebServerScopeFolder": " — folder: {path}",
+  "logWebServerScopeAll": " — entire storage",
+  "logWebServerStartError": "Web server start error: {error}",
+  "logWebServerStopped": "Web server stopped",
+  "logZipError": "ZIP error: {error}",
+  "errCannotReadZipList": "Cannot read file list in ZIP",
+  "errZipTooLargeVerifyPassword": "ZIP too large ({sizeMb} MB). Cannot verify password in memory.",
+  "errZipAesTooLarge": "AES-encrypted ZIP too large ({sizeMb} MB). Limit {limitMb} MB.",
+  "errZipTooLargeNeedUnzip": "ZIP too large ({sizeMb} MB). unzip/7z command required on device.",
+  "errFlutterArchiveUnavailable": "flutter_archive is not available on this platform",
+  "errCannotExtractZipEntry": "Cannot extract ZIP entry",
+  "errCannotExtractTar": "Cannot extract TAR",
+  "errDataTooLargeCompress": "Data too large ({sizeMb} MB). Cannot compress in memory.",
+  "errMultiFolderZipNoCommand": "Cannot compress multiple folders — zip command missing on device",
+  "errCannotCreateZip": "Cannot create ZIP file",
+  "errParentDirNotFound": "Parent directory does not exist",
+  "errCannotWriteDestDir": "Cannot write to destination directory",
+  "errZipTooLargeExtract": "ZIP too large ({sizeMb} MB). Native extraction or unzip required.",
+  "errZipTooLargeSingleEntry": "ZIP too large to extract a single entry in RAM",
+  "errZipEntryNotFound": "Entry not found in ZIP",
+  "errFileNotExists": "File does not exist",
+  "errInvalidZip": "Invalid ZIP file",
+  "errZipEocdNotFound": "End of Central Directory not found",
+  "errZipCdCorrupt": "ZIP Central Directory is corrupt",
+  "errZipCdTooLarge": "Central Directory too large ({sizeMb} MB)",
+  "errZipCdIncomplete": "Could not read full Central Directory",
+  "errZip64LocatorInvalid": "Invalid ZIP64 locator",
+  "errZip64EocdInvalid": "Invalid ZIP64 EOCD signature",
+  "errZip64EocdOutOfFile": "ZIP64 EOCD is outside the file",
+  "errDirectoryNotExists": "Directory does not exist",
+  "errCannotAccessPath": "Cannot access {path}: {message}",
+  "errAlreadyExists": "Already exists",
+  "errShellListingAndroidOnly": "Shell listing is only supported on Android",
+  "errSuperuserAndroidOnly": "Superuser mode is only supported on Android",
+  "errCannotCheckSuperuser": "Cannot check superuser access",
+  "errSuperuserCheckTimeout": "Superuser check timed out. Device may not be rooted or access not granted.",
+  "errInstallApkAndroidOnly": "APK install is only supported on Android",
+  "errApkNotFound": "APK not found",
+  "errApkBackupFailed": "Backup failed",
+  "errNoWebServerPassword": "No Web Server password set",
+  "errNoPassword": "No password set",
+  "errCurrentPasswordWrong": "Current password is incorrect",
+  "errBiometricUnlockReason": "Unlock Cope X Studio",
+  "errCannotTestPasswordOnPlatform": "Cannot verify password on this platform",
+  "errShellUnsupportedZipEncryption": "Shell does not support this ZIP encryption format",
+  "errCannotRunUnzip": "Cannot run unzip command",
+  "err7zNotFound": "7z command not found",
+  "errEmptyZipSources": "Empty source list for compression",
+  "errCannotRunZip": "Cannot run zip command",
+  "errPasswordNeeded": "Password required",
+  "apiPasswordRequired": "Password required",
+  "apiWrongPassword": "Wrong password",
+  "apiCannotListFolder": "Cannot list folder",
+  "apiFileNotFound": "File not found",
+  "apiCannotFolderThumbnail": "Cannot get folder thumbnail",
+  "apiCannotReadFolder": "Cannot read folder",
+  "apiFileTooLargeEdit": "File too large to edit (>2MB)",
+  "apiMissingFolderName": "Missing folder name",
+  "apiMissingFileName": "Missing file name",
+  "apiMissingNewName": "Missing new name",
+  "apiNothingToDelete": "Nothing to delete",
+  "apiCannotWriteFolder": "Cannot write folder",
+  "apiNothingToZip": "Nothing to compress",
+  "apiNotZipFile": "Not a ZIP file",
+  "apiInvalidDestFolder": "Invalid destination folder",
+  "apiMissingFileNameParam": "Missing file name (name parameter)",
+  "@logUnlockZip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUnlockError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logNewTab": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFileLocation": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@logViewZip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logRecentAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logRecentScanned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logRecentScanError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logAppsAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "@logAppsLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logAppsLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logReadItemsRoot": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logReadItemsAt": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "@logReadError": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logOpenAppInfoError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkCopied": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkCopyError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkShared": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkShareError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logPlayStoreError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkBackup": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkBackupError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUninstall": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUninstallError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logLaunchApp": {
+    "placeholders": {
+      "package": {
+        "type": "String"
+      }
+    }
+  },
+  "@logOpenAppError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logHomeLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFtpError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logZipReadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFileOpened": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFormatNotSupportedOpen": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFtpFileLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logCreateFile": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logCreateFolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logCopiedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logCutItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logPasteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logDuplicateSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logDuplicateError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logMovedToTrash": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logDeletedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logRenamedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logZippedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUnzipTo": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUnzipError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logInstallApkError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logShareFileError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFormatNotSupportedDirect": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFileSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logSaveError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logWebServerStarted": {
+    "placeholders": {
+      "auth": {
+        "type": "String"
+      },
+      "url": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "@logWebServerScopeFolder": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@logWebServerStartError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logZipError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipTooLargeVerifyPassword": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipAesTooLarge": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      },
+      "limitMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipTooLargeNeedUnzip": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errDataTooLargeCompress": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipTooLargeExtract": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipCdTooLarge": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCannotAccessPath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeTitle": "Welcome to Cope X Studio",
+  "welcomeSubtitle": "Browse files, edit code, and manage archives — all in one place.",
+  "welcomeLanguage": "Language",
+  "welcomeTheme": "Theme",
+  "welcomeNext": "Next",
+  "welcomeBack": "Back",
+  "welcomeGetStarted": "Get started",
+  "welcomePermissionTitle": "Storage access",
+  "welcomePermissionBody": "Allow all-files access so Cope X Studio can browse and manage files across your device.",
+  "welcomeGrantPermission": "Grant access",
+  "welcomeSkipPermission": "Skip for now",
+  "welcomePermissionGranted": "Access granted",
+  "welcomePermissionNotNeeded": "No extra permission is required on this device.",
+  "welcomePermissionsTitle": "Permissions",
+  "welcomePermissionsSubtitle": "Cope X Studio needs a few permissions to work properly.",
+  "welcomeNotificationTitle": "Notifications",
+  "welcomeNotificationBody": "Show status for Web Server, media playback, and background tasks.",
+  "welcomeGrantNotification": "Allow notifications",
+  "welcomeNotificationGranted": "Notifications allowed",
+  "welcomeStorageRequiredHint": "Grant storage access to continue.",
+  "welcomeStep": "Step {current} of {total}",
+  "@welcomeStep": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "welcomeDoneTitle": "You're all set!",
+  "welcomeDoneBody": "Everything is ready. Start exploring your files."
 }

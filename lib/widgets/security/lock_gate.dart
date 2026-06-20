@@ -1,5 +1,6 @@
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/widgets/security/lock_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,7 +18,7 @@ class LockGate extends StatelessWidget {
       return Scaffold(
         backgroundColor: VsCodeColors.editor,
         body: Center(
-          child: Text('Đang tải...', style: TextStyle(color: VsCodeColors.foregroundDim)),
+          child: Text(context.l10n.loading, style: TextStyle(color: VsCodeColors.foregroundDim)),
         ),
       );
     }

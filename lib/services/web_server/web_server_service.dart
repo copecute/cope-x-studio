@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 class WebServerService {
   WebServerService({
@@ -99,7 +100,7 @@ class WebServerService {
         if (auth == null || !auth.startsWith('Basic ')) {
           return Response(
             401,
-            body: 'Cần mật khẩu',
+            body: L10nScope.current.apiPasswordRequired,
             headers: {'WWW-Authenticate': 'Basic realm="Cope X Studio"'},
           );
         }
@@ -115,7 +116,7 @@ class WebServerService {
           if (!ok) {
             return Response(
               401,
-              body: 'Mật khẩu sai',
+              body: L10nScope.current.apiWrongPassword,
               headers: {'WWW-Authenticate': 'Basic realm="Cope X Studio"'},
             );
           }
@@ -149,7 +150,7 @@ class WebServerService {
 
   Response _serveUi(Request request) {
     return Response.ok(
-      webUiHtml,
+      buildWebUiHtml(),
       headers: {'Content-Type': 'text/html; charset=utf-8'},
     );
   }
@@ -210,10 +211,10 @@ class WebServerService {
     try {
       final filePath = _guard!.resolve(request.url.queryParameters['path']);
       if (_fileService.isDirectory(filePath)) {
-        return _jsonError('Không thể tải thư mục', 400);
+        return _jsonError(L10nScope.current.apiCannotListFolder, 400);
       }
       final file = File(filePath);
-      if (!file.existsSync()) return _jsonError('Không tìm thấy file', 404);
+      if (!file.existsSync()) return _jsonError(L10nScope.current.apiFileNotFound, 404);
 
       final mime = lookupMimeType(filePath) ?? 'application/octet-stream';
       final length = await file.length();
@@ -237,7 +238,7 @@ class WebServerService {
     try {
       final filePath = _guard!.resolve(request.url.queryParameters['path']);
       if (_fileService.isDirectory(filePath)) {
-        return _jsonError('Không thể lấy thumbnail của thư mục', 400);
+        return _jsonError(L10nScope.current.apiCannotFolderThumbnail, 400);
       }
       final bytes = await ThumbnailService.instance.load(filePath);
       if (bytes == null || bytes.isEmpty) {
@@ -260,12 +261,12 @@ class WebServerService {
     try {
       final filePath = _guard!.resolve(request.url.queryParameters['path']);
       if (_fileService.isDirectory(filePath)) {
-        return _jsonError('Không thể đọc thư mục', 400);
+        return _jsonError(L10nScope.current.apiCannotReadFolder, 400);
       }
       final file = File(filePath);
-      if (!file.existsSync()) return _jsonError('Không tìm thấy file', 404);
+      if (!file.existsSync()) return _jsonError(L10nScope.current.apiFileNotFound, 404);
       if (file.lengthSync() > 2 * 1024 * 1024) {
-        return _jsonError('File quá lớn để chỉnh sửa (>2MB)', 400);
+        return _jsonError(L10nScope.current.apiFileTooLargeEdit, 400);
       }
       final content = await _fileService.readText(filePath);
       return _json({'path': filePath, 'content': content});
@@ -279,7 +280,7 @@ class WebServerService {
       final body = await _readJson(request);
       final parent = _guard!.resolve(body['path'] as String?);
       final name = (body['name'] as String?)?.trim();
-      if (name == null || name.isEmpty) return _jsonError('Thiếu tên thư mục', 400);
+      if (name == null || name.isEmpty) return _jsonError(L10nScope.current.apiMissingFolderName, 400);
       final folderPath = p.join(parent, name);
       await _fileService.createFolder(folderPath);
       return _json({'path': folderPath});
@@ -293,7 +294,7 @@ class WebServerService {
       final body = await _readJson(request);
       final parent = _guard!.resolve(body['path'] as String?);
       final name = (body['name'] as String?)?.trim();
-      if (name == null || name.isEmpty) return _jsonError('Thiếu tên file', 400);
+      if (name == null || name.isEmpty) return _jsonError(L10nScope.current.apiMissingFileName, 400);
       final filePath = p.join(parent, name);
       await _fileService.createFile(filePath);
       return _json({'path': filePath});
@@ -307,7 +308,7 @@ class WebServerService {
       final body = await _readJson(request);
       final oldPath = _guard!.resolve(body['path'] as String?);
       final newName = (body['newName'] as String?)?.trim();
-      if (newName == null || newName.isEmpty) return _jsonError('Thiếu tên mới', 400);
+      if (newName == null || newName.isEmpty) return _jsonError(L10nScope.current.apiMissingNewName, 400);
       final newPath = p.join(p.dirname(oldPath), newName);
       await _fileService.renameEntity(oldPath, newPath);
       return _json({'path': newPath});
@@ -320,7 +321,7 @@ class WebServerService {
     try {
       final body = await _readJson(request);
       final paths = (body['paths'] as List?)?.cast<String>() ?? [];
-      if (paths.isEmpty) return _jsonError('Không có mục để xóa', 400);
+      if (paths.isEmpty) return _jsonError(L10nScope.current.apiNothingToDelete, 400);
       for (final path in paths) {
         await _fileService.delete(_guard!.resolve(path));
       }
@@ -336,7 +337,7 @@ class WebServerService {
       final filePath = _guard!.resolve(body['path'] as String?);
       final content = body['content'] as String? ?? '';
       if (_fileService.isDirectory(filePath)) {
-        return _jsonError('Không thể ghi thư mục', 400);
+        return _jsonError(L10nScope.current.apiCannotWriteFolder, 400);
       }
       await _fileService.writeText(filePath, content);
       return _json({'path': filePath});
@@ -349,7 +350,7 @@ class WebServerService {
     try {
       final body = await _readJson(request);
       final paths = (body['paths'] as List?)?.cast<String>() ?? [];
-      if (paths.isEmpty) return _jsonError('Không có mục để nén', 400);
+      if (paths.isEmpty) return _jsonError(L10nScope.current.apiNothingToZip, 400);
 
       final resolved = paths.map(_guard!.resolve).toList();
       final parent = _guard!.resolve(body['dest'] as String? ?? p.dirname(resolved.first));
@@ -371,7 +372,7 @@ class WebServerService {
       final body = await _readJson(request);
       final zipPath = _guard!.resolve(body['path'] as String?);
       if (!FileTypeUtils.isZip(zipPath)) {
-        return _jsonError('Không phải file ZIP', 400);
+        return _jsonError(L10nScope.current.apiNotZipFile, 400);
       }
       final parent = p.dirname(zipPath);
       final folderName = _fileService.uniqueName(
@@ -390,12 +391,12 @@ class WebServerService {
     try {
       final destDir = _guard!.resolve(request.url.queryParameters['path']);
       if (!_fileService.isDirectory(destDir)) {
-        return _jsonError('Thư mục đích không hợp lệ', 400);
+        return _jsonError(L10nScope.current.apiInvalidDestFolder, 400);
       }
 
       final filename = request.url.queryParameters['name']?.trim();
       if (filename == null || filename.isEmpty) {
-        return _jsonError('Thiếu tên file (tham số name)', 400);
+        return _jsonError(L10nScope.current.apiMissingFileNameParam, 400);
       }
 
       final safeName = p.basename(filename);

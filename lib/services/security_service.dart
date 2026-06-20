@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 class SecurityService {
   SecurityService({
@@ -139,7 +140,7 @@ class SecurityService {
       throw ArgumentError('Mật khẩu không được để trống');
     }
     if (!await hasPassword) {
-      throw StateError('Chưa có mật khẩu');
+      throw StateError(L10nScope.current.errNoPassword);
     }
     final salt = _randomSalt();
     await _write(_keySalt, salt);
@@ -149,7 +150,7 @@ class SecurityService {
   Future<void> setLockEnabled(bool enabled) async {
     if (enabled) {
       if (!await hasPassword) {
-        throw StateError('Cần đặt mật khẩu trước');
+        throw StateError(L10nScope.current.biometricNeedsPassword);
       }
       await _write(_keyLockEnabled, 'true');
     } else {
@@ -159,14 +160,14 @@ class SecurityService {
 
   Future<void> changePassword(String currentPassword, String newPassword) async {
     if (!await verifyPassword(currentPassword)) {
-      throw StateError('Mật khẩu hiện tại không đúng');
+      throw StateError(L10nScope.current.errCurrentPasswordWrong);
     }
     await setPassword(newPassword);
   }
 
   Future<void> removePassword(String currentPassword) async {
     if (!await verifyPassword(currentPassword)) {
-      throw StateError('Mật khẩu không đúng');
+      throw StateError(L10nScope.current.wrongPassword);
     }
     await _delete(_keyPasswordHash);
     await _delete(_keySalt);
@@ -176,18 +177,18 @@ class SecurityService {
 
   Future<void> setBiometricEnabled(bool enabled) async {
     if (enabled && !await canUseBiometric()) {
-      throw StateError('Thiết bị không hỗ trợ sinh trắc học');
+      throw StateError(L10nScope.current.biometricNotSupported);
     }
     if (enabled && !await hasPassword) {
-      throw StateError('Cần đặt mật khẩu trước');
+      throw StateError(L10nScope.current.biometricNeedsPassword);
     }
     await _write(_keyBiometricEnabled, enabled ? 'true' : 'false');
   }
 
-  Future<bool> authenticateBiometric({String reason = 'Mở khóa Cope X Studio'}) async {
+  Future<bool> authenticateBiometric({String? reason}) async {
     try {
       return await _localAuth.authenticate(
-        localizedReason: reason,
+        localizedReason: reason ?? L10nScope.current.errBiometricUnlockReason,
         options: const AuthenticationOptions(
           biometricOnly: false,
           stickyAuth: true,

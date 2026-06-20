@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cope_x_studio/l10n/model_l10n.dart';
 import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/models/browser_view_mode.dart';
@@ -14,6 +15,8 @@ import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/utils/app_path_utils.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/utils/path_utils.dart';
 import 'package:cope_x_studio/widgets/browser/entry_properties_dialog.dart';
 import 'package:cope_x_studio/widgets/browser/file_thumbnail.dart';
@@ -35,6 +38,7 @@ class BrowserTabView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
+    final l10n = context.l10n;
 
     if (!provider.storageGranted && provider.permissionChecked) {
       return _PermissionGate(provider: provider);
@@ -109,7 +113,7 @@ class BrowserTabView extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 child: Text(
                                   provider.fileOperationIsRollingBackForTab(tab.id)
-                                      ? 'Vui lòng đợi...'
+                                      ? l10n.pleaseWait
                                       : (provider.archiveProgressLabelForTab(tab.id) ?? ''),
                                   textAlign: TextAlign.center,
                                   overflow: TextOverflow.ellipsis,
@@ -135,7 +139,7 @@ class BrowserTabView extends StatelessWidget {
                               OutlinedButton.icon(
                                 onPressed: () => provider.cancelFileOperation(tab.id),
                                 icon: const Icon(Icons.close, size: 18),
-                                label: const Text('Hủy'),
+                                label: Text(l10n.cancel),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
                                   side: const BorderSide(color: Colors.white54),
@@ -200,6 +204,7 @@ class _FileOpNoticeHostState extends State<_FileOpNoticeHost> {
 }
 
 Future<void> _showFileOpNotice(BuildContext context, FileOpNotice notice) {
+  final l10n = context.l10n;
   return showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -227,7 +232,7 @@ Future<void> _showFileOpNotice(BuildContext context, FileOpNotice notice) {
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Đã hiểu'),
+          child: Text(l10n.understood),
         ),
       ],
     ),
@@ -241,6 +246,7 @@ class _PermissionGate extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -249,14 +255,14 @@ class _PermissionGate extends StatelessWidget {
           children: [
             Icon(Icons.sd_storage, size: 64, color: VsCodeColors.accent),
             const SizedBox(height: 16),
-            const Text(
-              'Cần quyền truy cập tất cả file',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            Text(
+              l10n.storagePermissionTitle,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              'Bật MANAGE_EXTERNAL_STORAGE để duyệt toàn bộ bộ nhớ.',
+              l10n.storagePermissionBody,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 15, color: VsCodeColors.foregroundDim),
             ),
@@ -264,7 +270,7 @@ class _PermissionGate extends StatelessWidget {
             FilledButton.icon(
               onPressed: provider.requestManageExternalStorage,
               icon: const Icon(Icons.admin_panel_settings),
-              label: const Text('Cấp quyền'),
+              label: Text(l10n.grantPermission),
             ),
           ],
         ),
@@ -296,6 +302,7 @@ class _BrowserToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
+    final l10n = context.l10n;
     final isWritable = !tab.currentPath.startsWith('@') || tab.currentPath.startsWith('@ftp/');
 
     return Container(
@@ -306,18 +313,18 @@ class _BrowserToolbar extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_upward, size: AppSizes.iconMedium),
-            tooltip: 'Thư mục cha',
+            tooltip: l10n.parentFolder,
             onPressed: _canGoUp() ? () => provider.navigateUp(tab.id) : null,
           ),
           IconButton(
             icon: const Icon(Icons.refresh, size: AppSizes.iconMedium),
-            tooltip: 'Làm mới',
+            tooltip: l10n.refresh,
             onPressed: () => provider.refreshTab(tab.id),
           ),
           if (tab.isZipViewer) ...[
             IconButton(
               icon: Icon(Icons.unarchive_outlined, size: AppSizes.iconMedium, color: VsCodeColors.accent),
-              tooltip: 'Giải nén',
+              tooltip: l10n.extract,
               onPressed: () => _handleUnzip(context, provider, tab.id, tab.zipArchivePath!),
             ),
             Padding(
@@ -333,7 +340,7 @@ class _BrowserToolbar extends StatelessWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đã sao chép đường dẫn: $path'),
+                      content: Text(l10n.pathCopied(path)),
                       duration: const Duration(seconds: 1),
                     ),
                   );
@@ -354,7 +361,7 @@ class _BrowserToolbar extends StatelessWidget {
               size: AppSizes.iconMedium,
               color: tab.showSearch ? VsCodeColors.accent : null,
             ),
-            tooltip: 'Tìm kiếm',
+            tooltip: l10n.search,
             onPressed: () => provider.toggleShowSearch(tab.id),
           ),
           IconButton(
@@ -362,7 +369,7 @@ class _BrowserToolbar extends StatelessWidget {
               _viewModeIcon(provider.browserViewMode),
               size: AppSizes.iconMedium,
             ),
-            tooltip: _viewModeTooltip(provider.browserViewMode),
+            tooltip: provider.browserViewMode.localizedLabel(l10n),
             onPressed: () => provider.toggleViewMode(),
           ),
           IconButton(
@@ -371,12 +378,12 @@ class _BrowserToolbar extends StatelessWidget {
               size: AppSizes.iconMedium,
               color: provider.isWebServerRunning ? VsCodeColors.accent : null,
             ),
-            tooltip: 'Web Server',
+            tooltip: l10n.webServer,
             onPressed: () => WebServerSheet.show(context),
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: AppSizes.iconMedium),
-            tooltip: 'Thêm',
+            tooltip: l10n.add,
             onSelected: (value) {
               switch (value) {
                 case 'new_file':
@@ -398,7 +405,7 @@ class _BrowserToolbar extends StatelessWidget {
                         : [tab.currentPath];
                     if (zipPaths.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Không có tập tin để nén')),
+                        SnackBar(content: Text(l10n.noFilesToZip)),
                       );
                     } else {
                       unawaited(_handleZip(context, provider, tab.id, zipPaths));
@@ -414,36 +421,38 @@ class _BrowserToolbar extends StatelessWidget {
                   provider.toggleShowHidden();
               }
             },
-            itemBuilder: (context) => [
+            itemBuilder: (context) {
+              final menuL10n = context.l10n;
+              return [
               if (!tab.isZipViewer && isWritable) ...[
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'new_file',
                   child: Row(
                     children: [
                       Icon(Icons.note_add_outlined, size: 20),
                       SizedBox(width: 10),
-                      Text('File mới'),
+                      Text(menuL10n.newFile),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'new_folder',
                   child: Row(
                     children: [
                       Icon(Icons.create_new_folder_outlined, size: 20),
                       SizedBox(width: 10),
-                      Text('Thư mục mới'),
+                      Text(menuL10n.newFolder),
                     ],
                   ),
                 ),
               ],
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'settings',
                 child: Row(
                   children: [
                     Icon(Icons.settings, size: 20),
                     SizedBox(width: 10),
-                    Text('Cài đặt'),
+                    Text(menuL10n.settings),
                   ],
                 ),
               ),
@@ -455,18 +464,18 @@ class _BrowserToolbar extends StatelessWidget {
                       provider.showHidden ? Icons.visibility_off : Icons.visibility,
                       size: 20,
                     ),
-                    const SizedBox(width: 10),
-                    Text(provider.showHidden ? 'Ẩn tệp ẩn' : 'Hiện tệp ẩn'),
+                    SizedBox(width: 10),
+                    Text(provider.showHidden ? menuL10n.hideHiddenFilesToggle : menuL10n.showHiddenFilesToggle),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'web_server',
                 child: Row(
                   children: [
                     Icon(Icons.wifi_tethering, size: 20),
                     SizedBox(width: 10),
-                    Text('Web Server'),
+                    Text(menuL10n.webServer),
                   ],
                 ),
               ),
@@ -478,39 +487,40 @@ class _BrowserToolbar extends StatelessWidget {
                   value: 'zip_folder',
                   child: Row(
                     children: [
-                      const Icon(Icons.folder_zip_outlined, size: 20),
-                      const SizedBox(width: 10),
+                      Icon(Icons.folder_zip_outlined, size: 20),
+                      SizedBox(width: 10),
                       Text(
                         tab.currentPath == '@recent'
-                            ? 'Nén các tập tin gần đây'
-                            : 'Nén thư mục hiện tại',
+                            ? menuL10n.zipRecentFiles
+                            : menuL10n.zipCurrentFolder,
                       ),
                     ],
                   ),
                 ),
               if (provider.clipboard != null && provider.clipboard!.paths.isNotEmpty)
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'zip_clip',
                   child: Row(
                     children: [
                       Icon(Icons.folder_zip_outlined, size: 20),
                       SizedBox(width: 10),
-                      Text('Nén các mục đã copy'),
+                      Text(menuL10n.zipCopiedItems),
                     ],
                   ),
                 ),
               if (tab.hasSelection)
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'clear_selection',
                   child: Row(
                     children: [
                       Icon(Icons.deselect, size: 20),
                       SizedBox(width: 10),
-                      Text('Bỏ chọn tất cả'),
+                      Text(menuL10n.deselectAll),
                     ],
                   ),
                 ),
-            ],
+            ];
+            },
           ),
         ],
       ),
@@ -565,6 +575,7 @@ class _SearchBarState extends State<_SearchBar> {
   @override
   Widget build(BuildContext context) {
     final provider = context.read<WorkspaceProvider>();
+    final l10n = context.l10n;
 
     return Container(
       height: 44,
@@ -574,7 +585,7 @@ class _SearchBarState extends State<_SearchBar> {
         controller: _controller,
         style: const TextStyle(fontSize: AppSizes.fontSmall),
         decoration: InputDecoration(
-          hintText: 'Tìm kiếm trong thư mục...',
+          hintText: l10n.searchInFolder,
           hintStyle: TextStyle(color: VsCodeColors.foregroundDim, fontSize: AppSizes.fontSmall),
           prefixIcon: Icon(Icons.search, size: 20, color: VsCodeColors.foregroundDim),
           suffixIcon: _controller.text.isNotEmpty
@@ -617,6 +628,7 @@ class _SelectionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.read<WorkspaceProvider>();
+    final l10n = context.l10n;
     final count = tab.selectedPaths.length;
     final paths = provider.getSelectedPaths(tab.id);
 
@@ -628,7 +640,7 @@ class _SelectionBar extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.close, size: 20, color: Colors.redAccent),
-            tooltip: 'Đóng',
+            tooltip: l10n.close,
             onPressed: () => provider.clearSelection(tab.id),
           ),
           VerticalDivider(width: 8, color: VsCodeColors.border, indent: 8, endIndent: 8),
@@ -638,43 +650,43 @@ class _SelectionBar extends StatelessWidget {
               child: Row(
                 children: [
                   const SizedBox(width: 4),
-                  Text('$count đã chọn', style: const TextStyle(fontSize: AppSizes.fontSmall, fontWeight: FontWeight.w600)),
+                  Text(l10n.selectedCount(count), style: const TextStyle(fontSize: AppSizes.fontSmall, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.copy, size: 20),
-                    tooltip: 'Copy',
+                    tooltip: l10n.copy,
                     onPressed: () => provider.copyToClipboard(paths),
                   ),
                   IconButton(
                     icon: const Icon(Icons.content_cut, size: 20),
-                    tooltip: 'Cut',
+                    tooltip: l10n.cut,
                     onPressed: () => provider.cutToClipboard(paths),
                   ),
                   if (!tab.isZipViewer)
                     IconButton(
                       icon: const Icon(Icons.control_point_duplicate, size: 20),
-                      tooltip: 'Nhân đôi',
+                      tooltip: l10n.duplicate,
                       onPressed: () => provider.duplicatePaths(tab.id, paths),
                     ),
                   if (count == 1)
                     IconButton(
                       icon: const Icon(Icons.drive_file_rename_outline, size: 20),
-                      tooltip: 'Đổi tên',
+                      tooltip: l10n.rename,
                       onPressed: () => _renameItem(context, provider, tab.id, paths.first),
                     ),
                   IconButton(
                     icon: const Icon(Icons.folder_zip_outlined, size: 20),
-                    tooltip: 'Nén ZIP',
+                    tooltip: l10n.zipFileTitle,
                     onPressed: () => _handleZip(context, provider, tab.id, paths),
                   ),
                   IconButton(
                     icon: const Icon(Icons.share, size: 20),
-                    tooltip: 'Chia sẻ',
+                    tooltip: l10n.share,
                     onPressed: () => _sharePaths(paths),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 20),
-                    tooltip: 'Xóa',
+                    tooltip: l10n.delete,
                     onPressed: () => provider.deletePaths(tab.id, paths),
                   ),
                 ],
@@ -695,6 +707,7 @@ class _FileListArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
+    final l10n = context.l10n;
     // ignore: unused_local_variable
     final _ = tab.listRevision;
     final accessNote = provider.getDirectoryAccessNote(tab.currentPath);
@@ -705,13 +718,13 @@ class _FileListArea extends StatelessWidget {
       entries = provider.listEntriesForTab(tab.id);
     } on FileAccessException catch (e) {
       return _wrapWithAccessBanner(
-        accessNote ?? (ShellListService.isRootFilesystemPath(tab.currentPath) ? 'Truy cập bị từ chối' : null),
+        accessNote ?? (ShellListService.isRootFilesystemPath(tab.currentPath) ? l10n.accessDenied : null),
         _EmptyGestureArea(
           tab: tab,
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Không thể đọc thư mục:\n${e.message}', textAlign: TextAlign.center),
+              child: Text('${l10n.cannotReadFolder}:\n${e.message}', textAlign: TextAlign.center),
             ),
           ),
         ),
@@ -731,11 +744,11 @@ class _FileListArea extends StatelessWidget {
                 children: [
                   const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
                   const SizedBox(height: 12),
-                  Text('Lỗi kết nối FTP:\n$error', textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
+                  Text('${l10n.ftpConnectionError}:\n$error', textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => provider.refreshTab(tab.id),
-                    child: const Text('Thử lại'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -752,7 +765,7 @@ class _FileListArea extends StatelessWidget {
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text(
-                'Đang tải thư mục FTP...',
+                l10n.loadingFtp,
                 style: TextStyle(color: VsCodeColors.foregroundDim),
               ),
             ],
@@ -769,7 +782,7 @@ class _FileListArea extends StatelessWidget {
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text(
-              'Đang đọc nội dung ZIP...',
+              l10n.loadingZip,
               style: TextStyle(color: VsCodeColors.foregroundDim),
             ),
           ],
@@ -787,7 +800,7 @@ class _FileListArea extends StatelessWidget {
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text(
-                'Đang đọc thư mục...',
+                l10n.loadingDirectory,
                 style: TextStyle(color: VsCodeColors.foregroundDim),
               ),
             ],
@@ -810,14 +823,14 @@ class _FileListArea extends StatelessWidget {
                   const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
                   const SizedBox(height: 12),
                   Text(
-                    'Không thể đọc ${PathUtils.displayName(tab.currentPath)}:\n$shellError',
+                    '${l10n.cannotReadPath(PathUtils.displayName(tab.currentPath))}:\n$shellError',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.redAccent),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => provider.refreshTab(tab.id),
-                    child: const Text('Thử lại'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -835,7 +848,7 @@ class _FileListArea extends StatelessWidget {
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text(
-              'Đang tải danh sách ứng dụng...',
+              l10n.loadingApps,
               style: TextStyle(color: VsCodeColors.foregroundDim),
             ),
           ],
@@ -857,14 +870,14 @@ class _FileListArea extends StatelessWidget {
                   const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
                   const SizedBox(height: 12),
                   Text(
-                    'Không thể tải ứng dụng:\n$appsError',
+                    '${l10n.cannotLoadApps}:\n$appsError',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.redAccent),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => provider.refreshTab(tab.id),
-                    child: const Text('Thử lại'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -882,7 +895,7 @@ class _FileListArea extends StatelessWidget {
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text(
-              'Đang quét bộ nhớ...',
+              l10n.scanningStorage,
               style: TextStyle(color: VsCodeColors.foregroundDim),
             ),
           ],
@@ -898,7 +911,7 @@ class _FileListArea extends StatelessWidget {
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text(
-              'Đang quét tập tin gần đây...',
+              l10n.scanningRecent,
               style: TextStyle(color: VsCodeColors.foregroundDim),
             ),
           ],
@@ -920,12 +933,12 @@ class _FileListArea extends StatelessWidget {
         );
       }
       final emptyText = tab.searchQuery.isNotEmpty
-          ? 'Không tìm thấy kết quả'
+          ? l10n.noSearchResults
           : (tab.currentPath == '@recent'
-              ? 'Không tìm thấy tập tin gần đây'
+              ? l10n.noRecentFiles
               : (AppPathUtils.isAppsList(tab.currentPath)
-                  ? 'Không có ứng dụng'
-                  : (tab.isZipViewer ? 'ZIP trống' : 'Thư mục trống')));
+                  ? l10n.noApps
+                  : (tab.isZipViewer ? l10n.emptyZip : l10n.emptyFolder)));
       return _EmptyGestureArea(
         tab: tab,
         child: Center(child: Text(emptyText, style: const TextStyle(fontSize: 16))),
@@ -989,7 +1002,7 @@ class _FileListArea extends StatelessWidget {
                         const CircularProgressIndicator(),
                         const SizedBox(height: 16),
                         Text(
-                          'Đang giải nén và mở file...',
+                          l10n.extractingAndOpening,
                           style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 15),
                         ),
                         if (provider.zipOpeningLabel != null) ...[
@@ -1259,7 +1272,7 @@ class _FileTile extends StatelessWidget {
                       ),
                       if (_entryShowsSubtitle(entry))
                         Text(
-                          _entrySubtitle(entry),
+                          _entrySubtitle(context, entry),
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 12, color: _entrySubtitleColor(entry)),
                         ),
@@ -1304,6 +1317,7 @@ class _FileTile extends StatelessWidget {
   void _showFtpServerContextMenu(BuildContext context, WorkspaceProvider provider, BrowserEntry entry) {
     final serverId = entry.path.substring(5);
     final server = provider.getFtpServer(serverId);
+    final l10n = context.l10n;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: VsCodeColors.tabBar,
@@ -1315,7 +1329,7 @@ class _FileTile extends StatelessWidget {
               if (server != null)
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Chỉnh sửa cấu hình'),
+                  title: Text(l10n.editFtpConfig),
                   onTap: () {
                     Navigator.pop(context);
                     _showFtpServerDialog(context, provider, existing: server);
@@ -1323,7 +1337,7 @@ class _FileTile extends StatelessWidget {
                 ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('Xóa cấu hình máy chủ', style: TextStyle(color: Colors.redAccent)),
+                title: Text(l10n.deleteFtpServer, style: const TextStyle(color: Colors.redAccent)),
                 onTap: () {
                   Navigator.pop(context);
                   provider.removeFtpServer(serverId);
@@ -1342,6 +1356,7 @@ class _FileTile extends StatelessWidget {
     FtpServerConfig? existing,
   }) {
     final isEdit = existing != null;
+    final l10n = context.l10n;
     final nameCtrl = TextEditingController(text: existing?.name ?? 'My FTP Server');
     final hostCtrl = TextEditingController(text: existing?.host ?? '');
     final portCtrl = TextEditingController(text: '${existing?.port ?? 21}');
@@ -1353,31 +1368,31 @@ class _FileTile extends StatelessWidget {
       builder: (context) {
         return AlertDialog(
           backgroundColor: VsCodeColors.tabBar,
-          title: Text(isEdit ? 'Chỉnh sửa máy chủ FTP' : 'Thêm máy chủ FTP'),
+          title: Text(isEdit ? l10n.editFtpServer : l10n.addFtpServer),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Tên gợi nhớ'),
+                  decoration: InputDecoration(labelText: l10n.displayName),
                 ),
                 TextField(
                   controller: hostCtrl,
-                  decoration: const InputDecoration(labelText: 'Địa chỉ IP / Host'),
+                  decoration: InputDecoration(labelText: l10n.hostAddress),
                 ),
                 TextField(
                   controller: portCtrl,
-                  decoration: const InputDecoration(labelText: 'Cổng (Port)'),
+                  decoration: InputDecoration(labelText: l10n.port),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
                   controller: userCtrl,
-                  decoration: const InputDecoration(labelText: 'Tên đăng nhập'),
+                  decoration: InputDecoration(labelText: l10n.username),
                 ),
                 TextField(
                   controller: passCtrl,
-                  decoration: const InputDecoration(labelText: 'Mật khẩu'),
+                  decoration: InputDecoration(labelText: l10n.passwordLabel),
                   obscureText: true,
                 ),
               ],
@@ -1386,7 +1401,7 @@ class _FileTile extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () {
@@ -1421,7 +1436,7 @@ class _FileTile extends StatelessWidget {
                 }
                 Navigator.pop(context);
               },
-              child: Text(isEdit ? 'Lưu' : 'Thêm'),
+              child: Text(isEdit ? l10n.save : l10n.add),
             ),
           ],
         );
@@ -1506,7 +1521,7 @@ class _GridFileTile extends StatelessWidget {
                   SizedBox(
                     height: 14,
                     child: Text(
-                      _entryShowsSubtitle(entry) ? _entrySubtitle(entry) : '',
+                      _entryShowsSubtitle(entry) ? _entrySubtitle(context, entry) : '',
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1535,6 +1550,7 @@ class _GridFileTile extends StatelessWidget {
   void _showFtpServerContextMenu(BuildContext context, WorkspaceProvider provider, BrowserEntry entry) {
     final serverId = entry.path.substring(5);
     final server = provider.getFtpServer(serverId);
+    final l10n = context.l10n;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: VsCodeColors.tabBar,
@@ -1546,7 +1562,7 @@ class _GridFileTile extends StatelessWidget {
               if (server != null)
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Chỉnh sửa cấu hình'),
+                  title: Text(l10n.editFtpConfig),
                   onTap: () {
                     Navigator.pop(context);
                     _showFtpServerDialog(context, provider, existing: server);
@@ -1554,7 +1570,7 @@ class _GridFileTile extends StatelessWidget {
                 ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('Xóa cấu hình máy chủ', style: TextStyle(color: Colors.redAccent)),
+                title: Text(l10n.deleteFtpServer, style: const TextStyle(color: Colors.redAccent)),
                 onTap: () {
                   Navigator.pop(context);
                   provider.removeFtpServer(serverId);
@@ -1573,6 +1589,7 @@ class _GridFileTile extends StatelessWidget {
     FtpServerConfig? existing,
   }) {
     final isEdit = existing != null;
+    final l10n = context.l10n;
     final nameCtrl = TextEditingController(text: existing?.name ?? 'My FTP Server');
     final hostCtrl = TextEditingController(text: existing?.host ?? '');
     final portCtrl = TextEditingController(text: '${existing?.port ?? 21}');
@@ -1584,31 +1601,31 @@ class _GridFileTile extends StatelessWidget {
       builder: (context) {
         return AlertDialog(
           backgroundColor: VsCodeColors.tabBar,
-          title: Text(isEdit ? 'Chỉnh sửa máy chủ FTP' : 'Thêm máy chủ FTP'),
+          title: Text(isEdit ? l10n.editFtpServer : l10n.addFtpServer),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Tên gợi nhớ'),
+                  decoration: InputDecoration(labelText: l10n.displayName),
                 ),
                 TextField(
                   controller: hostCtrl,
-                  decoration: const InputDecoration(labelText: 'Địa chỉ IP / Host'),
+                  decoration: InputDecoration(labelText: l10n.hostAddress),
                 ),
                 TextField(
                   controller: portCtrl,
-                  decoration: const InputDecoration(labelText: 'Cổng (Port)'),
+                  decoration: InputDecoration(labelText: l10n.port),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
                   controller: userCtrl,
-                  decoration: const InputDecoration(labelText: 'Tên đăng nhập'),
+                  decoration: InputDecoration(labelText: l10n.username),
                 ),
                 TextField(
                   controller: passCtrl,
-                  decoration: const InputDecoration(labelText: 'Mật khẩu'),
+                  decoration: InputDecoration(labelText: l10n.passwordLabel),
                   obscureText: true,
                 ),
               ],
@@ -1617,7 +1634,7 @@ class _GridFileTile extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Hủy'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () {
@@ -1652,7 +1669,7 @@ class _GridFileTile extends StatelessWidget {
                 }
                 Navigator.pop(context);
               },
-              child: Text(isEdit ? 'Lưu' : 'Thêm'),
+              child: Text(isEdit ? l10n.save : l10n.add),
             ),
           ],
         );
@@ -1661,15 +1678,16 @@ class _GridFileTile extends StatelessWidget {
   }
 }
 
-String _entrySubtitle(BrowserEntry entry) {
+String _entrySubtitle(BuildContext context, BrowserEntry entry) {
+  final l10n = context.l10n;
   if (entry.accessDenied) {
-    return WorkspaceProvider.entryAccessDeniedLabel;
+    return l10n.accessDenied;
   }
   if (entry.subtitle != null && entry.subtitle!.isNotEmpty) {
     return entry.subtitle!;
   }
   if (entry.isDirectory && entry.childrenCount != null) {
-    return '${entry.childrenCount} mục';
+    return l10n.itemCount(entry.childrenCount!);
   }
   if (entry.path.startsWith('@ftp/')) {
     if (entry.isDirectory) return '';
@@ -1690,7 +1708,7 @@ String _entrySubtitle(BrowserEntry entry) {
     final stat = File(entry.path).statSync();
     return '${_formatSize(stat.size)} · ${p.extension(entry.path).replaceFirst('.', '').toUpperCase()}';
   } catch (_) {
-    if (entry.isDirectory) return WorkspaceProvider.entryAccessDeniedLabel;
+    if (entry.isDirectory) return l10n.accessDenied;
     return p.extension(entry.path).replaceFirst('.', '').toUpperCase();
   }
 }
@@ -1737,14 +1755,6 @@ IconData _viewModeIcon(BrowserViewMode mode) {
     BrowserViewMode.list => Icons.view_list,
     BrowserViewMode.grid => Icons.grid_view,
     BrowserViewMode.tree => Icons.account_tree_outlined,
-  };
-}
-
-String _viewModeTooltip(BrowserViewMode mode) {
-  return switch (mode) {
-    BrowserViewMode.list => 'Danh sách',
-    BrowserViewMode.grid => 'Lưới',
-    BrowserViewMode.tree => 'Cây thư mục',
   };
 }
 
@@ -1807,45 +1817,46 @@ void _showBackgroundMenu(
   AppTab tab, [
   Offset? position,
 ]) {
+  final l10n = context.l10n;
   if (tab.isZipViewer) {
     _showMenu(context, position, [
-      _menuItem('Làm mới', Icons.refresh, () => provider.refreshTab(tab.id)),
+      _menuItem(l10n.refresh, Icons.refresh, () => provider.refreshTab(tab.id)),
     ]);
     return;
   }
 
   if (tab.currentPath == '@home' || tab.currentPath == '@ftp' || tab.currentPath == '@apps' || AppPathUtils.isAppsList(tab.currentPath)) {
     _showMenu(context, position, [
-      _menuItem('Làm mới', Icons.refresh, () => provider.refreshTab(tab.id)),
+      _menuItem(l10n.refresh, Icons.refresh, () => provider.refreshTab(tab.id)),
     ]);
     return;
   }
 
   if (tab.currentPath == '/') {
     _showMenu(context, position, [
-      _menuItem('Làm mới', Icons.refresh, () => provider.refreshTab(tab.id)),
+      _menuItem(l10n.refresh, Icons.refresh, () => provider.refreshTab(tab.id)),
     ]);
     return;
   }
 
   final hasClipboard = provider.clipboard != null && provider.clipboard!.paths.isNotEmpty;
   _showMenu(context, position, [
-    _menuItem('Paste', Icons.content_paste, () => provider.pasteTo(tab.id, tab.currentPath), enabled: hasClipboard),
-    _menuItem('File mới', Icons.note_add_outlined, () async {
+    _menuItem(l10n.paste, Icons.content_paste, () => provider.pasteTo(tab.id, tab.currentPath), enabled: hasClipboard),
+    _menuItem(l10n.newFile, Icons.note_add_outlined, () async {
       final path = await provider.createNewFile(tabId: tab.id);
       if (path != null && context.mounted) {
         final name = await RenameDialog.showForPath(context, path);
         if (name != null && context.mounted) await provider.renamePath(tab.id, path, name);
       }
     }),
-    _menuItem('Thư mục mới', Icons.create_new_folder_outlined, () async {
+    _menuItem(l10n.newFolder, Icons.create_new_folder_outlined, () async {
       final path = await provider.createNewFolder(tabId: tab.id);
       if (path != null && context.mounted) {
         final name = await RenameDialog.showForPath(context, path);
         if (name != null && context.mounted) await provider.renamePath(tab.id, path, name);
       }
     }),
-    _menuItem('Làm mới', Icons.refresh, () => provider.refreshTab(tab.id)),
+    _menuItem(l10n.refresh, Icons.refresh, () => provider.refreshTab(tab.id)),
   ]);
 }
 
@@ -1858,18 +1869,19 @@ void _showAppMenu(
 ) {
   final package = AppPathUtils.packageFromPath(entry.path);
   if (package == null) return;
+  final l10n = context.l10n;
 
   _showMenu(context, position, [
-    _menuItem('Chọn', Icons.check_circle_outlined, () => provider.toggleSelection(tab.id, entry.path)),
-    _menuItem('Chọn tất cả', Icons.select_all, () => provider.selectAll(tab.id)),
+    _menuItem(l10n.select, Icons.check_circle_outlined, () => provider.toggleSelection(tab.id, entry.path)),
+    _menuItem(l10n.selectAll, Icons.select_all, () => provider.selectAll(tab.id)),
     const PopupMenuDivider(),
-    _menuItem('Mở ứng dụng', Icons.launch, () => provider.openSelectedApp(package)),
-    _menuItem('Thông tin ứng dụng', Icons.info_outline, () => provider.openAppInfo(package)),
-    _menuItem('Sao chép APK', Icons.copy, () => provider.copyAppApk(package)),
-    _menuItem('Chia sẻ APK', Icons.share, () => provider.shareAppApk(package)),
-    _menuItem('Xem trên Play Store', Icons.shop_outlined, () => provider.openAppOnPlayStore(package)),
-    _menuItem('Backup APK (Trích xuất)', Icons.save_alt_outlined, () => provider.extractAppApk(package)),
-    _menuItem('Gỡ cài đặt', Icons.delete_outline, () => provider.uninstallSelectedApp(package)),
+    _menuItem(l10n.openApp, Icons.launch, () => provider.openSelectedApp(package)),
+    _menuItem(l10n.appInfo, Icons.info_outline, () => provider.openAppInfo(package)),
+    _menuItem(l10n.copyApk, Icons.copy, () => provider.copyAppApk(package)),
+    _menuItem(l10n.shareApk, Icons.share, () => provider.shareAppApk(package)),
+    _menuItem(l10n.viewPlayStore, Icons.shop_outlined, () => provider.openAppOnPlayStore(package)),
+    _menuItem(l10n.backupApk, Icons.save_alt_outlined, () => provider.extractAppApk(package)),
+    _menuItem(l10n.uninstall, Icons.delete_outline, () => provider.uninstallSelectedApp(package)),
   ]);
 }
 
@@ -1915,49 +1927,50 @@ void _showItemMenu(
   final multiSelected = paths.length > 1;
   final showCompressZip = !tab.isZipViewer && (multiSelected || !isArchiveFile);
   final showExtractArchive = isArchiveFile && !multiSelected;
+  final l10n = context.l10n;
 
   _showMenu(context, position, [
     if (isSelectable) ...[
-      _menuItem('Chọn', Icons.check_circle_outlined, () => provider.toggleSelection(tab.id, path)),
-      _menuItem('Chọn tất cả', Icons.select_all, () => provider.selectAll(tab.id)),
+      _menuItem(l10n.select, Icons.check_circle_outlined, () => provider.toggleSelection(tab.id, path)),
+      _menuItem(l10n.selectAll, Icons.select_all, () => provider.selectAll(tab.id)),
       const PopupMenuDivider(),
     ],
     if (!_isSpecialVirtualEntry(path)) ...[
-      _menuItem('Chi tiết', Icons.info_outline, () => EntryPropertiesDialog.show(context, tab: tab, entry: entry)),
+      _menuItem(l10n.details, Icons.info_outline, () => EntryPropertiesDialog.show(context, tab: tab, entry: entry)),
       if (isDir)
-        _menuItem('Mở trong tab mới', Icons.open_in_new, () => _openEntryInNewTab(provider, tab, entry)),
+        _menuItem(l10n.openInNewTab, Icons.open_in_new, () => _openEntryInNewTab(provider, tab, entry)),
     ],
     if (tab.currentPath == '@recent' && !isDir)
-      _menuItem('Xem vị trí file', Icons.place_outlined, () => provider.revealFileLocation(tab.id, path)),
+      _menuItem(l10n.revealLocation, Icons.place_outlined, () => provider.revealFileLocation(tab.id, path)),
     if (!isDir) ...[
       const PopupMenuDivider(),
       _openAsMenuItem(context, provider, tab, path, position),
     ],
     if (!tab.isZipViewer && !isDir)
-      _menuItem('Mở bằng ứng dụng khác', Icons.open_in_browser, () => provider.openWithSystem(path)),
+      _menuItem(l10n.openWithSystem, Icons.open_in_browser, () => provider.openWithSystem(path)),
     if (tab.isZipViewer && !isDir)
-      _menuItem('Chia sẻ', Icons.share, () => provider.shareZipFile(tab.zipArchivePath!, path, password: provider.getZipPassword(tab.zipArchivePath!))),
+      _menuItem(l10n.share, Icons.share, () => provider.shareZipFile(tab.zipArchivePath!, path, password: provider.getZipPassword(tab.zipArchivePath!))),
     if (isApkFile && provider.openApkAsZip)
-      _menuItem('Cài đặt APK', Icons.install_mobile, () => provider.installApkFile(path)),
+      _menuItem(l10n.installApk, Icons.install_mobile, () => provider.installApkFile(path)),
     if (showCompressZip)
-      _menuItem('Nén ZIP', Icons.folder_zip_outlined, () => _handleZip(context, provider, tab.id, paths)),
+      _menuItem(l10n.zipFileTitle, Icons.folder_zip_outlined, () => _handleZip(context, provider, tab.id, paths)),
     if (showExtractArchive)
       _menuItem(
-        'Giải nén ${FileTypeUtils.archiveFormatName(path)}',
+        '${l10n.extract} ${FileTypeUtils.archiveFormatName(path)}',
         Icons.unarchive_outlined,
         () => _handleUnzip(context, provider, tab.id, path),
       ),
     const PopupMenuDivider(),
     if (!tab.isZipViewer) ...[
-      _menuItem('Copy', Icons.copy, () => provider.copyToClipboard(paths)),
-      _menuItem('Cut', Icons.content_cut, () => provider.cutToClipboard(paths)),
-      _menuItem('Paste', Icons.content_paste, () => provider.pasteTo(tab.id, pasteDir!), enabled: hasClipboard),
-      _menuItem('Nhân đôi', Icons.control_point_duplicate, () => provider.duplicatePaths(tab.id, paths)),
+      _menuItem(l10n.copy, Icons.copy, () => provider.copyToClipboard(paths)),
+      _menuItem(l10n.cut, Icons.content_cut, () => provider.cutToClipboard(paths)),
+      _menuItem(l10n.paste, Icons.content_paste, () => provider.pasteTo(tab.id, pasteDir!), enabled: hasClipboard),
+      _menuItem(l10n.duplicate, Icons.control_point_duplicate, () => provider.duplicatePaths(tab.id, paths)),
       if (paths.length == 1)
-        _menuItem('Đổi tên', Icons.drive_file_rename_outline, () => _renameItem(context, provider, tab.id, path)),
-      _menuItem('Xóa', Icons.delete_outline, () => provider.deletePaths(tab.id, paths)),
+        _menuItem(l10n.rename, Icons.drive_file_rename_outline, () => _renameItem(context, provider, tab.id, path)),
+      _menuItem(l10n.delete, Icons.delete_outline, () => provider.deletePaths(tab.id, paths)),
     ] else ...[
-      _menuItem('Copy', Icons.copy, () => provider.copyToClipboard(paths)),
+      _menuItem(l10n.copy, Icons.copy, () => provider.copyToClipboard(paths)),
     ],
   ]);
 }
@@ -1969,15 +1982,15 @@ void _showOpenAsMenu(
   String path,
   Offset anchor,
 ) {
-  final overlaySize = MediaQuery.sizeOf(context);
+  final l10n = context.l10n;
   final offset = Offset(anchor.dx + 180, anchor.dy);
   _showMenu(context, offset, [
-    _menuItem('Văn bản', Icons.article_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.text)),
-    _menuItem('Hình ảnh', Icons.image_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.image)),
-    _menuItem('Âm nhạc', Icons.audiotrack_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.audio)),
-    _menuItem('Video', Icons.movie_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.video)),
-    _menuItem('PDF', Icons.picture_as_pdf_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.pdf)),
-    _menuItem('File nén', Icons.folder_zip_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.archive)),
+    _menuItem(l10n.openAsText, Icons.article_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.text)),
+    _menuItem(l10n.openAsImage, Icons.image_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.image)),
+    _menuItem(l10n.openAsAudio, Icons.audiotrack_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.audio)),
+    _menuItem(l10n.video, Icons.movie_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.video)),
+    _menuItem(l10n.pdf, Icons.picture_as_pdf_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.pdf)),
+    _menuItem(l10n.openAsArchive, Icons.folder_zip_outlined, () => _openFileAs(provider, tab, path, FileOpenAs.archive)),
   ]);
 }
 
@@ -2000,7 +2013,7 @@ PopupMenuItem<void> _openAsMenuItem(
       children: [
         Icon(Icons.open_in_new, size: 20),
         SizedBox(width: 10),
-        Expanded(child: Text('Mở như', style: TextStyle(fontSize: 15))),
+        Expanded(child: Text(context.l10n.openAs, style: TextStyle(fontSize: 15))),
         Icon(Icons.chevron_right, size: 18, color: VsCodeColors.foregroundDim),
       ],
     ),
@@ -2052,10 +2065,11 @@ Future<void> _handleZip(
 }
 
 Future<void> _handleUnzip(BuildContext context, WorkspaceProvider provider, String tabId, String path) async {
+  final l10n = context.l10n;
   if (FileTypeUtils.isRar(path) || FileTypeUtils.is7z(path)) {
     final format = FileTypeUtils.archiveFormatName(path);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Định dạng $format chưa được hỗ trợ giải nén.')),
+      SnackBar(content: Text(l10n.formatNotSupportedExtract(format))),
     );
     return;
   }
@@ -2069,7 +2083,7 @@ Future<void> _handleUnzip(BuildContext context, WorkspaceProvider provider, Stri
   if (!context.mounted) return;
   String? password = provider.getZipPassword(path);
   if (isProtected && (password == null || password.isEmpty)) {
-    password = await _showPasswordDialog(context, 'Giải nén file ZIP có mật khẩu');
+    password = await _showPasswordDialog(context, l10n.zipPasswordExtractTitle);
     if (password == null) return;
   }
   await provider.unzipFile(tabId, path, password: password);
@@ -2144,11 +2158,12 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       backgroundColor: VsCodeColors.sidebar,
-      title: const Text(
-        'Nén file ZIP',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      title: Text(
+        l10n.zipFileTitle,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2158,7 +2173,7 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
             controller: _nameController,
             style: TextStyle(color: VsCodeColors.foreground),
             decoration: InputDecoration(
-              labelText: 'Tên file',
+              labelText: l10n.fileName,
               labelStyle: TextStyle(color: VsCodeColors.foregroundDim),
               border: const OutlineInputBorder(),
               enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
@@ -2170,7 +2185,7 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
           const SizedBox(height: 12),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Bảo vệ bằng mật khẩu'),
+            title: Text(l10n.passwordProtect),
             value: _usePassword,
             onChanged: (v) => setState(() => _usePassword = v),
           ),
@@ -2180,7 +2195,7 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
               obscureText: _obscurePassword,
               style: TextStyle(color: VsCodeColors.foreground),
               decoration: InputDecoration(
-                labelText: 'Mật khẩu',
+                labelText: l10n.passwordLabel,
                 labelStyle: TextStyle(color: VsCodeColors.foregroundDim),
                 border: const OutlineInputBorder(),
                 enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
@@ -2200,12 +2215,12 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Hủy', style: TextStyle(color: VsCodeColors.foregroundDim)),
+          child: Text(l10n.cancel, style: TextStyle(color: VsCodeColors.foregroundDim)),
         ),
         FilledButton(
           onPressed: _submit,
           style: FilledButton.styleFrom(backgroundColor: VsCodeColors.accent),
-          child: const Text('Nén'),
+          child: Text(l10n.compress),
         ),
       ],
     );
@@ -2236,6 +2251,7 @@ class _ZipPasswordDialogState extends State<_ZipPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       backgroundColor: VsCodeColors.sidebar,
       title: Text(
@@ -2247,7 +2263,7 @@ class _ZipPasswordDialogState extends State<_ZipPasswordDialog> {
         obscureText: true,
         style: TextStyle(color: VsCodeColors.foreground),
         decoration: InputDecoration(
-          labelText: widget.optional ? 'Mật khẩu (tùy chọn)' : 'Mật khẩu',
+          labelText: widget.optional ? l10n.passwordOptional : l10n.passwordLabel,
           labelStyle: TextStyle(color: VsCodeColors.foregroundDim),
           border: const OutlineInputBorder(),
           enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
@@ -2259,16 +2275,24 @@ class _ZipPasswordDialogState extends State<_ZipPasswordDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Hủy', style: TextStyle(color: VsCodeColors.foregroundDim)),
+          child: Text(l10n.cancel, style: TextStyle(color: VsCodeColors.foregroundDim)),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _controller.text),
           style: FilledButton.styleFrom(backgroundColor: VsCodeColors.accent),
-          child: Text(widget.optional ? 'Nén' : 'Đồng ý'),
+          child: Text(widget.optional ? l10n.compress : l10n.ok),
         ),
       ],
     );
   }
+}
+
+bool _isWrongZipPasswordError(String error) {
+  if (error.toLowerCase().contains('bad crc')) return true;
+  final l10n = L10nScope.current;
+  if (error == l10n.wrongPassword) return true;
+  return error.contains('Sai mật khẩu') ||
+      error.toLowerCase().contains('wrong password');
 }
 
 class _ZipUnlockView extends StatefulWidget {
@@ -2298,9 +2322,8 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.read<WorkspaceProvider>();
-    final isWrongPwd = widget.error.toLowerCase().contains('mật khẩu') ||
-        widget.error.toLowerCase().contains('password') ||
-        widget.error.toLowerCase().contains('bad crc');
+    final l10n = context.l10n;
+    final isWrongPwd = _isWrongZipPasswordError(widget.error);
 
     return Center(
       child: Container(
@@ -2320,9 +2343,7 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
             ),
             const SizedBox(height: 8),
             Text(
-              isWrongPwd
-                  ? 'Mật khẩu sai. Vui lòng nhập lại.'
-                  : 'File nén được bảo vệ bằng mật khẩu.',
+              isWrongPwd ? l10n.wrongPasswordRetry : l10n.zipPasswordProtected,
               style: TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim),
               textAlign: TextAlign.center,
             ),
@@ -2332,7 +2353,7 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
               obscureText: true,
               style: TextStyle(color: VsCodeColors.foreground),
               decoration: InputDecoration(
-                hintText: 'Mật khẩu',
+                hintText: l10n.passwordLabel,
                 hintStyle: TextStyle(color: VsCodeColors.foregroundDim),
                 filled: true,
                 fillColor: VsCodeColors.sidebar,
@@ -2355,7 +2376,7 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
                       foregroundColor: VsCodeColors.foreground,
                       side: BorderSide(color: VsCodeColors.border),
                     ),
-                    child: const Text('Hủy'),
+                    child: Text(l10n.cancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2368,7 +2389,7 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
                       backgroundColor: VsCodeColors.accent,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Mở khóa'),
+                    child: Text(l10n.unlock),
                   ),
                 ),
               ],

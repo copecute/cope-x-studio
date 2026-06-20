@@ -3,6 +3,7 @@ import 'package:cope_x_studio/models/editor_tab.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/language_detector.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
@@ -376,6 +377,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
   }
 
   Widget _buildToolbar(WorkspaceProvider workspace) {
+    final l10n = context.l10n;
     final hasSelection = _controller.selection.isValid && !_controller.selection.isCollapsed;
     final fontSize = workspace.editorFontSize;
     final showLineNumbers = workspace.editorShowLineNumbers;
@@ -396,39 +398,39 @@ class _CodeEditorViewState extends State<CodeEditorView> {
           children: [
           IconButton(
             icon: const Icon(Icons.undo, size: 18),
-            tooltip: 'Hoàn tác',
+            tooltip: l10n.undo,
             onPressed: _undoStack.isNotEmpty ? _undo : null,
             color: _undoStack.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           IconButton(
             icon: const Icon(Icons.redo, size: 18),
-            tooltip: 'Làm lại',
+            tooltip: l10n.redo,
             onPressed: _redoStack.isNotEmpty ? _redo : null,
             color: _redoStack.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           VerticalDivider(width: 16, indent: 8, endIndent: 8, color: VsCodeColors.border),
           IconButton(
             icon: const Icon(Icons.content_cut, size: 18),
-            tooltip: 'Cắt',
+            tooltip: l10n.cut,
             onPressed: hasSelection ? _cut : null,
             color: hasSelection ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           IconButton(
             icon: const Icon(Icons.content_copy, size: 18),
-            tooltip: 'Sao chép',
+            tooltip: l10n.copy,
             onPressed: hasSelection ? _copy : null,
             color: hasSelection ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           IconButton(
             icon: const Icon(Icons.content_paste, size: 18),
-            tooltip: 'Dán',
+            tooltip: l10n.paste,
             onPressed: _paste,
             color: VsCodeColors.foreground,
           ),
           VerticalDivider(width: 16, indent: 8, endIndent: 8, color: VsCodeColors.border),
           IconButton(
             icon: const Icon(Icons.search, size: 18),
-            tooltip: 'Tìm kiếm & Thay thế',
+            tooltip: l10n.findReplace,
             onPressed: () {
               setState(() {
                 _showSearch = !_showSearch;
@@ -446,7 +448,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
               size: 18,
               color: showLineNumbers ? VsCodeColors.accent : VsCodeColors.foregroundDim,
             ),
-            tooltip: showLineNumbers ? 'Ẩn số dòng' : 'Hiện số dòng',
+            tooltip: showLineNumbers ? l10n.hideLineNumbers : l10n.showLineNumbersToggle,
             onPressed: () => workspace.setEditorShowLineNumbers(!showLineNumbers),
           ),
           IconButton(
@@ -455,12 +457,12 @@ class _CodeEditorViewState extends State<CodeEditorView> {
               size: 18,
               color: wordWrap ? VsCodeColors.accent : VsCodeColors.foregroundDim,
             ),
-            tooltip: wordWrap ? 'Tắt xuống dòng tự động' : 'Bật xuống dòng tự động',
+            tooltip: wordWrap ? l10n.disableWordWrap : l10n.enableWordWrap,
             onPressed: () => workspace.setEditorWordWrap(!wordWrap),
           ),
           IconButton(
             icon: const Icon(Icons.text_decrease, size: 18),
-            tooltip: 'Giảm cỡ chữ',
+            tooltip: l10n.decreaseFontSize,
             onPressed: fontSize > 10 ? () => workspace.adjustEditorFontSize(-1) : null,
             color: fontSize > 10 ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
@@ -478,7 +480,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
           ),
           IconButton(
             icon: const Icon(Icons.text_increase, size: 18),
-            tooltip: 'Tăng cỡ chữ',
+            tooltip: l10n.increaseFontSize,
             onPressed: fontSize < 28 ? () => workspace.adjustEditorFontSize(1) : null,
             color: fontSize < 28 ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
@@ -489,8 +491,9 @@ class _CodeEditorViewState extends State<CodeEditorView> {
   }
 
   Widget _buildSearchPanel() {
+    final l10n = context.l10n;
     final matchText = _matches.isEmpty
-        ? 'Không tìm thấy'
+        ? l10n.notFound
         : '${_currentMatchIndex + 1} / ${_matches.length}';
 
     return Container(
@@ -513,7 +516,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                     controller: _searchController,
                     style: TextStyle(fontSize: 13, color: VsCodeColors.foreground),
                     decoration: InputDecoration(
-                      hintText: 'Tìm kiếm...',
+                      hintText: l10n.findHint,
                       hintStyle: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                       fillColor: VsCodeColors.hover,
@@ -538,19 +541,19 @@ class _CodeEditorViewState extends State<CodeEditorView> {
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.arrow_upward, size: 18),
-                tooltip: 'Trước đó',
+                tooltip: l10n.previous,
                 onPressed: _matches.isNotEmpty ? _findPrev : null,
                 color: _matches.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
               ),
               IconButton(
                 icon: const Icon(Icons.arrow_downward, size: 18),
-                tooltip: 'Tiếp theo',
+                tooltip: l10n.next,
                 onPressed: _matches.isNotEmpty ? _findNext : null,
                 color: _matches.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                tooltip: 'Đóng',
+                tooltip: l10n.close,
                 onPressed: () {
                   setState(() {
                     _showSearch = false;
@@ -570,7 +573,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                     controller: _replaceController,
                     style: TextStyle(fontSize: 13, color: VsCodeColors.foreground),
                     decoration: InputDecoration(
-                      hintText: 'Thay thế...',
+                      hintText: l10n.replaceHint,
                       hintStyle: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                       fillColor: VsCodeColors.hover,
@@ -597,7 +600,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                   minimumSize: const Size(0, 32),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 ),
-                child: const Text('Thay thế', style: TextStyle(fontSize: 12)),
+                child: Text(l10n.replace, style: TextStyle(fontSize: 12)),
               ),
               const SizedBox(width: 4),
               ElevatedButton(
@@ -609,7 +612,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                   minimumSize: const Size(0, 32),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 ),
-                child: const Text('Tất cả', style: TextStyle(fontSize: 12)),
+                child: Text(l10n.replaceAll, style: TextStyle(fontSize: 12)),
               ),
             ],
           ),

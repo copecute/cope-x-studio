@@ -4,6 +4,7 @@ import 'package:cope_x_studio/models/root_access_mode.dart';
 import 'package:cope_x_studio/services/file_service.dart';
 import 'package:cope_x_studio/services/platform_bridge.dart';
 import 'package:path/path.dart' as p;
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 class ListedEntry {
   const ListedEntry({
@@ -75,7 +76,7 @@ class ShellListService {
       if (normalized == '/') {
         return _listRootFallback(showHidden: showHidden);
       }
-      throw FileAccessException(normalized, 'Thư mục không tồn tại');
+      throw FileAccessException(normalized, L10nScope.current.errDirectoryNotExists);
     }
 
     try {

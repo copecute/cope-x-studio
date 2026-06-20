@@ -3,6 +3,7 @@ import 'package:cope_x_studio/models/editor_tab.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -128,7 +129,7 @@ class _NewTabButton extends StatelessWidget {
     return SizedBox(
       width: 44,
       child: IconButton(
-        tooltip: 'Tab duyệt file mới',
+        tooltip: context.l10n.createBrowserTab,
         onPressed: onTap,
         icon: const Icon(Icons.add, size: AppSizes.iconMedium),
       ),

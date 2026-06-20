@@ -1,7 +1,9 @@
 import 'package:cope_x_studio/l10n/app_locale.dart';
 import 'package:cope_x_studio/providers/locale_provider.dart';
+import 'package:cope_x_studio/providers/onboarding_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/widgets/onboarding/welcome_screen.dart';
 import 'package:cope_x_studio/widgets/security/lock_gate.dart';
 import 'package:cope_x_studio/widgets/shell/app_shell.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +19,7 @@ class CopeXStudioApp extends StatelessWidget {
     final locale = context.watch<LocaleProvider>().locale;
 
     return MaterialApp(
-      title: 'Cope X Studio',
+      title: lookupAppLocalizations(locale).appTitle,
       debugShowCheckedModeBanner: false,
       locale: locale,
       supportedLocales: AppLocale.supported,
@@ -38,7 +40,19 @@ class CopeXStudioApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const LockGate(child: AppShell()),
+      home: Consumer<OnboardingProvider>(
+        builder: (context, onboarding, _) {
+          if (!onboarding.isInitialized) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (!onboarding.completed) {
+            return WelcomeScreen(initialPage: onboarding.initialPage);
+          }
+          return const LockGate(child: AppShell());
+        },
+      ),
     );
   }
 }

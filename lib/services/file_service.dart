@@ -5,6 +5,7 @@ import 'package:cope_x_studio/services/archive_cancel_token.dart';
 import 'package:cope_x_studio/services/text_encoding_service.dart';
 import 'package:cope_x_studio/utils/entry_progress_tracker.dart';
 import 'package:path/path.dart' as p;
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 class FileAccessException implements Exception {
   FileAccessException(this.path, this.message);
@@ -12,7 +13,7 @@ class FileAccessException implements Exception {
   final String message;
 
   @override
-  String toString() => 'Không thể truy cập $path: $message';
+  String toString() => L10nScope.current.errCannotAccessPath(path, message);
 }
 
 class FileService {
@@ -189,7 +190,7 @@ class FileService {
     final name = p.basename(source);
     final dest = p.join(destinationDir, name);
     if (exists(dest)) {
-      throw FileSystemException('Đã tồn tại', dest);
+      throw FileSystemException(L10nScope.current.errAlreadyExists, dest);
     }
     final type = FileSystemEntity.typeSync(source);
     if (type == FileSystemEntityType.directory) {
@@ -215,7 +216,7 @@ class FileService {
     final name = p.basename(source);
     final dest = p.join(destinationDir, name);
     if (exists(dest)) {
-      throw FileSystemException('Đã tồn tại', dest);
+      throw FileSystemException(L10nScope.current.errAlreadyExists, dest);
     }
 
     final type = FileSystemEntity.typeSync(source);

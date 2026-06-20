@@ -117,8 +117,8 @@ class ThumbnailService {
   ) async {
     try {
       final dir = await _ensureCacheDir(filePath);
-      final thumbFile = File(p.join(dir.path, '${_hash(filePath)}.png'));
-      final metaFile = File(p.join(dir.path, '${_hash(filePath)}.meta'));
+      final thumbFile = File(p.join(dir.path, '${_hash(filePath)}.png.copethumb'));
+      final metaFile = File(p.join(dir.path, '${_hash(filePath)}.meta.copethumb'));
       await thumbFile.writeAsBytes(bytes, flush: true);
       await metaFile.writeAsString(_metaValue(modified, size), flush: true);
     } catch (_) {}
@@ -147,11 +147,11 @@ class ThumbnailService {
   }
 
   File _thumbFile(String filePath) {
-    return File(p.join(_cacheDirFor(filePath), '${_hash(filePath)}.png'));
+    return File(p.join(_cacheDirFor(filePath), '${_hash(filePath)}.png.copethumb'));
   }
 
   File _metaFile(String filePath) {
-    return File(p.join(_cacheDirFor(filePath), '${_hash(filePath)}.meta'));
+    return File(p.join(_cacheDirFor(filePath), '${_hash(filePath)}.meta.copethumb'));
   }
 
   String _pathCacheKey(String filePath) {

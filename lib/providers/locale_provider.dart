@@ -1,7 +1,5 @@
-import 'dart:ui';
-
 import 'package:cope_x_studio/l10n/app_locale.dart';
-import 'package:flutter/foundation.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,6 +19,7 @@ class LocaleProvider extends ChangeNotifier {
     final saved = prefs.getString(AppLocale.storageKey);
     _locale = AppLocale.fromLanguageCode(saved);
     _initialized = true;
+    L10nScope.update(locale);
     notifyListeners();
   }
 
@@ -31,6 +30,7 @@ class LocaleProvider extends ChangeNotifier {
     if (_locale?.languageCode == value.languageCode) return;
 
     _locale = value;
+    L10nScope.update(value);
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();

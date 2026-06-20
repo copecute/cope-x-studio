@@ -7,6 +7,7 @@ import 'package:cope_x_studio/services/file_service.dart';
 import 'package:cope_x_studio/services/shell_list_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 class PlatformBridge {
   PlatformBridge({MethodChannel? channel})
@@ -21,7 +22,7 @@ class PlatformBridge {
     RootAccessMode rootMode = RootAccessMode.normal,
   }) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      throw FileAccessException(dirPath, 'Shell listing chỉ hỗ trợ Android');
+      throw FileAccessException(dirPath, L10nScope.current.errShellListingAndroidOnly);
     }
 
     final result = await _channel.invokeMethod<List<dynamic>>(
@@ -46,9 +47,9 @@ class PlatformBridge {
 
   Future<RootAccessCheckResult> checkRootAccess({required bool mountWritable}) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      return const RootAccessCheckResult(
+      return RootAccessCheckResult(
         granted: false,
-        message: 'Chế độ siêu người dùng chỉ hỗ trợ Android',
+        message: L10nScope.current.errSuperuserAndroidOnly,
       );
     }
 
@@ -63,29 +64,28 @@ class PlatformBridge {
             onTimeout: () => throw TimeoutException('root access check timeout'),
           );
       if (result == null) {
-        return const RootAccessCheckResult(
+        return RootAccessCheckResult(
           granted: false,
-          message: 'Không thể kiểm tra quyền siêu người dùng',
+          message: L10nScope.current.errCannotCheckSuperuser,
         );
       }
       return RootAccessCheckResult.fromMap(result);
     } on TimeoutException {
-      return const RootAccessCheckResult(
+      return RootAccessCheckResult(
         granted: false,
-        message:
-            'Hết thời gian kiểm tra quyền siêu người dùng. Thiết bị có thể chưa root hoặc chưa cấp quyền.',
+        message: L10nScope.current.errSuperuserCheckTimeout,
       );
     } on PlatformException catch (e) {
       return RootAccessCheckResult(
         granted: false,
-        message: e.message ?? 'Không thể kiểm tra quyền siêu người dùng',
+        message: e.message ?? L10nScope.current.errCannotCheckSuperuser,
       );
     }
   }
 
   Future<void> installApk(String apkPath) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      throw FileAccessException(apkPath, 'Cài APK chỉ hỗ trợ Android');
+      throw FileAccessException(apkPath, L10nScope.current.errInstallApkAndroidOnly);
     }
     await _channel.invokeMethod<void>('installApk', {'apkPath': apkPath});
   }
@@ -169,7 +169,7 @@ class PlatformBridge {
   Future<String> getApkPath(String packageName) async {
     final path = await _channel.invokeMethod<String>('getApkPath', {'packageName': packageName});
     if (path == null || path.isEmpty) {
-      throw FileAccessException(packageName, 'Không tìm thấy APK');
+      throw FileAccessException(packageName, L10nScope.current.errApkNotFound);
     }
     return path;
   }

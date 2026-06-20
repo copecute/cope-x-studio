@@ -37,6 +37,9 @@ import 'package:cope_x_studio/services/thumbnail_service.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/services/web_server/web_server_service.dart';
 import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
+import 'package:cope_x_studio/providers/locale_provider.dart';
+import 'package:cope_x_studio/providers/onboarding_provider.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/services/storage_roots.dart';
 import 'package:cope_x_studio/services/trash_service.dart';
@@ -51,6 +54,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pure_ftp/pure_ftp.dart';
@@ -86,8 +90,25 @@ class WorkspaceProvider extends ChangeNotifier {
   late final WebServerService _webServerService;
 
   SecurityProvider? _security;
+  LocaleProvider? _localeProvider;
+  VoidCallback? _localeListener;
+  OnboardingProvider? _onboarding;
 
   void attachSecurity(SecurityProvider security) => _security = security;
+
+  void attachOnboarding(OnboardingProvider onboarding) => _onboarding = onboarding;
+
+  void attachLocale(LocaleProvider localeProvider) {
+    if (_localeListener != null) {
+      _localeProvider?.removeListener(_localeListener!);
+    }
+    _localeProvider = localeProvider;
+    _localeListener = () {
+      _homeEntriesCache = null;
+      notifyListeners();
+    };
+    localeProvider.addListener(_localeListener!);
+  }
 
   final List<AppTab> _tabs = [];
   String? _activeTabId;
@@ -326,19 +347,20 @@ class WorkspaceProvider extends ChangeNotifier {
 
     await _performOperationRollback(targetTabId);
 
+    final l10n = L10nScope.current;
     _log(switch (op.type) {
-      TabFileOperation.unzip => 'Đã hủy giải nén',
-      TabFileOperation.zip => 'Đã hủy nén',
-      TabFileOperation.paste => 'Đã hủy dán',
-      TabFileOperation.duplicate => 'Đã hủy nhân đôi',
-      _ => 'Đã hủy thao tác',
+      TabFileOperation.unzip => l10n.cancelUnzip,
+      TabFileOperation.zip => l10n.cancelZip,
+      TabFileOperation.paste => l10n.cancelPaste,
+      TabFileOperation.duplicate => l10n.cancelDuplicate,
+      _ => l10n.cancelOperation,
     });
     _statusMessage = switch (op.type) {
-      TabFileOperation.unzip => 'Đã hủy giải nén',
-      TabFileOperation.zip => 'Đã hủy nén',
-      TabFileOperation.paste => 'Đã hủy dán',
-      TabFileOperation.duplicate => 'Đã hủy nhân đôi',
-      _ => 'Đã hủy thao tác',
+      TabFileOperation.unzip => l10n.cancelUnzip,
+      TabFileOperation.zip => l10n.cancelZip,
+      TabFileOperation.paste => l10n.cancelPaste,
+      TabFileOperation.duplicate => l10n.cancelDuplicate,
+      _ => l10n.cancelOperation,
     };
     _endFileOperation(targetTabId);
     if (_tabFileOperations.isEmpty) {
@@ -663,11 +685,12 @@ class WorkspaceProvider extends ChangeNotifier {
       _zipErrors.remove(zipPath);
       _archiveService.clearZipCache(zipPath);
       _zipListCache.removeWhere((k, _) => k.startsWith('$zipPath|'));
-      _log('Đã mở khóa ZIP: ${p.basename(zipPath)}');
+      _log(L10nScope.current.logUnlockZip(p.basename(zipPath)));
       refreshTab(tabId);
     } catch (e) {
-      _zipErrors[zipPath] = e is ArchivePasswordException ? e.toString() : 'Sai mật khẩu';
-      _log('Lỗi mở khóa: $e');
+      final l10n = L10nScope.current;
+      _zipErrors[zipPath] = e is ArchivePasswordException ? e.toString() : l10n.wrongPassword;
+      _log(L10nScope.current.logUnlockError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -970,7 +993,7 @@ class WorkspaceProvider extends ChangeNotifier {
       if (!check.granted) {
         return check.message.isNotEmpty
             ? check.message
-            : 'Chưa được cấp quyền siêu người dùng';
+            : L10nScope.current.superuserNotGranted;
       }
     }
 
@@ -1005,11 +1028,11 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   void _setDirectoryAccessDenied(String path) {
-    _dirAccessNotes[path] = 'Truy cập bị từ chối';
+    _dirAccessNotes[path] = L10nScope.current.accessDenied;
     _shellErrors.remove(path);
   }
 
-  static const entryAccessDeniedLabel = 'Truy cập bị từ chối';
+  static String get entryAccessDeniedLabel => L10nScope.current.accessDenied;
 
   bool _probeEntryAccessDenied(String path, bool isDirectory) {
     if (!ShellListService.isRootFilesystemPath(path)) return false;
@@ -1103,7 +1126,7 @@ class WorkspaceProvider extends ChangeNotifier {
           _log(
             check.message.isNotEmpty
                 ? check.message
-                : 'Chưa được cấp quyền siêu người dùng — đã chuyển về Bình thường',
+                : L10nScope.current.superuserRevertedNormal,
           );
         }
       }
@@ -1122,10 +1145,11 @@ class WorkspaceProvider extends ChangeNotifier {
 
     if (Platform.isAndroid) {
       _storageGranted = await _permissionService.hasManageExternalStorage();
-      if (!_storageGranted) {
-        _log('Bật quyền "Truy cập tất cả file" trong Cài đặt');
-        await requestManageExternalStorage();
-      } else {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingDone = prefs.getBool(OnboardingProvider.storageKey) ?? false;
+      if (!_storageGranted && onboardingDone) {
+        await _onboarding?.reopenForPermissions();
+      } else if (_storageGranted) {
         _ensureInitialTab();
       }
     } else {
@@ -1142,8 +1166,10 @@ class WorkspaceProvider extends ChangeNotifier {
     if (!Platform.isAndroid) return;
     final wasGranted = _storageGranted;
     _storageGranted = await _permissionService.hasManageExternalStorage();
-    if (!wasGranted && _storageGranted) {
-      _log('Đã cấp quyền truy cập tất cả file');
+    if (wasGranted && !_storageGranted) {
+      await _onboarding?.reopenForPermissions();
+    } else if (!wasGranted && _storageGranted) {
+      _log(L10nScope.current.logGrantedAllFilesAccess);
       invalidateHomeEntries();
       _ensureInitialTab();
       _scheduleBackgroundDataPrefetch();
@@ -1156,12 +1182,12 @@ class WorkspaceProvider extends ChangeNotifier {
     _storageGranted = await _permissionService.hasManageExternalStorage();
     _permissionChecked = true;
     if (_storageGranted) {
-      _log('Đã cấp quyền truy cập tất cả file');
+      _log(L10nScope.current.logGrantedAllFilesAccess);
       invalidateHomeEntries();
       _ensureInitialTab();
       _scheduleBackgroundDataPrefetch();
     } else {
-      _log('Bật "Cho phép truy cập để quản lý tất cả tệp" trong Cài đặt');
+      _log(L10nScope.current.logEnableManageAllFiles);
     }
     notifyListeners();
     return _storageGranted ? PermissionResult.granted : PermissionResult.denied;
@@ -1169,6 +1195,14 @@ class WorkspaceProvider extends ChangeNotifier {
 
   Future<void> openAllFilesAccessSettings() =>
       _permissionService.openAllFilesAccessSettings();
+
+  void onOnboardingComplete() {
+    _ensureInitialTab();
+    if (_storageGranted) {
+      _scheduleBackgroundDataPrefetch();
+    }
+    notifyListeners();
+  }
 
   void _ensureInitialTab() {
     if (_tabs.isNotEmpty) return;
@@ -1184,7 +1218,7 @@ class WorkspaceProvider extends ChangeNotifier {
     final tab = AppTab(currentPath: browsePath);
     _tabs.add(tab);
     _activeTabId = tab.id;
-    _log('Tab mới: ${PathUtils.displayName(browsePath)}');
+    _log(L10nScope.current.logNewTab(PathUtils.displayName(browsePath)));
     notifyListeners();
     unawaited(saveSessionState());
   }
@@ -1198,7 +1232,7 @@ class WorkspaceProvider extends ChangeNotifier {
     );
     _tabs.add(tab);
     _activeTabId = tab.id;
-    _log('Tab mới: ${tab.displayName}');
+    _log(L10nScope.current.logNewTab(tab.displayName));
     notifyListeners();
     unawaited(saveSessionState());
   }
@@ -1290,7 +1324,7 @@ class WorkspaceProvider extends ChangeNotifier {
     final parent = PathUtils.parentPath(filePath);
     if (parent == null) return;
     await navigateTo(tabId, parent);
-    _log('Vị trí: ${PathUtils.shortDisplayDir(filePath)}');
+    _log(L10nScope.current.logFileLocation(PathUtils.shortDisplayDir(filePath)));
   }
 
   void navigateUp(String tabId) {
@@ -1350,17 +1384,18 @@ class WorkspaceProvider extends ChangeNotifier {
         clearSelection: true,
       ),
     );
-    _log('Xem ZIP: ${p.basename(zipPath)}');
+    _log(L10nScope.current.logViewZip(p.basename(zipPath)));
     notifyListeners();
 
+    final l10n = L10nScope.current;
     try {
       final protected = await _archiveService.isPasswordProtected(zipPath);
       if (protected && !_zipPasswords.containsKey(zipPath)) {
-        _zipErrors[zipPath] = 'File nén được bảo vệ bằng mật khẩu';
+        _zipErrors[zipPath] = l10n.zipPasswordProtected;
         notifyListeners();
       }
     } catch (e) {
-      _zipErrors[zipPath] = 'Không thể đọc file nén: $e';
+      _zipErrors[zipPath] = l10n.cannotReadPath(p.basename(zipPath));
       notifyListeners();
     }
   }
@@ -1472,25 +1507,27 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   List<BrowserEntry> _getAppsHomeEntries() {
-    return const [
+    final l10n = L10nScope.current;
+    return [
       BrowserEntry(
-        name: 'Hệ thống',
+        name: l10n.systemApps,
         path: AppPathUtils.systemListPath,
         isDirectory: true,
-        subtitle: 'Ứng dụng hệ thống',
+        subtitle: l10n.systemApp,
         isVirtual: true,
       ),
       BrowserEntry(
-        name: 'Cài đặt',
+        name: l10n.userApps,
         path: AppPathUtils.userListPath,
         isDirectory: true,
-        subtitle: 'Ứng dụng người dùng cài đặt',
+        subtitle: l10n.userApp,
         isVirtual: true,
       ),
     ];
   }
 
   List<BrowserEntry> _getInstalledAppsEntries(String listPath) {
+    final l10n = L10nScope.current;
     final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
     final apps = _appsCache[cacheKey] ?? [];
     return apps
@@ -1500,7 +1537,7 @@ class WorkspaceProvider extends ChangeNotifier {
             path: app.packageName,
             isDirectory: false,
             size: app.apkSize,
-            subtitle: '${app.versionName.isNotEmpty ? 'v${app.versionName}' : 'v${app.versionCode}'} · ${_formatSize(app.apkSize)} · ${app.isSystem ? 'Ứng dụng hệ thống' : 'Ứng dụng người dùng'}',
+            subtitle: '${app.versionName.isNotEmpty ? 'v${app.versionName}' : 'v${app.versionCode}'} · ${_formatSize(app.apkSize)} · ${app.isSystem ? l10n.systemApp : l10n.userApp}',
             isVirtual: true,
             iconBytes: _appIcons[app.packageName],
           ),
@@ -1621,13 +1658,13 @@ class WorkspaceProvider extends ChangeNotifier {
       if (generation != _recentScanGeneration) return;
       final added = _mergeRecentResults(results);
       if (added > 0) {
-        _log('Đã thêm $added tập tin gần đây');
+        _log(L10nScope.current.logRecentAdded(added));
       } else if (_recentFiles.isEmpty && results.isNotEmpty) {
-        _log('Đã quét ${results.length} tập tin gần đây');
+        _log(L10nScope.current.logRecentScanned(results.length));
       }
     } catch (e) {
       if (generation == _recentScanGeneration) {
-        _log('Lỗi quét tập tin gần đây: $e');
+        _log(L10nScope.current.logRecentScanError('$e'));
       }
     } finally {
       _recentScanInProgress = false;
@@ -1664,17 +1701,17 @@ class WorkspaceProvider extends ChangeNotifier {
       if (generation != _appsLoadGenerationByKey[cacheKey]) return;
       final added = _mergeAppsResults(cacheKey, apps);
       if (added > 0) {
-        final label = cacheKey == 'system' ? 'hệ thống' : 'người dùng';
-        _log('Đã thêm $added ứng dụng ($label)');
+        final label = cacheKey == 'system' ? L10nScope.current.logAppsTypeSystem : L10nScope.current.logAppsTypeUser;
+        _log(L10nScope.current.logAppsAdded(added, label));
         unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
       } else if (_appsCache[cacheKey]?.isEmpty ?? true) {
-        _log('Đã tải ${apps.length} ứng dụng');
+        _log(L10nScope.current.logAppsLoaded(apps.length));
         unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
       }
     } catch (e) {
       if (generation == _appsLoadGenerationByKey[cacheKey]) {
         _appsError = e.toString();
-        _log('Lỗi tải ứng dụng: $e');
+        _log(L10nScope.current.logAppsLoadError('$e'));
       }
     } finally {
       if (generation == _appsLoadGenerationByKey[cacheKey]) {
@@ -1740,9 +1777,9 @@ class WorkspaceProvider extends ChangeNotifier {
               ))
           .toList();
       if (path == '/') {
-        _log('Đã đọc ${entries.length} mục tại Root');
+        _log(L10nScope.current.logReadItemsRoot(entries.length));
       } else {
-        _log('Đã đọc ${entries.length} mục tại ${PathUtils.displayName(path)}');
+        _log(L10nScope.current.logReadItemsAt(entries.length, PathUtils.displayName(path)));
       }
     } catch (e) {
       if (_isPermissionDenied(e) && ShellListService.isRootFilesystemPath(path)) {
@@ -1750,7 +1787,7 @@ class WorkspaceProvider extends ChangeNotifier {
       } else {
         _shellErrors[path] = e.toString();
         _dirAccessNotes.remove(path);
-        _log('Lỗi đọc ${PathUtils.displayName(path)}: $e');
+        _log(L10nScope.current.logReadError(PathUtils.displayName(path), '$e'));
       }
     } finally {
       _shellLoadingPaths.remove(path);
@@ -1762,10 +1799,10 @@ class WorkspaceProvider extends ChangeNotifier {
   Future<void> openAppInfo(String packageName) async {
     try {
       await _appManagerService.openAppSettings(packageName);
-      _log('Mở thông tin ứng dụng');
+      _log(L10nScope.current.logOpenAppInfo);
       notifyListeners();
     } catch (e) {
-      _log('Lỗi mở thông tin ứng dụng: $e');
+      _log(L10nScope.current.logOpenAppInfoError('$e'));
       notifyListeners();
     }
   }
@@ -1777,9 +1814,9 @@ class WorkspaceProvider extends ChangeNotifier {
     try {
       final path = await _appManagerService.resolveApkPath(app);
       copyToClipboard([path]);
-      _log('Đã sao chép APK: ${app.appName}');
+      _log(L10nScope.current.logApkCopied(app.appName));
     } catch (e) {
-      _log('Lỗi sao chép APK: $e');
+      _log(L10nScope.current.logApkCopyError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -1792,9 +1829,9 @@ class WorkspaceProvider extends ChangeNotifier {
     _setBusy(true);
     try {
       await _appManagerService.shareApk(app);
-      _log('Chia sẻ APK: ${app.appName}');
+      _log(L10nScope.current.logApkShared(app.appName));
     } catch (e) {
-      _log('Lỗi chia sẻ APK: $e');
+      _log(L10nScope.current.logApkShareError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -1805,7 +1842,7 @@ class WorkspaceProvider extends ChangeNotifier {
     try {
       await _appManagerService.openPlayStore(packageName);
     } catch (e) {
-      _log('Lỗi mở Play Store: $e');
+      _log(L10nScope.current.logPlayStoreError('$e'));
       notifyListeners();
     }
   }
@@ -1816,10 +1853,10 @@ class WorkspaceProvider extends ChangeNotifier {
     _setBusy(true);
     try {
       final path = await _appManagerService.backupApk(app);
-      _log('Đã backup APK → $path');
+      _log(L10nScope.current.logApkBackup(path));
       notifyListeners();
     } catch (e) {
-      _log('Lỗi backup APK: $e');
+      _log(L10nScope.current.logApkBackupError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -1831,9 +1868,9 @@ class WorkspaceProvider extends ChangeNotifier {
     _setBusy(true);
     try {
       await _appManagerService.uninstallApp(packageName);
-      _log('Gỡ cài đặt: ${app?.appName ?? packageName}');
+      _log(L10nScope.current.logUninstall(app?.appName ?? packageName));
     } catch (e) {
-      _log('Lỗi gỡ cài đặt: $e');
+      _log(L10nScope.current.logUninstallError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -1844,10 +1881,10 @@ class WorkspaceProvider extends ChangeNotifier {
     _setBusy(true);
     try {
       await _appManagerService.openApp(packageName);
-      _log('Khởi chạy ứng dụng: $packageName');
+      _log(L10nScope.current.logLaunchApp(packageName));
       notifyListeners();
     } catch (e) {
-      _log('Lỗi mở ứng dụng: $e');
+      _log(L10nScope.current.logOpenAppError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -1864,7 +1901,8 @@ class WorkspaceProvider extends ChangeNotifier {
 
   String _storageSubtitle(String path) {
     final space = getDiskSpace(path);
-    return space != null ? 'Trống ${space['free']}/${space['total']}' : path;
+    final l10n = L10nScope.current;
+    return space != null ? l10n.storageFreeSlash(space['free']!, space['total']!) : path;
   }
 
   /// Đường dẫn dùng `df` — Root (`/`) lấy theo bộ nhớ trong, không phải partition hệ thống.
@@ -1876,6 +1914,7 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   Future<List<BrowserEntry>> _buildHomeEntries() async {
+    final l10n = L10nScope.current;
     final volumes = await StorageRoots.discoverHomeVolumes(_permissionService);
     final entries = <BrowserEntry>[];
     final removable = volumes.where((v) => v.isRemovable).toList();
@@ -1891,8 +1930,8 @@ class WorkspaceProvider extends ChangeNotifier {
     for (final volume in volumes) {
       if (volume.isRemovable) {
         final name = removable.length > 1
-            ? 'Thẻ nhớ SD (${volume.volumeId ?? p.basename(volume.path)})'
-            : 'Thẻ nhớ SD';
+            ? '${l10n.shortcutSdCard} (${volume.volumeId ?? p.basename(volume.path)})'
+            : l10n.shortcutSdCard;
         entries.add(
           BrowserEntry(
             name: name,
@@ -1905,7 +1944,7 @@ class WorkspaceProvider extends ChangeNotifier {
       } else {
         entries.add(
           BrowserEntry(
-            name: 'Bộ nhớ thiết bị',
+            name: l10n.deviceStorage,
             path: volume.path,
             isDirectory: true,
             subtitle: _storageSubtitle(volume.path),
@@ -1927,22 +1966,22 @@ class WorkspaceProvider extends ChangeNotifier {
       );
     }
 
-    entries.addAll(const [
+    entries.addAll([
       BrowserEntry(
-        name: 'Các tập tin gần đây',
+        name: l10n.shortcutRecent,
         path: '@recent',
         isDirectory: true,
         isVirtual: true,
       ),
       BrowserEntry(
-        name: 'Trình quản lý ứng dụng',
+        name: l10n.shortcutApps,
         path: '@apps',
         isDirectory: true,
-        subtitle: 'Hệ thống · Cài đặt',
+        subtitle: l10n.shortcutSystemAppsSubtitle,
         isVirtual: true,
       ),
       BrowserEntry(
-        name: 'FTP',
+        name: l10n.shortcutFtp,
         path: '@ftp',
         isDirectory: true,
         isVirtual: true,
@@ -1963,10 +2002,11 @@ class WorkspaceProvider extends ChangeNotifier {
       _homeEntriesCache = await _buildHomeEntries();
     } catch (e) {
       if (generation == _homeLoadGeneration) {
-        _log('Lỗi tải màn hình chính: $e');
+        _log(L10nScope.current.logHomeLoadError('$e'));
+        final l10n = L10nScope.current;
         _homeEntriesCache ??= [
           BrowserEntry(
-            name: 'Bộ nhớ thiết bị',
+            name: l10n.deviceStorage,
             path: StorageRoots.defaultRoot(_permissionService),
             isDirectory: true,
             subtitle: StorageRoots.defaultRoot(_permissionService),
@@ -1982,21 +2022,21 @@ class WorkspaceProvider extends ChangeNotifier {
               ),
               isVirtual: true,
             ),
-          const BrowserEntry(
-            name: 'Các tập tin gần đây',
+          BrowserEntry(
+            name: l10n.shortcutRecent,
             path: '@recent',
             isDirectory: true,
             isVirtual: true,
           ),
-          const BrowserEntry(
-            name: 'Trình quản lý ứng dụng',
+          BrowserEntry(
+            name: l10n.shortcutApps,
             path: '@apps',
             isDirectory: true,
-            subtitle: 'Hệ thống · Cài đặt',
+            subtitle: l10n.shortcutSystemAppsSubtitle,
             isVirtual: true,
           ),
-          const BrowserEntry(
-            name: 'FTP',
+          BrowserEntry(
+            name: l10n.shortcutFtp,
             path: '@ftp',
             isDirectory: true,
             isVirtual: true,
@@ -2047,10 +2087,11 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   List<BrowserEntry> _getFtpServersEntries() {
+    final l10n = L10nScope.current;
     final list = <BrowserEntry>[];
     list.add(
-      const BrowserEntry(
-        name: '+ Thêm máy chủ',
+      BrowserEntry(
+        name: l10n.shortcutAddFtp,
         path: '@add_ftp_server',
         isDirectory: false,
         isVirtual: true,
@@ -2254,7 +2295,7 @@ class WorkspaceProvider extends ChangeNotifier {
       _ftpErrors.remove(cacheKey);
     } catch (e) {
       _ftpErrors[cacheKey] = _formatFtpError(e);
-      _log('Lỗi FTP: $e');
+      _log(L10nScope.current.logFtpError('$e'));
     } finally {
       try {
         await client.disconnect();
@@ -2266,16 +2307,14 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   String _formatFtpError(Object error) {
+    final l10n = L10nScope.current;
     final msg = error.toString();
     if (msg.contains('Failed host lookup') ||
-        msg.contains('No address associated with hostname')) {
-      return 'Không thể kết nối máy chủ FTP.\nKiểm tra tên miền hoặc kết nối mạng.';
-    }
-    if (msg.contains('TimeoutException') || msg.contains('timed out')) {
-      return 'Hết thời gian kết nối FTP.\nMáy chủ không phản hồi.';
-    }
-    if (msg.contains('Connection refused')) {
-      return 'Máy chủ FTP từ chối kết nối.\nKiểm tra cổng và địa chỉ.';
+        msg.contains('No address associated with hostname') ||
+        msg.contains('TimeoutException') ||
+        msg.contains('timed out') ||
+        msg.contains('Connection refused')) {
+      return l10n.ftpConnectionError;
     }
     return msg;
   }
@@ -2299,22 +2338,24 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final l10n = L10nScope.current;
       final items = await _archiveService.listZipContents(zipPath, innerPath, password: pwd);
       if (items.isEmpty) {
-        _zipErrors[zipPath] = 'Không đọc được nội dung ZIP (file có thể quá lớn hoặc bị hỏng)';
+        _zipErrors[zipPath] = l10n.cannotReadPath(p.basename(zipPath));
       } else {
         _zipListCache[key] = items;
         _zipErrors.remove(zipPath);
       }
     } catch (e) {
+      final l10n = L10nScope.current;
       final errorMsg = e is ArchivePasswordException
           ? e.toString()
-          : 'Không thể đọc file nén: $e';
+          : l10n.cannotReadPath(p.basename(zipPath));
       if (e is ArchivePasswordException) {
         _zipPasswords.remove(zipPath);
       }
       _zipErrors[zipPath] = errorMsg;
-      _log('Lỗi đọc ZIP: $e');
+      _log(L10nScope.current.logZipReadError('$e'));
     } finally {
       _zipListLoading.remove(key);
       _setTab(tabId, _tab(tabId).bumpList());
@@ -2508,10 +2549,10 @@ class WorkspaceProvider extends ChangeNotifier {
         _tab(tabId).copyWith(mode: TabMode.editor, editor: editor),
       );
       _activeTabId = tabId;
-      _log('Đã mở ${p.basename(filePath)}');
+      _log(L10nScope.current.logFileOpened(p.basename(filePath)));
       notifyListeners();
     } catch (e) {
-      _log('Lỗi mở file: $e');
+      _log(L10nScope.current.logOpenAppError('$e'));
       notifyListeners();
     }
   }
@@ -2524,7 +2565,7 @@ class WorkspaceProvider extends ChangeNotifier {
         } else if (FileTypeUtils.isTar(filePath)) {
           await unzipFile(tabId, filePath);
         } else {
-          _log('Định dạng ${FileTypeUtils.archiveFormatName(filePath)} chưa được hỗ trợ.');
+          _log(L10nScope.current.logFormatNotSupportedOpen(FileTypeUtils.archiveFormatName(filePath)));
           notifyListeners();
         }
         return;
@@ -2536,10 +2577,10 @@ class WorkspaceProvider extends ChangeNotifier {
         _tab(tabId).copyWith(mode: TabMode.editor, editor: editor),
       );
       _activeTabId = tabId;
-      _log('Đã mở ${p.basename(filePath)}');
+      _log(L10nScope.current.logFileOpened(p.basename(filePath)));
       notifyListeners();
     } catch (e) {
-      _log('Lỗi mở file: $e');
+      _log(L10nScope.current.logOpenAppError('$e'));
       notifyListeners();
     }
   }
@@ -2623,7 +2664,7 @@ class WorkspaceProvider extends ChangeNotifier {
       await tempFile.writeAsBytes(bytes);
       return tempFile.path;
     } catch (e) {
-      _log('Lỗi tải tệp FTP: $e');
+      _log(L10nScope.current.logFtpFileLoadError('$e'));
       return null;
     } finally {
       await client.disconnect();
@@ -2744,7 +2785,7 @@ class WorkspaceProvider extends ChangeNotifier {
           await client.disconnect();
         }
         final filePath = '@ftp/$serverId/${remoteFilePath.startsWith('/') ? remoteFilePath.substring(1) : remoteFilePath}';
-        _log('Tạo file mới: $name');
+        _log(L10nScope.current.logCreateFile(name));
         refreshTab(id);
         return filePath;
       } finally {
@@ -2755,7 +2796,7 @@ class WorkspaceProvider extends ChangeNotifier {
       final name = _fileService.uniqueName(dir, 'untitled.txt');
       final filePath = p.join(dir, name);
       await _fileService.createFile(filePath);
-      _log('Tạo file mới: $name');
+      _log(L10nScope.current.logCreateFile(name));
       refreshTab(id);
       return filePath;
     }
@@ -2783,7 +2824,7 @@ class WorkspaceProvider extends ChangeNotifier {
           await client.disconnect();
         }
         final folderPath = '@ftp/$serverId/${remoteFolderPath.startsWith('/') ? remoteFolderPath.substring(1) : remoteFolderPath}';
-        _log('Tạo thư mục mới: $name');
+        _log(L10nScope.current.logCreateFolder(name));
         refreshTab(id);
         return folderPath;
       } finally {
@@ -2794,7 +2835,7 @@ class WorkspaceProvider extends ChangeNotifier {
       final name = _fileService.uniqueName(dir, 'New Folder');
       final folderPath = p.join(dir, name);
       await _fileService.createFolder(folderPath);
-      _log('Tạo thư mục mới: $name');
+      _log(L10nScope.current.logCreateFolder(name));
       refreshTab(id);
       return folderPath;
     }
@@ -2802,13 +2843,13 @@ class WorkspaceProvider extends ChangeNotifier {
 
   void copyToClipboard(List<String> paths) {
     _clipboard = FileClipboardEntry(paths: paths, operation: ClipboardOperation.copy);
-    _log('Đã copy ${paths.length} mục');
+    _log(L10nScope.current.logCopiedItems(paths.length));
     notifyListeners();
   }
 
   void cutToClipboard(List<String> paths) {
     _clipboard = FileClipboardEntry(paths: paths, operation: ClipboardOperation.cut);
-    _log('Đã cut ${paths.length} mục');
+    _log(L10nScope.current.logCutItems(paths.length));
     notifyListeners();
   }
 
@@ -2816,7 +2857,7 @@ class WorkspaceProvider extends ChangeNotifier {
     if (_clipboard == null || _clipboard!.paths.isEmpty) return;
     final tab = _tab(tabId);
     if (tab.isZipViewer) {
-      _log('Không thể paste vào bên trong ZIP');
+      _log(L10nScope.current.logCannotPasteInZip);
       notifyListeners();
       return;
     }
@@ -2830,16 +2871,17 @@ class WorkspaceProvider extends ChangeNotifier {
     _startFileOperation(
       TabFileOperation.paste,
       tabId,
-      label: '${_clipboard!.paths.length} mục',
+      label: L10nScope.current.itemCount(_clipboard!.paths.length),
       cancelToken: cancelToken,
     );
     _setBusy(true);
-    _statusMessage = isMove ? 'Đang di chuyển...' : 'Đang dán...';
+    final l10n = L10nScope.current;
+    _statusMessage = isMove ? l10n.moving : l10n.pasting;
 
     final op = _tabFileOperations[tabId]!;
 
     try {
-      _log(isMove ? 'Đang di chuyển...' : 'Đang dán...');
+      _log(isMove ? L10nScope.current.moving : L10nScope.current.pasting);
       notifyListeners();
 
       final total = isFtp
@@ -2850,8 +2892,11 @@ class WorkspaceProvider extends ChangeNotifier {
       void onTransferProgress(String name, double progress) {
         _setTabOperationProgress(tabId, progress, name);
         if (_activeTabId == tabId) {
-          final verb = isMove ? 'Di chuyển' : 'Dán';
-          _statusMessage = '$verb: $name (${(progress * 100).toStringAsFixed(0)}%)';
+          final l10n = L10nScope.current;
+          final percent = (progress * 100).round();
+          _statusMessage = isMove
+              ? l10n.moveProgress(name, percent)
+              : l10n.pasteProgress(name, percent);
         }
         notifyListeners();
       }
@@ -2873,17 +2918,17 @@ class WorkspaceProvider extends ChangeNotifier {
       if (isMove) {
         _clipboard = null;
       }
-      _log('Đã dán thành công');
+      _log(L10nScope.current.logPasteSuccess);
       clearSelection(tabId);
       _hapticOnFileOpComplete();
       refreshTab(tabId);
     } on ArchiveCancelledException {
       await _performOperationRollback(tabId);
-      _log('Đã hủy dán');
-      _statusMessage = 'Đã hủy dán';
+      _log(L10nScope.current.cancelPaste);
+      _statusMessage = L10nScope.current.cancelPaste;
     } catch (e) {
       await _performOperationRollback(tabId);
-      _log('Lỗi paste: $e');
+      _log(L10nScope.current.logPasteError('$e'));
       notifyListeners();
     } finally {
       if (isFtp) {
@@ -3214,16 +3259,16 @@ class WorkspaceProvider extends ChangeNotifier {
     _startFileOperation(
       TabFileOperation.duplicate,
       tabId,
-      label: '${paths.length} mục',
+      label: L10nScope.current.itemCount(paths.length),
       cancelToken: cancelToken,
     );
     _setBusy(true);
-    _statusMessage = 'Đang nhân đôi...';
+    _statusMessage = L10nScope.current.duplicating;
 
     final op = _tabFileOperations[tabId]!;
 
     try {
-      _log('Đang nhân đôi...');
+      _log(L10nScope.current.duplicating);
       notifyListeners();
 
       final total = isFtp ? paths.length : await _fileService.countDeletionItemsInPaths(paths);
@@ -3232,7 +3277,8 @@ class WorkspaceProvider extends ChangeNotifier {
       void onDuplicateProgress(String name, double progress) {
         _setTabOperationProgress(tabId, progress, name);
         if (_activeTabId == tabId) {
-          _statusMessage = 'Nhân đôi: $name (${(progress * 100).toStringAsFixed(0)}%)';
+          final percent = (progress * 100).round();
+          _statusMessage = L10nScope.current.duplicateProgress(name, percent);
         }
         notifyListeners();
       }
@@ -3275,17 +3321,17 @@ class WorkspaceProvider extends ChangeNotifier {
           op.rollbackPaths.add(created);
         }
       }
-      _log('Đã nhân đôi ${paths.length} mục');
+      _log(L10nScope.current.logDuplicateSuccess(paths.length));
       clearSelection(tabId);
       _hapticOnFileOpComplete();
       refreshTab(tabId);
     } on ArchiveCancelledException {
       await _performOperationRollback(tabId);
-      _log('Đã hủy nhân đôi');
-      _statusMessage = 'Đã hủy nhân đôi';
+      _log(L10nScope.current.cancelDuplicate);
+      _statusMessage = L10nScope.current.cancelDuplicate;
     } catch (e) {
       await _performOperationRollback(tabId);
-      _log('Lỗi nhân đôi: $e');
+      _log(L10nScope.current.logDuplicateError('$e'));
       notifyListeners();
     } finally {
       if (isFtp) {
@@ -3311,11 +3357,11 @@ class WorkspaceProvider extends ChangeNotifier {
     _startFileOperation(
       TabFileOperation.delete,
       tabId,
-      label: '${paths.length} mục',
+      label: L10nScope.current.itemCount(paths.length),
       cancelToken: ArchiveCancelToken(),
     );
     _setBusy(true);
-    _statusMessage = 'Đang xóa...';
+    _statusMessage = L10nScope.current.deleting;
     final cancelToken = _tabFileOperations[tabId]!.cancelToken!;
 
     try {
@@ -3325,12 +3371,13 @@ class WorkspaceProvider extends ChangeNotifier {
       void onDeleteProgress(String name, double progress) {
         _setTabOperationProgress(tabId, progress, name);
         if (_activeTabId == tabId) {
-          _statusMessage = 'Đang xóa: $name (${(progress * 100).toStringAsFixed(0)}%)';
+          final percent = (progress * 100).round();
+          _statusMessage = L10nScope.current.deleteProgress(name, percent);
         }
         notifyListeners();
       }
 
-      _log('Đang xóa ${paths.length} mục...');
+      _log(L10nScope.current.deleting);
       notifyListeners();
 
       var stoppedEarly = false;
@@ -3387,20 +3434,21 @@ class WorkspaceProvider extends ChangeNotifier {
       }
 
       if (stoppedEarly) {
+        final l10n = L10nScope.current;
         _queueFileOpNotice(
-          'Đã dừng xóa',
-          'Các mục đã xóa không thể khôi phục. Phần còn lại chưa bị xóa.',
+          l10n.deleteStopped,
+          L10nScope.current.logDeletePartialNotice,
         );
-        _log('Đã dừng xóa');
-        _statusMessage = 'Đã dừng xóa';
+        _log(L10nScope.current.deleteStopped);
+        _statusMessage = l10n.deleteStopped;
       } else {
-        _log(_useTrash ? 'Đã chuyển ${paths.length} mục vào thùng rác' : 'Đã xóa ${paths.length} mục');
+        _log(_useTrash ? L10nScope.current.logMovedToTrash(paths.length) : L10nScope.current.logDeletedItems(paths.length));
         _hapticOnFileOpComplete();
       }
       clearSelection(tabId);
       refreshTab(tabId);
     } catch (e) {
-      _log('Lỗi xóa: $e');
+      _log(L10nScope.current.logDeleteError('$e'));
       notifyListeners();
     } finally {
       if (isFtp) {
@@ -3456,7 +3504,7 @@ class WorkspaceProvider extends ChangeNotifier {
       }
       final selected = tab.selectedPaths.map((p) => _norm(p) == _norm(oldPath) ? newPath : p).toSet();
       _setTab(tabId, tab.copyWith(selectedPaths: selected));
-      _log('Đã đổi tên thành $newName');
+      _log(L10nScope.current.logRenamedTo(newName));
       refreshTab(tabId);
     } finally {
       if (isFtp) {
@@ -3502,21 +3550,21 @@ class WorkspaceProvider extends ChangeNotifier {
       cancelToken: cancelToken,
     );
     _setBusy(true);
-    _statusMessage = 'Đang nén...';
+    _statusMessage = L10nScope.current.zipping;
 
     String? rollbackPath;
 
     void onProgress(double progress, String? file) {
       _setTabOperationProgress(tabId, progress.clamp(0.0, 1.0), file ?? baseName);
       if (_activeTabId == tabId && file != null) {
-        final pct = (progress * 100).toStringAsFixed(0);
-        _statusMessage = 'Nén: ${p.basename(file)} ($pct%)';
+        final percent = (progress * 100).round();
+        _statusMessage = L10nScope.current.zipProgress(p.basename(file), percent);
       }
       notifyListeners();
     }
 
     try {
-      _log('Đang nén...');
+      _log(L10nScope.current.zipping);
       notifyListeners();
 
       if (isFtp) {
@@ -3568,7 +3616,7 @@ class WorkspaceProvider extends ChangeNotifier {
         await tempDir.delete(recursive: true);
         rollbackPath = null;
         _tabFileOperations[tabId]?.destDir = null;
-        _log('Đã nén thành $zipName');
+        _log(L10nScope.current.logZippedTo(zipName));
       } else {
         final zipName = _fileService.uniqueName(dir, baseName);
         final zipPath = p.join(dir, zipName);
@@ -3585,7 +3633,7 @@ class WorkspaceProvider extends ChangeNotifier {
 
         rollbackPath = null;
         _tabFileOperations[tabId]?.destDir = null;
-        _log('Đã nén thành $zipName');
+        _log(L10nScope.current.logZippedTo(zipName));
       }
       _hapticOnFileOpComplete();
       clearSelection(tabId);
@@ -3595,14 +3643,14 @@ class WorkspaceProvider extends ChangeNotifier {
         _tabFileOperations[tabId]?.destDir ??= rollbackPath;
       }
       await _performOperationRollback(tabId);
-      _log('Đã hủy nén');
-      _statusMessage = 'Đã hủy nén';
+      _log(L10nScope.current.cancelZip);
+      _statusMessage = L10nScope.current.cancelZip;
     } catch (e) {
       if (rollbackPath != null) {
         _tabFileOperations[tabId]?.destDir ??= rollbackPath;
       }
       await _performOperationRollback(tabId);
-      _log('Lỗi nén ZIP: $e');
+      _log(L10nScope.current.logZipError('$e'));
       notifyListeners();
     } finally {
       if (isFtp) {
@@ -3638,21 +3686,21 @@ class WorkspaceProvider extends ChangeNotifier {
       cancelToken: cancelToken,
     );
     _setBusy(true);
-    _statusMessage = 'Đang giải nén...';
+    _statusMessage = L10nScope.current.unzipping;
     final folderBaseName = p.basenameWithoutExtension(zipPath);
     String? destDir;
 
     void onProgress(double progress, String? file) {
       _setTabOperationProgress(tabId, progress.clamp(0.0, 1.0), file ?? p.basename(zipPath));
       if (_activeTabId == tabId && file != null) {
-        final pct = (progress * 100).toStringAsFixed(0);
-        _statusMessage = 'Giải nén: ${p.basename(file)} ($pct%)';
+        final percent = (progress * 100).round();
+        _statusMessage = L10nScope.current.unzipProgress(p.basename(file), percent);
       }
       notifyListeners();
     }
 
     try {
-      _log('Đang giải nén...');
+      _log(L10nScope.current.unzipping);
       notifyListeners();
 
       final isTar = FileTypeUtils.isTar(zipPath);
@@ -3689,7 +3737,7 @@ class WorkspaceProvider extends ChangeNotifier {
         await tempDir.delete(recursive: true);
         destDir = null;
         _tabFileOperations[tabId]?.destDir = null;
-        _log('Đã giải nén vào $folderName');
+        _log(L10nScope.current.logUnzipTo(folderName));
       } else {
         final folderName = _fileService.uniqueName(dir, folderBaseName);
         destDir = p.join(dir, folderName);
@@ -3708,7 +3756,7 @@ class WorkspaceProvider extends ChangeNotifier {
         }
         destDir = null;
         _tabFileOperations[tabId]?.destDir = null;
-        _log('Đã giải nén vào $folderName');
+        _log(L10nScope.current.logUnzipTo(folderName));
       }
       _hapticOnFileOpComplete();
       refreshTab(tabId);
@@ -3717,14 +3765,14 @@ class WorkspaceProvider extends ChangeNotifier {
         _tabFileOperations[tabId]?.destDir ??= destDir;
       }
       await _performOperationRollback(tabId);
-      _log('Đã hủy giải nén');
-      _statusMessage = 'Đã hủy giải nén';
+      _log(L10nScope.current.cancelUnzip);
+      _statusMessage = L10nScope.current.cancelUnzip;
     } catch (e) {
       if (destDir != null) {
         _tabFileOperations[tabId]?.destDir ??= destDir;
       }
       await _performOperationRollback(tabId);
-      _log('Lỗi giải nén: $e');
+      _log(L10nScope.current.logUnzipError('$e'));
       notifyListeners();
     } finally {
       if (isFtp) {
@@ -3767,7 +3815,7 @@ class WorkspaceProvider extends ChangeNotifier {
       _log(await _openWithService.openResultMessage(result));
       notifyListeners();
     } catch (e) {
-      _log('Lỗi mở file: $e');
+      _log(L10nScope.current.logOpenAppError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -3778,18 +3826,18 @@ class WorkspaceProvider extends ChangeNotifier {
     _setBusy(true);
     try {
       if (!File(filePath).existsSync()) {
-        _log('File APK không tồn tại');
+        _log(L10nScope.current.logApkNotFound);
         notifyListeners();
         return;
       }
       final result = await _openWithService.openWithSystem(filePath);
       final message = result.type == ResultType.done
-          ? 'Đã mở trình cài đặt'
+          ? L10nScope.current.openWithDone
           : await _openWithService.openResultMessage(result);
       _log(message);
       notifyListeners();
     } catch (e) {
-      _log('Lỗi cài APK: $e');
+      _log(L10nScope.current.logInstallApkError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -3808,20 +3856,21 @@ class WorkspaceProvider extends ChangeNotifier {
     String? password,
   }) async {
     _setZipOpening(zipPath, innerPath);
-    _statusMessage = 'Đang mở ${p.basename(innerPath)}...';
+    final l10n = L10nScope.current;
+    _statusMessage = l10n.openFileProgress(p.basename(innerPath));
     _setBusy(true);
     try {
       var pwd = password;
       if (pwd == null || pwd.isEmpty) {
         final protected = await _archiveService.isPasswordProtected(zipPath);
         if (protected) {
-          _zipErrors[zipPath] = 'File nén được bảo vệ bằng mật khẩu';
+          _zipErrors[zipPath] = l10n.zipPasswordProtected;
           notifyListeners();
           return;
         }
       }
 
-      _log('Đang mở file từ ZIP...');
+      _log(L10nScope.current.logOpeningFromZip);
       notifyListeners();
       final tempPath = await _extractZipEntryToTemp(zipPath, innerPath, password: pwd);
       await openFileAs(tabId, tempPath, openAs);
@@ -3829,7 +3878,7 @@ class WorkspaceProvider extends ChangeNotifier {
       if (e is ArchivePasswordException) {
         _zipErrors[zipPath] = e.toString();
       }
-      _log('Lỗi mở file: $e');
+      _log(L10nScope.current.logOpenAppError('$e'));
       notifyListeners();
     } finally {
       _setZipOpening(null, null);
@@ -3839,20 +3888,21 @@ class WorkspaceProvider extends ChangeNotifier {
 
   Future<void> openZipFile(String tabId, String zipPath, String innerPath, {String? password}) async {
     _setZipOpening(zipPath, innerPath);
-    _statusMessage = 'Đang mở ${p.basename(innerPath)}...';
+    final l10n = L10nScope.current;
+    _statusMessage = l10n.openFileProgress(p.basename(innerPath));
     _setBusy(true);
     try {
       var pwd = password;
       if (pwd == null || pwd.isEmpty) {
         final protected = await _archiveService.isPasswordProtected(zipPath);
         if (protected) {
-          _zipErrors[zipPath] = 'File nén được bảo vệ bằng mật khẩu';
+          _zipErrors[zipPath] = l10n.zipPasswordProtected;
           notifyListeners();
           return;
         }
       }
 
-      _log('Đang mở file từ ZIP...');
+      _log(L10nScope.current.logOpeningFromZip);
       notifyListeners();
       final tempPath = await _extractZipEntryToTemp(zipPath, innerPath, password: pwd);
       await handleFileTap(tabId, tempPath);
@@ -3860,7 +3910,7 @@ class WorkspaceProvider extends ChangeNotifier {
       if (e is ArchivePasswordException) {
         _zipErrors[zipPath] = e.toString();
       }
-      _log('Lỗi mở file: $e');
+      _log(L10nScope.current.logOpenAppError('$e'));
       notifyListeners();
     } finally {
       _setZipOpening(null, null);
@@ -3871,12 +3921,12 @@ class WorkspaceProvider extends ChangeNotifier {
   Future<void> shareZipFile(String zipPath, String innerPath, {String? password}) async {
     _setBusy(true);
     try {
-      _log('Đang chuẩn bị chia sẻ file từ ZIP...');
+      _log(L10nScope.current.logPrepareShareFromZip);
       notifyListeners();
       final tempPath = await _extractZipEntryToTemp(zipPath, innerPath, password: password);
       await SharePlus.instance.share(ShareParams(files: [XFile(tempPath)]));
     } catch (e) {
-      _log('Lỗi chia sẻ file: $e');
+      _log(L10nScope.current.logShareFileError('$e'));
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -3926,7 +3976,7 @@ class WorkspaceProvider extends ChangeNotifier {
         await unzipFile(tabId, entry.path);
       } else {
         final format = FileTypeUtils.archiveFormatName(entry.path);
-        _log('Định dạng $format chưa được hỗ trợ giải nén trực tiếp.');
+        _log(L10nScope.current.logFormatNotSupportedDirect(format));
         notifyListeners();
       }
       return;
@@ -3997,10 +4047,10 @@ class WorkspaceProvider extends ChangeNotifier {
         case EditorTabType.media:
           return;
       }
-      _log('Đã lưu ${p.basename(editor.filePath ?? '')}');
+      _log(L10nScope.current.logFileSaved(p.basename(editor.filePath ?? '')));
       refreshTab(tabId);
     } catch (e) {
-      _log('Lỗi lưu: $e');
+      _log(L10nScope.current.logSaveError('$e'));
       notifyListeners();
     }
   }
@@ -4029,16 +4079,19 @@ class WorkspaceProvider extends ChangeNotifier {
         restrictToRoots: restrictToRoots,
         asyncPasswordVerifier: verifier,
       );
-      final authNote = verifier != null ? ' (có mật khẩu)' : '';
+      final l10n = L10nScope.current;
+      final authNote = verifier != null ? l10n.logWebServerAuthWith : '';
       final url = NetworkUtils.buildPreferredUrl(addresses, WebServerService.port);
-      final scopeNote = restrictToRoots ? ' — thư mục: $sharedRoot' : ' — toàn bộ bộ nhớ';
-      _log('Web server$authNote: ${url ?? addresses.join(', ')}$scopeNote');
+      final scopeNote = restrictToRoots
+          ? l10n.logWebServerScopeFolder(sharedRoot)
+          : l10n.logWebServerScopeAll;
+      _log(l10n.logWebServerStarted(authNote, url ?? addresses.join(', '), scopeNote));
       if (url != null) {
         await WebServerNotificationService.instance.showRunning(url: url);
       }
       notifyListeners();
     } catch (e) {
-      _log('Lỗi bật web server: $e');
+      _log(L10nScope.current.logWebServerStartError('$e'));
       notifyListeners();
     }
   }
@@ -4052,7 +4105,7 @@ class WorkspaceProvider extends ChangeNotifier {
   Future<void> stopWebServer() async {
     await _webServerService.stop();
     await WebServerNotificationService.instance.cancel();
-    _log('Đã tắt web server');
+    _log(L10nScope.current.logWebServerStopped);
     notifyListeners();
   }
 
@@ -4112,6 +4165,9 @@ class WorkspaceProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_localeListener != null) {
+      _localeProvider?.removeListener(_localeListener!);
+    }
     WebServerNotificationService.instance.cancel();
     _webServerService.stop();
     super.dispose();

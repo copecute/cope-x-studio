@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 /// Supported app locales and helpers shared by [LocaleProvider] and [MaterialApp].
@@ -11,7 +13,7 @@ abstract final class AppLocale {
 
   /// English by default; Vietnamese when the device locale is Vietnamese.
   static Locale deviceDefault() {
-    final code = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    final code = PlatformDispatcher.instance.locale.languageCode;
     return code == 'vi' ? vietnamese : english;
   }
 

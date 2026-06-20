@@ -1,3 +1,4 @@
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:cope_x_studio/models/tab_file_operation.dart';
 import 'package:cope_x_studio/services/archive_cancel_token.dart';
 
@@ -28,13 +29,14 @@ class TabFileOperationState {
           type == TabFileOperation.delete);
 
   String get overlayTitle {
-    if (isRollingBack) return 'Đang hoàn tác...';
+    final l = L10nScope.current;
+    if (isRollingBack) return l.rollingBack;
     return switch (type) {
-      TabFileOperation.unzip => 'Đang giải nén...',
-      TabFileOperation.zip => 'Đang nén...',
-      TabFileOperation.delete => 'Đang xóa...',
-      TabFileOperation.paste => 'Đang dán...',
-      TabFileOperation.duplicate => 'Đang nhân đôi...',
+      TabFileOperation.unzip => l.unzipping,
+      TabFileOperation.zip => l.zipping,
+      TabFileOperation.delete => l.deleting,
+      TabFileOperation.paste => l.pasting,
+      TabFileOperation.duplicate => l.duplicating,
       TabFileOperation.none => '',
     };
   }

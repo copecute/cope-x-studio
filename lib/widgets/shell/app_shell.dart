@@ -1,5 +1,6 @@
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/widgets/browser/tab_content_view.dart';
 import 'package:cope_x_studio/widgets/shell/editor_tab_bar.dart';
 import 'package:cope_x_studio/widgets/shell/status_bar.dart';
@@ -11,15 +12,16 @@ class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
   Future<bool> _confirmExit(BuildContext context) async {
+    final l10n = context.l10n;
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: VsCodeColors.sidebar,
-        title: const Text('Thoát ứng dụng'),
-        content: const Text('Bạn có chắc muốn thoát Cope X Studio?'),
+        title: Text(l10n.exitAppTitle),
+        content: Text(l10n.exitAppBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Thoát')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.exit)),
         ],
       ),
     );

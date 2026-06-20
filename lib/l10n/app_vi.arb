@@ -1,6 +1,5 @@
 {
   "@@locale": "vi",
-
   "appTitle": "Cope X Studio",
   "settings": "Cài đặt",
   "back": "Quay lại",
@@ -14,19 +13,15 @@
   "search": "Tìm kiếm",
   "retry": "Thử lại",
   "done": "Xong",
-
   "shortcutApps": "Quản lý ứng dụng",
   "shortcutSdCard": "Thẻ nhớ SD",
   "shortcutInternalStorage": "Bộ nhớ trong",
   "shortcutSystemAppsSubtitle": "Hệ thống · Cài đặt",
-
   "extractingProgress": "Đang giải nén: {percent}%",
   "storageFreeOfTotal": "Trống {free} trên tổng số {total}",
-
   "language": "Ngôn ngữ",
   "languageEnglish": "Tiếng Anh",
   "languageVietnamese": "Tiếng Việt",
-
   "sectionAppLock": "Khóa ứng dụng",
   "sectionBiometrics": "Sinh trắc học",
   "sectionRootAccess": "Truy cập Root",
@@ -34,7 +29,6 @@
   "sectionTextEditor": "Văn bản & trình soạn thảo",
   "sectionUiAndActions": "Giao diện & thao tác",
   "sectionApplication": "Ứng dụng",
-
   "appLockTitle": "Khóa ứng dụng",
   "appLockSubtitleActive": "Yêu cầu mật khẩu sau 1 phút rời app. Chạm để đổi mật khẩu.",
   "appLockSubtitleInactive": "Khóa đang tắt. Chạm để đổi mật khẩu.",
@@ -47,19 +41,15 @@
   "passwordLabel": "Mật khẩu",
   "passwordEmptyError": "Mật khẩu không được để trống",
   "savePassword": "Lưu mật khẩu",
-
   "biometricNotSupported": "Thiết bị không hỗ trợ vân tay / Face ID.",
   "biometricUnlockTitle": "Mở khóa bằng sinh trắc học",
   "biometricUnlockSubtitle": "Dùng vân tay hoặc Face ID thay mật khẩu",
   "biometricNeedsPassword": "Cần đặt mật khẩu trước",
-
   "checkingSuperuser": "Đang kiểm tra quyền siêu người dùng...",
-
   "showHiddenFiles": "Hiển thị tệp tin ẩn",
   "showHiddenFilesSubtitle": "Hiện tệp tin bắt đầu bằng dấu chấm hoặc tệp hệ thống",
   "openApkAsZip": "Mở APK như ZIP",
   "openApkAsZipSubtitle": "Duyệt file APK như ZIP. Tắt để mở bằng trình cài đặt hệ thống.",
-
   "textEncoding": "Mã hóa văn bản",
   "textEncodingSheetTitle": "Mã hóa văn bản",
   "textEncodingSheetSubtitle": "Dùng khi mở và lưu file văn bản trong trình soạn thảo.",
@@ -69,18 +59,1075 @@
   "editorLineNumbersSubtitle": "Cột số dòng bên trái trong trình soạn thảo",
   "editorWordWrap": "Xuống dòng tự động (Word wrap)",
   "editorWordWrapSubtitle": "Tự xuống dòng khi văn bản dài hơn chiều rộng màn hình",
-
   "themeModeTitle": "Chế độ giao diện",
   "uiScale": "Kích thước hiển thị ({percent}%)",
   "fullscreen": "Toàn màn hình",
   "fullscreenSubtitle": "Ẩn thanh trạng thái và điều hướng hệ thống",
   "hapticFeedback": "Rung khi hoàn tất thao tác",
   "hapticFeedbackSubtitle": "Phản hồi rung nhẹ sau khi sao chép, di chuyển hoặc xóa",
-
   "rememberLastPath": "Nhớ đường dẫn gần nhất",
   "rememberLastPathSubtitle": "Mở lại tab và thư mục khi khởi động lại app",
   "requireExitConfirmation": "Yêu cầu xác nhận khi thoát",
   "requireExitConfirmationSubtitle": "Hiện hộp thoại trước khi đóng ứng dụng",
   "useTrash": "Sử dụng thùng rác",
-  "useTrashSubtitle": "Xóa file sẽ chuyển vào /copecute/.trash và tự xóa sau 30 ngày"
+  "useTrashSubtitle": "Xóa file sẽ chuyển vào /copecute/.trash và tự xóa sau 30 ngày",
+  "add": "Thêm",
+  "copy": "Copy",
+  "cut": "Cut",
+  "paste": "Paste",
+  "share": "Chia sẻ",
+  "refresh": "Làm mới",
+  "parentFolder": "Thư mục cha",
+  "extract": "Giải nén",
+  "searchInFolder": "Tìm kiếm trong thư mục...",
+  "hideHiddenFilesToggle": "Ẩn tệp ẩn",
+  "showHiddenFilesToggle": "Hiện tệp ẩn",
+  "pleaseWait": "Vui lòng đợi...",
+  "understood": "Đã hiểu",
+  "grantPermission": "Cấp quyền",
+  "storagePermissionTitle": "Cần quyền truy cập tất cả file",
+  "storagePermissionBody": "Bật MANAGE_EXTERNAL_STORAGE để duyệt toàn bộ bộ nhớ.",
+  "newFile": "File mới",
+  "newFolder": "Thư mục mới",
+  "selectedCount": "{count} đã chọn",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "duplicate": "Nhân đôi",
+  "installApk": "Cài đặt APK",
+  "openAs": "Mở như",
+  "openWithSystem": "Mở bằng ứng dụng khác",
+  "openInNewTab": "Mở trong tab mới",
+  "revealLocation": "Xem vị trí file",
+  "details": "Chi tiết",
+  "openApp": "Mở ứng dụng",
+  "appInfo": "Thông tin ứng dụng",
+  "copyApk": "Sao chép APK",
+  "shareApk": "Chia sẻ APK",
+  "viewPlayStore": "Xem trên Play Store",
+  "backupApk": "Backup APK (Trích xuất)",
+  "uninstall": "Gỡ cài đặt",
+  "openAsText": "Văn bản",
+  "openAsImage": "Hình ảnh",
+  "openAsAudio": "Âm nhạc",
+  "openAsVideo": "Video",
+  "openAsArchive": "File nén",
+  "viewModeList": "Danh sách",
+  "viewModeGrid": "Lưới",
+  "viewModeTree": "Cây thư mục",
+  "emptyFolder": "Thư mục trống",
+  "emptyZip": "ZIP trống",
+  "noApps": "Không có ứng dụng",
+  "noRecentFiles": "Không tìm thấy tập tin gần đây",
+  "noSearchResults": "Không tìm thấy kết quả",
+  "loadingFtp": "Đang tải thư mục FTP...",
+  "loadingZip": "Đang đọc nội dung ZIP...",
+  "loadingDirectory": "Đang đọc thư mục...",
+  "loadingApps": "Đang tải danh sách ứng dụng...",
+  "scanningStorage": "Đang quét bộ nhớ...",
+  "scanningRecent": "Đang quét tập tin gần đây...",
+  "extractingAndOpening": "Đang giải nén và mở file...",
+  "ftpConnectionError": "Lỗi kết nối FTP",
+  "cannotReadDirectory": "Không thể đọc thư mục",
+  "cannotReadPath": "Không thể đọc {name}",
+  "@cannotReadPath": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotLoadApps": "Không thể tải ứng dụng",
+  "pathCopied": "Đã sao chép đường dẫn: {path}",
+  "@pathCopied": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "noFilesToZip": "Không có tập tin để nén",
+  "formatNotSupportedExtract": "Định dạng {format} chưa được hỗ trợ giải nén.",
+  "@formatNotSupportedExtract": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "zipPasswordExtractTitle": "Giải nén file ZIP có mật khẩu",
+  "zipFileTitle": "Nén file ZIP",
+  "fileName": "Tên file",
+  "passwordProtect": "Bảo vệ bằng mật khẩu",
+  "compress": "Nén",
+  "passwordOptional": "Mật khẩu (tùy chọn)",
+  "wrongPasswordRetry": "Mật khẩu sai. Vui lòng nhập lại.",
+  "zipPasswordProtected": "File nén được bảo vệ bằng mật khẩu.",
+  "unlock": "Mở khóa",
+  "editFtpConfig": "Chỉnh sửa cấu hình",
+  "deleteFtpServer": "Xóa cấu hình máy chủ",
+  "editFtpServer": "Chỉnh sửa máy chủ FTP",
+  "addFtpServer": "Thêm máy chủ FTP",
+  "displayName": "Tên gợi nhớ",
+  "hostAddress": "Địa chỉ IP / Host",
+  "port": "Cổng (Port)",
+  "username": "Tên đăng nhập",
+  "itemCount": "{count} mục",
+  "@itemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "zipCurrentFolder": "Nén thư mục hiện tại",
+  "zipRecentFiles": "Nén các tập tin gần đây",
+  "zipCopiedItems": "Nén các mục đã copy",
+  "deselectAll": "Bỏ chọn tất cả",
+  "select": "Chọn",
+  "selectAll": "Chọn tất cả",
+  "move": "Di chuyển",
+  "shortcutHome": "Trang chủ",
+  "shortcutRecent": "Các tập tin gần đây",
+  "shortcutFtp": "FTP",
+  "shortcutAddFtp": "+ Thêm máy chủ",
+  "deviceStorage": "Bộ nhớ thiết bị",
+  "systemApps": "Hệ thống",
+  "userApps": "Cài đặt",
+  "systemApp": "Ứng dụng hệ thống",
+  "userApp": "Ứng dụng người dùng cài đặt",
+  "accessDenied": "Truy cập bị từ chối",
+  "superuserNotGranted": "Chưa được cấp quyền siêu người dùng",
+  "superuserRevertedNormal": "Chưa được cấp quyền siêu người dùng — đã chuyển về Bình thường",
+  "wrongPassword": "Sai mật khẩu",
+  "cancelUnzip": "Đã hủy giải nén",
+  "cancelZip": "Đã hủy nén",
+  "cancelPaste": "Đã hủy dán",
+  "cancelDuplicate": "Đã hủy nhân đôi",
+  "cancelOperation": "Đã hủy thao tác",
+  "rollingBack": "Đang hoàn tác...",
+  "zipping": "Đang nén...",
+  "deleting": "Đang xóa...",
+  "pasting": "Đang dán...",
+  "duplicating": "Đang nhân đôi...",
+  "moving": "Đang di chuyển...",
+  "moveProgress": "Di chuyển: {name} ({percent}%)",
+  "@moveProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "pasteProgress": "Dán: {name} ({percent}%)",
+  "@pasteProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "duplicateProgress": "Nhân đôi: {name} ({percent}%)",
+  "@duplicateProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteProgress": "Đang xóa: {name} ({percent}%)",
+  "@deleteProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "zipProgress": "Nén: {name} ({percent}%)",
+  "@zipProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "unzipProgress": "Giải nén: {name} ({percent}%)",
+  "@unzipProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "openFileProgress": "Đang mở {name}...",
+  "@openFileProgress": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ready": "Sẵn sàng",
+  "notSaved": "Chưa lưu",
+  "saved": "Đã lưu",
+  "deleteStopped": "Đã dừng xóa",
+  "exitAppTitle": "Thoát ứng dụng",
+  "exitAppBody": "Bạn có chắc muốn thoát Cope X Studio?",
+  "exit": "Thoát",
+  "webServer": "Web Server",
+  "shareViaWifi": "Chia sẻ file qua Wi‑Fi. Thiết bị khác mở địa chỉ hoặc quét QR để truy cập.",
+  "sharedFolder": "Thư mục chia sẻ",
+  "pickFolder": "Chọn thư mục",
+  "entireStorage": "Toàn bộ bộ nhớ thiết bị",
+  "useAppLockPassword": "Dùng mật khẩu khóa app",
+  "httpBasicAuthHint": "HTTP Basic Auth — tên đăng nhập tùy ý",
+  "webServerPassword": "Mật khẩu Web Server",
+  "webServerPasswordSet": "Đã đặt — chạm để đổi",
+  "webServerPasswordUnset": "Chưa đặt — ai trong mạng đều truy cập được",
+  "serverRunning": "Đang chạy — port {port}",
+  "@serverRunning": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "startServer": "Bật server",
+  "onlyFolder": "Chỉ: {path}",
+  "@onlyFolder": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "addressCopied": "Đã sao chép địa chỉ",
+  "changeWebServerPassword": "Đổi mật khẩu Web Server",
+  "setWebServerPassword": "Đặt mật khẩu Web Server",
+  "removeWebServerPassword": "Xóa mật khẩu",
+  "consoleLog": "Console Log",
+  "clearLog": "Xóa log",
+  "noLogsYet": "Chưa có log",
+  "newBrowserTab": "Tab duyệt file mới",
+  "pickSharedFolder": "Chọn thư mục chia sẻ",
+  "cannotReadFolder": "Không thể đọc thư mục",
+  "noSubfolders": "Không có thư mục con",
+  "selectThisFolder": "Chọn thư mục này",
+  "enterPasswordUnlock": "Nhập mật khẩu để mở khóa",
+  "wrongPasswordLock": "Mật khẩu không đúng",
+  "biometrics": "Sinh trắc học",
+  "loading": "Đang tải...",
+  "loadingFile": "Đang tải tệp tin...",
+  "cannotLoadFile": "Không thể tải tệp tin",
+  "formatNotSupported": "Định dạng không được hỗ trợ",
+  "previous": "Trước",
+  "next": "Tiếp theo",
+  "rewind10s": "Tua lại 10s",
+  "forward10s": "Tua tới 10s",
+  "playlist": "Danh sách",
+  "nowPlaying": "Đang phát",
+  "exitFullscreen": "Thoát toàn màn hình",
+  "rotatePortrait": "Xoay dọc",
+  "rotateLandscape": "Xoay ngang",
+  "undo": "Hoàn tác",
+  "redo": "Làm lại",
+  "findReplace": "Tìm kiếm & Thay thế",
+  "hideLineNumbers": "Ẩn số dòng",
+  "showLineNumbersToggle": "Hiện số dòng",
+  "disableWordWrap": "Tắt xuống dòng tự động",
+  "enableWordWrap": "Bật xuống dòng tự động",
+  "decreaseFontSize": "Giảm cỡ chữ",
+  "increaseFontSize": "Tăng cỡ chữ",
+  "notFound": "Không tìm thấy",
+  "findHint": "Tìm kiếm...",
+  "replaceHint": "Thay thế...",
+  "replace": "Thay thế",
+  "replaceAll": "Tất cả",
+  "backToBrowser": "Quay lại duyệt file",
+  "createBrowserTab": "Tạo tab duyệt file",
+  "propertyDetails": "Chi tiết",
+  "loadingProperties": "Đang tải thông tin...",
+  "cannotReadProperties": "Không thể đọc thông tin: {error}",
+  "@cannotReadProperties": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "propertyName": "Tên",
+  "propertyType": "Loại",
+  "propertyLocation": "Vị trí",
+  "propertyItemCount": "Số mục",
+  "propertySize": "Kích thước",
+  "propertyFiles": "Tệp",
+  "propertySubfolders": "Thư mục con",
+  "propertyModified": "Sửa đổi",
+  "propertyAccessed": "Truy cập",
+  "propertyNotes": "Ghi chú",
+  "propertyResolution": "Độ phân giải",
+  "propertyDuration": "Thời lượng",
+  "propertyCamera": "Máy ảnh",
+  "propertyCapturedAt": "Chụp lúc",
+  "propertyDateModified": "Ngày sửa",
+  "propertyOrientation": "Hướng",
+  "propertyTitle": "Tiêu đề",
+  "propertyArtist": "Nghệ sĩ",
+  "propertyGenre": "Thể loại",
+  "propertyYear": "Năm",
+  "folderType": "Thư mục",
+  "fileType": "Tệp",
+  "fileTypeExt": "Tệp {ext}",
+  "@fileTypeExt": {
+    "placeholders": {
+      "ext": {
+        "type": "String"
+      }
+    }
+  },
+  "themeDark": "Tối",
+  "themeLight": "Sáng",
+  "themeSystem": "Theo hệ thống",
+  "rootAccessDisabled": "Vô hiệu hóa",
+  "rootAccessNormal": "Bình thường",
+  "rootAccessSuperuser": "Siêu người dùng",
+  "rootAccessSuperuserWritable": "Siêu người dùng + mount writable",
+  "rootAccessDisabledDesc": "Thư mục gốc không được hiển thị",
+  "rootAccessNormalDesc": "Hiển thị thư mục gốc theo cách bình thường, hoạt động trên mọi thiết bị",
+  "rootAccessSuperuserDesc": "Truy cập thông qua sử dụng siêu người dùng, hoạt động trên các thiết bị toàn quyền điều khiển",
+  "rootAccessSuperuserWritableDesc": "Chế độ siêu người dùng, cho phép thay đổi trong các thư mục chỉ được đọc",
+  "openWithDone": "Đã mở trình cài đặt",
+  "openWithNoApp": "Không tìm thấy trình cài đặt gói",
+  "openWithFileNotFound": "File không tồn tại",
+  "openWithPermissionDenied": "Không có quyền mở file",
+  "openWithError": "Lỗi: {message}",
+  "@openWithError": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "operationCancelled": "Đã hủy thao tác",
+  "storageFreeSlash": "Trống {free}/{total}",
+  "@storageFreeSlash": {
+    "placeholders": {
+      "free": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "treeLoading": "Đang tải cây thư mục...",
+  "webServerRunningNotification": "Web Server đang chạy",
+  "webServerNotificationChannel": "Thông báo khi Web Server đang chạy",
+  "untitled": "Untitled",
+  "video": "Video",
+  "pdf": "PDF",
+  "online": "Online",
+  "output": "OUTPUT",
+  "unzipping": "Đang giải nén...",
+  "passwordRequired": "Vui lòng nhập mật khẩu",
+  "wrongPasswordOrCorrupt": "Sai mật khẩu hoặc file bị lỗi",
+  "webDisk": "Ổ đĩa",
+  "webGoUp": "Lên",
+  "webUpload": "Tải lên",
+  "webDownload": "Tải xuống",
+  "webActions": "Thao tác",
+  "webRoot": "Gốc",
+  "webReady": "Sẵn sàng",
+  "webEditFile": "Sửa file",
+  "webViewFile": "Xem",
+  "webNewFolderName": "Tên thư mục mới",
+  "webNewFileName": "Tên file mới",
+  "webCreate": "Tạo",
+  "webEdit": "Chỉnh sửa",
+  "webClearLogs": "Xóa logs",
+  "webClosePanel": "Đóng panel",
+  "webItems": "mục",
+  "webLoading": "Đang tải...",
+  "webError": "Lỗi",
+  "webUploading": "Đang tải lên...",
+  "webUploadSuccess": "Đã tải lên",
+  "webUploadSuccessCount": "Đã tải lên {count} file thành công",
+  "@webUploadSuccessCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "webUploadError": "Lỗi upload",
+  "webNoSelectionDownload": "Chưa chọn mục để tải xuống",
+  "webNoFilesDownload": "Không có file nào được chọn để tải xuống",
+  "webDownloading": "Đang tải xuống",
+  "webZipAndDownload": "Phát hiện thư mục hoặc tải trên 5 mục, tiến hành nén ZIP...",
+  "webZipSuccessDownload": "Đã nén thành công",
+  "webZipError": "Lỗi nén zip",
+  "webSelectedAll": "Đã chọn tất cả",
+  "webSelectedAllCount": "Đã chọn tất cả {count} mục",
+  "@webSelectedAllCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "webDeselectedAll": "Đã bỏ chọn tất cả",
+  "webSavedSuccess": "Đã lưu thành công",
+  "webSelectOneRename": "Chọn 1 mục để đổi tên",
+  "webNoSelection": "Chưa chọn mục",
+  "webDeleteConfirm": "Xóa {count} mục?",
+  "webZipSuccess": "Đã nén thành công",
+  "webZipSuccessDownloading": "Đã nén thành công: {name}. Đang tải xuống...",
+  "@webZipSuccessDownloading": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "webUnzipSuccess": "Đã giải nén thành công",
+  "webGridView": "Lưới",
+  "webListView": "Danh sách",
+  "@webDeleteConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logUnlockZip": "Đã mở khóa ZIP: {name}",
+  "logUnlockError": "Lỗi mở khóa: {error}",
+  "logEnableManageStorage": "Bật quyền Truy cập tất cả file trong Cài đặt",
+  "logGrantedAllFilesAccess": "Đã cấp quyền truy cập tất cả file",
+  "logEnableManageAllFiles": "Bật Cho phép truy cập để quản lý tất cả tệp trong Cài đặt",
+  "logNewTab": "Tab mới: {name}",
+  "logFileLocation": "Vị trí: {path}",
+  "logViewZip": "Xem ZIP: {name}",
+  "logRecentAdded": "Đã thêm {count} tập tin gần đây",
+  "logRecentScanned": "Đã quét {count} tập tin gần đây",
+  "logRecentScanError": "Lỗi quét tập tin gần đây: {error}",
+  "logAppsAdded": "Đã thêm {count} ứng dụng ({type})",
+  "logAppsLoaded": "Đã tải {count} ứng dụng",
+  "logAppsLoadError": "Lỗi tải ứng dụng: {error}",
+  "logAppsTypeSystem": "hệ thống",
+  "logAppsTypeUser": "người dùng",
+  "logReadItemsRoot": "Đã đọc {count} mục tại Root",
+  "logReadItemsAt": "Đã đọc {count} mục tại {location}",
+  "logReadError": "Lỗi đọc {location}: {error}",
+  "logOpenAppInfo": "Mở thông tin ứng dụng",
+  "logOpenAppInfoError": "Lỗi mở thông tin ứng dụng: {error}",
+  "logApkCopied": "Đã sao chép APK: {name}",
+  "logApkCopyError": "Lỗi sao chép APK: {error}",
+  "logApkShared": "Chia sẻ APK: {name}",
+  "logApkShareError": "Lỗi chia sẻ APK: {error}",
+  "logPlayStoreError": "Lỗi mở Play Store: {error}",
+  "logApkBackup": "Đã backup APK → {path}",
+  "logApkBackupError": "Lỗi backup APK: {error}",
+  "logUninstall": "Gỡ cài đặt: {name}",
+  "logUninstallError": "Lỗi gỡ cài đặt: {error}",
+  "logLaunchApp": "Khởi chạy ứng dụng: {package}",
+  "logOpenAppError": "Lỗi mở ứng dụng: {error}",
+  "logHomeLoadError": "Lỗi tải màn hình chính: {error}",
+  "logFtpError": "Lỗi FTP: {error}",
+  "logZipReadError": "Lỗi đọc ZIP: {error}",
+  "logFileOpened": "Đã mở {name}",
+  "logFormatNotSupportedOpen": "Định dạng {format} chưa được hỗ trợ.",
+  "logFtpFileLoadError": "Lỗi tải tệp FTP: {error}",
+  "logCreateFile": "Tạo file mới: {name}",
+  "logCreateFolder": "Tạo thư mục mới: {name}",
+  "logCopiedItems": "Đã copy {count} mục",
+  "logCutItems": "Đã cut {count} mục",
+  "logCannotPasteInZip": "Không thể paste vào bên trong ZIP",
+  "logPasteSuccess": "Đã dán thành công",
+  "logPasteError": "Lỗi paste: {error}",
+  "logDuplicateSuccess": "Đã nhân đôi {count} mục",
+  "logDuplicateError": "Lỗi nhân đôi: {error}",
+  "logDeletePartialNotice": "Các mục đã xóa không thể khôi phục. Phần còn lại chưa bị xóa.",
+  "logMovedToTrash": "Đã chuyển {count} mục vào thùng rác",
+  "logDeletedItems": "Đã xóa {count} mục",
+  "logDeleteError": "Lỗi xóa: {error}",
+  "logRenamedTo": "Đã đổi tên thành {name}",
+  "logZippedTo": "Đã nén thành {name}",
+  "logUnzipTo": "Đã giải nén vào {folder}",
+  "logUnzipError": "Lỗi giải nén: {error}",
+  "logApkNotFound": "File APK không tồn tại",
+  "logInstallApkError": "Lỗi cài APK: {error}",
+  "logOpeningFromZip": "Đang mở file từ ZIP...",
+  "logPrepareShareFromZip": "Đang chuẩn bị chia sẻ file từ ZIP...",
+  "logShareFileError": "Lỗi chia sẻ file: {error}",
+  "logFormatNotSupportedDirect": "Định dạng {format} chưa được hỗ trợ giải nén trực tiếp.",
+  "logFileSaved": "Đã lưu {name}",
+  "logSaveError": "Lỗi lưu: {error}",
+  "logWebServerStarted": "Web server{auth}: {url}{scope}",
+  "logWebServerAuthWith": " (có mật khẩu)",
+  "logWebServerScopeFolder": " — thư mục: {path}",
+  "logWebServerScopeAll": " — toàn bộ bộ nhớ",
+  "logWebServerStartError": "Lỗi bật web server: {error}",
+  "logWebServerStopped": "Đã tắt web server",
+  "logZipError": "Lỗi nén ZIP: {error}",
+  "errCannotReadZipList": "Không đọc được danh sách file trong ZIP",
+  "errZipTooLargeVerifyPassword": "ZIP quá lớn ({sizeMb} MB). Không thể xác minh mật khẩu trong bộ nhớ.",
+  "errZipAesTooLarge": "ZIP mã hóa AES quá lớn ({sizeMb} MB). Giới hạn {limitMb} MB.",
+  "errZipTooLargeNeedUnzip": "ZIP quá lớn ({sizeMb} MB). Cần lệnh unzip/7z trên thiết bị.",
+  "errFlutterArchiveUnavailable": "flutter_archive không khả dụng trên nền tảng này",
+  "errCannotExtractZipEntry": "Không trích xuất được mục ZIP",
+  "errCannotExtractTar": "Không thể giải nén TAR",
+  "errDataTooLargeCompress": "Dữ liệu quá lớn ({sizeMb} MB). Không thể nén trong bộ nhớ.",
+  "errMultiFolderZipNoCommand": "Không thể nén nhiều thư mục — thiếu lệnh zip trên thiết bị",
+  "errCannotCreateZip": "Không thể tạo file ZIP",
+  "errParentDirNotFound": "Thư mục cha không tồn tại",
+  "errCannotWriteDestDir": "Không thể ghi vào thư mục đích",
+  "errZipTooLargeExtract": "File ZIP quá lớn ({sizeMb} MB). Cần giải nén native hoặc lệnh unzip.",
+  "errZipTooLargeSingleEntry": "File ZIP quá lớn để trích xuất mục đơn lẻ trong RAM",
+  "errZipEntryNotFound": "Không tìm thấy mục trong ZIP",
+  "errFileNotExists": "File không tồn tại",
+  "errInvalidZip": "File ZIP không hợp lệ",
+  "errZipEocdNotFound": "Không tìm thấy End of Central Directory",
+  "errZipCdCorrupt": "Central Directory ZIP bị hỏng",
+  "errZipCdTooLarge": "Central Directory quá lớn ({sizeMb} MB)",
+  "errZipCdIncomplete": "Không đọc đủ Central Directory",
+  "errZip64LocatorInvalid": "ZIP64 locator không hợp lệ",
+  "errZip64EocdInvalid": "ZIP64 EOCD signature không hợp lệ",
+  "errZip64EocdOutOfFile": "ZIP64 EOCD nằm ngoài file",
+  "errDirectoryNotExists": "Thư mục không tồn tại",
+  "errCannotAccessPath": "Không thể truy cập {path}: {message}",
+  "errAlreadyExists": "Đã tồn tại",
+  "errShellListingAndroidOnly": "Shell listing chỉ hỗ trợ Android",
+  "errSuperuserAndroidOnly": "Chế độ siêu người dùng chỉ hỗ trợ Android",
+  "errCannotCheckSuperuser": "Không thể kiểm tra quyền siêu người dùng",
+  "errSuperuserCheckTimeout": "Hết thời gian kiểm tra quyền siêu người dùng. Thiết bị có thể chưa root hoặc chưa cấp quyền.",
+  "errInstallApkAndroidOnly": "Cài APK chỉ hỗ trợ Android",
+  "errApkNotFound": "Không tìm thấy APK",
+  "errApkBackupFailed": "Backup thất bại",
+  "errNoWebServerPassword": "Chưa có mật khẩu Web Server",
+  "errNoPassword": "Chưa có mật khẩu",
+  "errCurrentPasswordWrong": "Mật khẩu hiện tại không đúng",
+  "errBiometricUnlockReason": "Mở khóa Cope X Studio",
+  "errCannotTestPasswordOnPlatform": "Không thể kiểm tra mật khẩu trên nền tảng này",
+  "errShellUnsupportedZipEncryption": "Shell không hỗ trợ định dạng mã hóa ZIP này",
+  "errCannotRunUnzip": "Không thể chạy lệnh unzip",
+  "err7zNotFound": "Không tìm thấy lệnh 7z",
+  "errEmptyZipSources": "Danh sách nguồn nén trống",
+  "errCannotRunZip": "Không thể chạy lệnh zip",
+  "errPasswordNeeded": "Cần mật khẩu",
+  "apiPasswordRequired": "Cần mật khẩu",
+  "apiWrongPassword": "Mật khẩu sai",
+  "apiCannotListFolder": "Không thể tải thư mục",
+  "apiFileNotFound": "Không tìm thấy file",
+  "apiCannotFolderThumbnail": "Không thể lấy thumbnail của thư mục",
+  "apiCannotReadFolder": "Không thể đọc thư mục",
+  "apiFileTooLargeEdit": "File quá lớn để chỉnh sửa (>2MB)",
+  "apiMissingFolderName": "Thiếu tên thư mục",
+  "apiMissingFileName": "Thiếu tên file",
+  "apiMissingNewName": "Thiếu tên mới",
+  "apiNothingToDelete": "Không có mục để xóa",
+  "apiCannotWriteFolder": "Không thể ghi thư mục",
+  "apiNothingToZip": "Không có mục để nén",
+  "apiNotZipFile": "Không phải file ZIP",
+  "apiInvalidDestFolder": "Thư mục đích không hợp lệ",
+  "apiMissingFileNameParam": "Thiếu tên file (tham số name)",
+  "@logUnlockZip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUnlockError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logNewTab": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFileLocation": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@logViewZip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logRecentAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logRecentScanned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logRecentScanError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logAppsAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "@logAppsLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logAppsLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logReadItemsRoot": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logReadItemsAt": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "location": {
+        "type": "String"
+      }
+    }
+  },
+  "@logReadError": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logOpenAppInfoError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkCopied": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkCopyError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkShared": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkShareError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logPlayStoreError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkBackup": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@logApkBackupError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUninstall": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUninstallError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logLaunchApp": {
+    "placeholders": {
+      "package": {
+        "type": "String"
+      }
+    }
+  },
+  "@logOpenAppError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logHomeLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFtpError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logZipReadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFileOpened": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFormatNotSupportedOpen": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFtpFileLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logCreateFile": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logCreateFolder": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logCopiedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logCutItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logPasteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logDuplicateSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logDuplicateError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logMovedToTrash": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logDeletedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@logDeleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logRenamedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logZippedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUnzipTo": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "@logUnzipError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logInstallApkError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logShareFileError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFormatNotSupportedDirect": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "@logFileSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@logSaveError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logWebServerStarted": {
+    "placeholders": {
+      "auth": {
+        "type": "String"
+      },
+      "url": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "@logWebServerScopeFolder": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@logWebServerStartError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@logZipError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipTooLargeVerifyPassword": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipAesTooLarge": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      },
+      "limitMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipTooLargeNeedUnzip": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errDataTooLargeCompress": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipTooLargeExtract": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errZipCdTooLarge": {
+    "placeholders": {
+      "sizeMb": {
+        "type": "String"
+      }
+    }
+  },
+  "@errCannotAccessPath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeTitle": "Chào mừng đến Cope X Studio",
+  "welcomeSubtitle": "Duyệt file, chỉnh sửa code và quản lý nén — tất cả trong một ứng dụng.",
+  "welcomeLanguage": "Ngôn ngữ",
+  "welcomeTheme": "Giao diện",
+  "welcomeNext": "Tiếp theo",
+  "welcomeBack": "Quay lại",
+  "welcomeGetStarted": "Bắt đầu",
+  "welcomePermissionTitle": "Quyền truy cập bộ nhớ",
+  "welcomePermissionBody": "Cấp quyền truy cập tất cả file để Cope X Studio có thể duyệt và quản lý file trên thiết bị.",
+  "welcomeGrantPermission": "Cấp quyền",
+  "welcomeSkipPermission": "Bỏ qua",
+  "welcomePermissionGranted": "Đã cấp quyền",
+  "welcomePermissionNotNeeded": "Không cần cấp thêm quyền trên thiết bị này.",
+  "welcomePermissionsTitle": "Quyền truy cập",
+  "welcomePermissionsSubtitle": "Cope X Studio cần một vài quyền để hoạt động đầy đủ.",
+  "welcomeNotificationTitle": "Thông báo",
+  "welcomeNotificationBody": "Hiển thị trạng thái Web Server, phát media và tác vụ nền.",
+  "welcomeGrantNotification": "Cho phép thông báo",
+  "welcomeNotificationGranted": "Đã cho phép thông báo",
+  "welcomeStorageRequiredHint": "Hãy cấp quyền truy cập bộ nhớ để tiếp tục.",
+  "welcomeStep": "Bước {current}/{total}",
+  "@welcomeStep": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "welcomeDoneTitle": "Hoàn tất!",
+  "welcomeDoneBody": "Mọi thứ đã sẵn sàng. Bắt đầu khám phá file của bạn."
 }

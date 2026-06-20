@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cope_x_studio/l10n/app_locale.dart';
+import 'package:cope_x_studio/l10n/model_l10n.dart';
 import 'package:cope_x_studio/models/app_theme_mode.dart';
 import 'package:cope_x_studio/models/root_access_mode.dart';
 import 'package:cope_x_studio/models/text_encoding.dart';
@@ -130,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 l10n.textEncodingSheetSubtitle,
-                style: const TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
+                style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
               ),
             ),
             const SizedBox(height: 8),
@@ -177,19 +178,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            l10n.sectionAppLock,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          _AppLockTile(
-            title: l10n.appLockTitle,
-            enabled: security.isLockEnabled,
-            subtitle: _appLockSubtitle(security, l10n),
-            onTap: _showPasswordSheet,
-            onToggle: _onLockToggle,
-          ),
-          Divider(height: 40, color: VsCodeColors.border),
-          Text(
             l10n.language,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
@@ -210,14 +198,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(height: 40, color: VsCodeColors.border),
           Text(
-            l10n.sectionBiometrics,
+            l10n.sectionAppLock,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
+          _AppLockTile(
+            title: l10n.appLockTitle,
+            enabled: security.isLockEnabled,
+            subtitle: _appLockSubtitle(security, l10n),
+            onTap: _showPasswordSheet,
+            onToggle: _onLockToggle,
+          ),
           if (!security.canUseBiometric)
-            Text(
-              l10n.biometricNotSupported,
-              style: TextStyle(color: VsCodeColors.foregroundDim),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                l10n.biometricNotSupported,
+                style: TextStyle(color: VsCodeColors.foregroundDim),
+              ),
             )
           else
             SwitchListTile(
@@ -254,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final checking = _checkingRootMode == mode;
               return RadioListTile<RootAccessMode>(
                 contentPadding: EdgeInsets.zero,
-                title: Text(mode.label),
+                title: Text(mode.localizedLabel(l10n)),
                 subtitle: checking
                     ? Row(
                         children: [
@@ -271,7 +269,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       )
                     : Text(
-                        mode.description,
+                        mode.localizedDescription(l10n),
                         style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
                       ),
                 value: mode,
@@ -363,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             (mode) => RadioListTile<AppThemeMode>(
               contentPadding: EdgeInsets.zero,
               dense: true,
-              title: Text(mode.label),
+              title: Text(mode.localizedLabel(l10n)),
               value: mode,
               groupValue: workspace.appThemeMode,
               onChanged: (value) {

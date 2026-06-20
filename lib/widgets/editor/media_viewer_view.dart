@@ -7,6 +7,7 @@ import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/media/media_player_handler.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -359,6 +360,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: VsCodeColors.editor,
       body: Column(
@@ -375,7 +377,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                             children: [
                               CircularProgressIndicator(color: VsCodeColors.accent),
                               SizedBox(height: 16),
-                              Text('Đang tải tệp tin...',
+                              Text(l10n.loadingFile,
                                   style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13)),
                             ],
                           )
@@ -479,8 +481,9 @@ class _MediaViewerViewState extends State<MediaViewerView>
   // ── Preview dispatch ────────────────────────────────────────────
 
   Widget _buildPreview() {
+    final l10n = context.l10n;
     if (_currentLocalPath == null) {
-      return Text('Không thể tải tệp tin',
+      return Text(l10n.cannotLoadFile,
           style: TextStyle(color: VsCodeColors.foreground));
     }
     if (_treatAsImage()) {
@@ -491,13 +494,14 @@ class _MediaViewerViewState extends State<MediaViewerView>
     }
     if (_treatAsVideo()) return _buildVideoPlayer();
     if (_treatAsAudio()) return _buildAudioPlayer();
-    return Text('Định dạng không được hỗ trợ',
+    return Text(l10n.formatNotSupported,
         style: TextStyle(color: VsCodeColors.foreground));
   }
 
   // ── Video player ────────────────────────────────────────────────
 
   Widget _buildVideoPlayer() {
+    final l10n = context.l10n;
     final ctrl = _videoController;
     if (ctrl == null || !ctrl.value.isInitialized) {
       return CircularProgressIndicator(color: VsCodeColors.accent);
@@ -524,7 +528,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                 bottom: 8,
                 child: _overlayBtn(
                   icon: Icons.fullscreen_rounded,
-                  tooltip: 'Toàn màn hình',
+                  tooltip: l10n.fullscreen,
                   onTap: _openFullscreen,
                 ),
               ),
@@ -671,6 +675,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
     required VoidCallback onSeekBack,
     required VoidCallback onSeekForward,
   }) {
+    final l10n = context.l10n;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -679,13 +684,13 @@ class _MediaViewerViewState extends State<MediaViewerView>
             size: 28,
             enabled: _hasPrev,
             onTap: _playPrev,
-            tooltip: 'Trước'),
+            tooltip: l10n.previous),
         const SizedBox(width: 4),
         _controlBtn(
             icon: Icons.replay_10_rounded,
             size: 28,
             onTap: onSeekBack,
-            tooltip: 'Tua lại 10s'),
+            tooltip: l10n.rewind10s),
         const SizedBox(width: 8),
         GestureDetector(
           onTap: onPlayPause,
@@ -715,14 +720,14 @@ class _MediaViewerViewState extends State<MediaViewerView>
             icon: Icons.forward_10_rounded,
             size: 28,
             onTap: onSeekForward,
-            tooltip: 'Tua tới 10s'),
+            tooltip: l10n.forward10s),
         const SizedBox(width: 4),
         _controlBtn(
             icon: Icons.skip_next_rounded,
             size: 28,
             enabled: _hasNext,
             onTap: _playNext,
-            tooltip: 'Tiếp theo'),
+            tooltip: l10n.next),
       ],
     );
   }
@@ -772,6 +777,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
   // ── Playlist panel ──────────────────────────────────────────────
 
   Widget _buildPlaylistPanel() {
+    final l10n = context.l10n;
     return Container(
       decoration: BoxDecoration(
         color: VsCodeColors.sidebar,
@@ -793,7 +799,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                     size: 14, color: VsCodeColors.foregroundDim),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text('Danh sách',
+                  child: Text(l10n.playlist,
                       style: TextStyle(
                           color: VsCodeColors.foreground,
                           fontSize: 12,
@@ -829,6 +835,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
 
   Widget _buildPlaylistItem(
       {required String path, required bool isActive}) {
+    final l10n = context.l10n;
     return GestureDetector(
       onTap: () => _switchFile(path),
       child: AnimatedContainer(
@@ -879,7 +886,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                             shape: BoxShape.circle, color: VsCodeColors.accent),
                       ),
                       const SizedBox(width: 4),
-                      Text('Đang phát',
+                      Text(l10n.nowPlaying,
                           style: TextStyle(
                               color: VsCodeColors.accent, fontSize: 9)),
                     ]),
@@ -1005,6 +1012,7 @@ class _VideoFullscreenPageState extends State<_VideoFullscreenPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final ctrl = widget.controller;
     final position = ctrl.value.position;
     final duration = ctrl.value.duration;
@@ -1065,7 +1073,7 @@ class _VideoFullscreenPageState extends State<_VideoFullscreenPage> {
                                         Icons.fullscreen_exit_rounded,
                                         color: Colors.white,
                                         size: 26),
-                                    tooltip: 'Thoát toàn màn hình',
+                                    tooltip: l10n.exitFullscreen,
                                     onPressed: _exitFullscreen,
                                   ),
                                   const Spacer(),
@@ -1077,7 +1085,7 @@ class _VideoFullscreenPageState extends State<_VideoFullscreenPage> {
                                       color: Colors.white,
                                       size: 24,
                                     ),
-                                    tooltip: _isLandscape ? 'Xoay dọc' : 'Xoay ngang',
+                                    tooltip: _isLandscape ? l10n.rotatePortrait : l10n.rotateLandscape,
                                     onPressed: _toggleLandscape,
                                   ),
                                 ],
@@ -1154,7 +1162,7 @@ class _VideoFullscreenPageState extends State<_VideoFullscreenPage> {
                                       IconButton(
                                         icon: const Icon(Icons.replay_10_rounded,
                                             color: Colors.white, size: 28),
-                                        tooltip: 'Tua lại 10s',
+                                        tooltip: l10n.rewind10s,
                                         onPressed: () =>
                                             _seek(const Duration(seconds: -10)),
                                       ),
@@ -1196,7 +1204,7 @@ class _VideoFullscreenPageState extends State<_VideoFullscreenPage> {
                                       IconButton(
                                         icon: const Icon(Icons.forward_10_rounded,
                                             color: Colors.white, size: 28),
-                                        tooltip: 'Tua tới 10s',
+                                        tooltip: l10n.forward10s,
                                         onPressed: () =>
                                             _seek(const Duration(seconds: 10)),
                                       ),

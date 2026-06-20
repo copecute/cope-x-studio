@@ -7,6 +7,7 @@ import 'package:cope_x_studio/services/archive_cancel_token.dart';
 import 'package:cope_x_studio/services/archive_password_exception.dart';
 import 'package:cope_x_studio/utils/entry_progress_tracker.dart';
 import 'package:path/path.dart' as p;
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 /// Giải nén / liệt kê ZIP qua lệnh `unzip` hệ thống (Android/Linux).
 class ZipShellService {
@@ -40,7 +41,7 @@ class ZipShellService {
   /// Kiểm tra mật khẩu ZIP (unzip -t, hoặc 7z nếu có).
   static Future<void> testArchive(String zipPath, String password) async {
     if (!isAvailable) {
-      throw const ArchivePasswordException('Không thể kiểm tra mật khẩu trên nền tảng này');
+      throw ArchivePasswordException(L10nScope.current.errCannotTestPasswordOnPlatform);
     }
 
     final unzipArgs = ['-t', '-P', password, zipPath];
@@ -54,10 +55,10 @@ class ZipShellService {
         final result = await Process.run(cmd.first, cmd.sublist(1));
         if (result.exitCode == 0) return;
         if (_isWrongPassword(result.stderr as String, result.stdout as String)) {
-          throw const ArchivePasswordException('Sai mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.wrongPassword);
         }
         if (_needsPassword(result.stderr as String, result.stdout as String)) {
-          throw const ArchivePasswordException('Cần mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.errPasswordNeeded);
         }
       } catch (e) {
         if (e is ArchivePasswordException) rethrow;
@@ -77,17 +78,17 @@ class ZipShellService {
         final result = await Process.run(cmd.first, cmd.sublist(1));
         if (result.exitCode == 0) return;
         if (_isWrongPassword(result.stderr as String, result.stdout as String)) {
-          throw const ArchivePasswordException('Sai mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.wrongPassword);
         }
         if (_needsPassword(result.stderr as String, result.stdout as String)) {
-          throw const ArchivePasswordException('Cần mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.errPasswordNeeded);
         }
       } catch (e) {
         if (e is ArchivePasswordException) rethrow;
       }
     }
 
-    throw Exception('Shell không hỗ trợ định dạng mã hóa ZIP này');
+    throw Exception(L10nScope.current.errShellUnsupportedZipEncryption);
   }
 
   static Future<List<ZipEntryMeta>?> listContents(String zipPath) async {
@@ -142,7 +143,7 @@ class ZipShellService {
       ['unzip', ...args],
     ];
 
-    Object? lastError = 'Không thể chạy lệnh unzip';
+    Object? lastError = L10nScope.current.errCannotRunUnzip;
     for (final cmd in commands) {
       Process? process;
       try {
@@ -176,7 +177,7 @@ class ZipShellService {
         }
         final errText = stderr.toString().trim();
         if (_isWrongPassword(errText)) {
-          throw const ArchivePasswordException('Sai mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.wrongPassword);
         }
         lastError = errText.isEmpty ? 'unzip exit $code' : errText;
       } on ArchiveCancelledException {
@@ -252,7 +253,7 @@ class ZipShellService {
       ['7za', ...args],
     ];
 
-    Object? lastError = 'Không tìm thấy lệnh 7z';
+    Object? lastError = L10nScope.current.err7zNotFound;
     for (final cmd in commands) {
       try {
         final result = await Process.run(cmd.first, cmd.sublist(1));
@@ -262,7 +263,7 @@ class ZipShellService {
         }
         final errText = '${result.stderr}';
         if (_isWrongPassword(errText, '${result.stdout}')) {
-          throw const ArchivePasswordException('Sai mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.wrongPassword);
         }
         lastError = errText.trim().isEmpty ? '7z exit ${result.exitCode}' : errText.trim();
       } catch (e) {
@@ -303,7 +304,7 @@ class ZipShellService {
           return out;
         }
         if (_isWrongPassword('${result.stderr}', '${result.stdout}')) {
-          throw const ArchivePasswordException('Sai mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.wrongPassword);
         }
       } catch (e) {
         if (e is ArchivePasswordException) rethrow;
@@ -329,7 +330,7 @@ class ZipShellService {
             return out;
           }
           if (_isWrongPassword('${result.stderr}', '${result.stdout}')) {
-            throw const ArchivePasswordException('Sai mật khẩu');
+            throw ArchivePasswordException(L10nScope.current.wrongPassword);
           }
         } catch (e) {
           if (e is ArchivePasswordException) rethrow;
@@ -348,10 +349,10 @@ class ZipShellService {
     void Function(double progress, String? currentFile)? onProgress,
   }) async {
     if (!isAvailable) {
-      throw UnsupportedError('Shell zip không khả dụng trên nền tảng này');
+      throw UnsupportedError(L10nScope.current.errFlutterArchiveUnavailable);
     }
     if (sources.isEmpty) {
-      throw ArgumentError('Danh sách nguồn nén trống');
+      throw ArgumentError(L10nScope.current.errEmptyZipSources);
     }
     if (cancelToken?.isCancelled == true) {
       throw const ArchiveCancelledException();
@@ -430,7 +431,7 @@ class ZipShellService {
       return;
     }
 
-    throw Exception('Không thể chạy lệnh zip');
+    throw Exception(L10nScope.current.errCannotRunZip);
   }
 
   static Future<bool> _runZipCommand({
@@ -523,7 +524,7 @@ class ZipShellService {
       ['7za', ...args],
     ];
 
-    Object? lastError = 'Không tìm thấy lệnh 7z';
+    Object? lastError = L10nScope.current.err7zNotFound;
     for (final cmd in commands) {
       try {
         final result = await Process.run(
@@ -537,7 +538,7 @@ class ZipShellService {
         }
         final errText = '${result.stderr}';
         if (_isWrongPassword(errText, '${result.stdout}')) {
-          throw const ArchivePasswordException('Sai mật khẩu');
+          throw ArchivePasswordException(L10nScope.current.wrongPassword);
         }
         lastError = errText.trim().isEmpty ? '7z exit ${result.exitCode}' : errText.trim();
       } catch (e) {

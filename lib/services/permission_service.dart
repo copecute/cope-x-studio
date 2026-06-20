@@ -58,6 +58,20 @@ class PermissionService {
   }
 
   Future<void> openAllFilesAccessSettings() => ph.openAppSettings();
+
+  Future<bool> hasNotificationPermission() async {
+    if (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      return true;
+    }
+    return ph.Permission.notification.isGranted;
+  }
+
+  Future<void> requestNotificationPermission() async {
+    if (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      return;
+    }
+    await ph.Permission.notification.request();
+  }
 }
 
 enum PermissionResult {

@@ -2,6 +2,7 @@ import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/services/entry_properties_service.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:flutter/material.dart';
 
 class EntryPropertiesDialog {
@@ -39,9 +40,10 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       backgroundColor: VsCodeColors.tabBar,
-      title: const Text('Chi tiết'),
+      title: Text(l10n.propertyDetails),
       content: FutureBuilder<List<PropertyField>>(
         future: _fieldsFuture,
         builder: (context, snapshot) {
@@ -59,7 +61,7 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: VsCodeColors.accent),
                     ),
                     SizedBox(height: 14),
-                    Text('Đang tải thông tin...', style: TextStyle(color: VsCodeColors.foregroundDim)),
+                    Text(l10n.loadingProperties, style: TextStyle(color: VsCodeColors.foregroundDim)),
                   ],
                 ),
               ),
@@ -70,7 +72,7 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
             return SizedBox(
               width: 280,
               child: Text(
-                'Không thể đọc thông tin: ${snapshot.error}',
+                l10n.cannotReadProperties('${snapshot.error}'),
                 style: TextStyle(color: VsCodeColors.foregroundDim),
               ),
             );
@@ -89,7 +91,7 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
         },
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.close)),
       ],
     );
   }

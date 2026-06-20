@@ -1,5 +1,6 @@
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -39,7 +40,7 @@ class _LockScreenState extends State<LockScreen> {
     final ok = await security.unlockWithPassword(_controller.text);
     if (!ok && mounted) {
       setState(() {
-        _error = 'Mật khẩu không đúng';
+        _error = context.l10n.wrongPasswordLock;
         _controller.clear();
       });
     }
@@ -47,6 +48,7 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final security = context.watch<SecurityProvider>();
 
     return Scaffold(
@@ -62,13 +64,13 @@ class _LockScreenState extends State<LockScreen> {
                 children: [
                   Icon(Icons.lock_outline, size: 72, color: VsCodeColors.accent),
                   const SizedBox(height: 20),
-                  const Text(
-                    'Cope X Studio',
+                  Text(
+                    l10n.appTitle,
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Nhập mật khẩu để mở khóa',
+                    l10n.enterPasswordUnlock,
                     style: TextStyle(color: VsCodeColors.foregroundDim),
                   ),
                   const SizedBox(height: 28),
@@ -79,7 +81,7 @@ class _LockScreenState extends State<LockScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: 'Mật khẩu',
+                      labelText: l10n.passwordLabel,
                       errorText: _error,
                       suffixIcon: IconButton(
                         icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
@@ -93,7 +95,7 @@ class _LockScreenState extends State<LockScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: _submit,
-                      child: const Text('Mở khóa'),
+                      child: Text(l10n.unlock),
                     ),
                   ),
                   if (security.isBiometricEnabled && security.canUseBiometric) ...[
@@ -101,7 +103,7 @@ class _LockScreenState extends State<LockScreen> {
                     OutlinedButton.icon(
                       onPressed: () => security.unlockWithBiometric(),
                       icon: const Icon(Icons.fingerprint),
-                      label: const Text('Sinh trắc học'),
+                      label: Text(l10n.biometrics),
                     ),
                   ],
                 ],

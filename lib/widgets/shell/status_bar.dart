@@ -1,4 +1,5 @@
 import 'package:cope_x_studio/providers/workspace_provider.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/widgets/shell/log_console_sheet.dart';
@@ -13,7 +14,8 @@ class StatusBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
     final tab = provider.activeTab;
-    final message = provider.statusMessage ?? (tab?.currentPath ?? 'Sẵn sàng');
+    final l10n = context.l10n;
+    final message = provider.statusMessage ?? (tab?.currentPath ?? l10n.ready);
 
     return Material(
       color: VsCodeColors.statusBar,
@@ -49,7 +51,7 @@ class StatusBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Text(
-                  tab.editor!.isModified ? 'Chưa lưu' : 'Đã lưu',
+                  tab.editor!.isModified ? l10n.notSaved : l10n.saved,
                   style: const TextStyle(color: Colors.white, fontSize: AppSizes.fontCaption),
                 ),
               ],

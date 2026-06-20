@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/models/zip_entry_meta.dart';
 import 'package:cope_x_studio/services/archive_cancel_token.dart';
@@ -77,7 +78,7 @@ class ArchiveService {
     }
 
     if (entries == null || entries.isEmpty) {
-      throw const FormatException('Không đọc được danh sách file trong ZIP');
+      throw FormatException(L10nScope.current.errCannotReadZipList);
     }
 
     _entryCache[zipPath] = entries;
@@ -105,7 +106,7 @@ class ArchiveService {
   /// Xác minh mật khẩu bằng shell test (RAM thấp) hoặc decode mẫu nhỏ.
   Future<void> verifyZipPassword(String zipPath, String password) async {
     if (password.isEmpty) {
-      throw const ArchivePasswordException('Vui lòng nhập mật khẩu');
+      throw ArchivePasswordException(L10nScope.current.passwordRequired);
     }
 
     if (ZipShellService.isAvailable) {
@@ -120,8 +121,9 @@ class ArchiveService {
     final size = await File(zipPath).length();
     if (size > _legacyMaxBytes) {
       throw ArchivePasswordException(
-        'ZIP quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
-        'Không thể xác minh mật khẩu trong bộ nhớ.',
+        L10nScope.current.errZipTooLargeVerifyPassword(
+          (size / (1024 * 1024)).toStringAsFixed(0),
+        ),
       );
     }
 
@@ -132,8 +134,10 @@ class ArchiveService {
     final size = await File(zipPath).length();
     if (size > _legacyMaxBytes) {
       throw ArchivePasswordException(
-        'ZIP mã hóa AES quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
-        'Giới hạn ${(_legacyMaxBytes / (1024 * 1024)).toStringAsFixed(0)} MB.',
+        L10nScope.current.errZipAesTooLarge(
+          (size / (1024 * 1024)).toStringAsFixed(0),
+          (_legacyMaxBytes / (1024 * 1024)).toStringAsFixed(0),
+        ),
       );
     }
 
@@ -146,7 +150,7 @@ class ArchiveService {
           msg.contains('bad crc') ||
           msg.contains('decrypt') ||
           msg.contains('password error')) {
-        throw const ArchivePasswordException('Sai mật khẩu');
+        throw ArchivePasswordException(L10nScope.current.wrongPassword);
       }
       rethrow;
     }
@@ -228,7 +232,7 @@ class ArchiveService {
     if (!hasPassword) {
       final protected = await isPasswordProtected(zipPath);
       if (protected) {
-        throw const ArchivePasswordException('File ZIP được bảo vệ bằng mật khẩu');
+        throw ArchivePasswordException(L10nScope.current.zipPasswordProtected);
       }
 
       try {
@@ -291,8 +295,9 @@ class ArchiveService {
     final size = await File(zipPath).length();
     if (size > _legacyMaxBytes) {
       throw ArchivePasswordException(
-        'ZIP quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
-        'Cần lệnh unzip/7z trên thiết bị.',
+        L10nScope.current.errZipTooLargeNeedUnzip(
+          (size / (1024 * 1024)).toStringAsFixed(0),
+        ),
       );
     }
 
@@ -316,7 +321,7 @@ class ArchiveService {
     ArchiveCancelToken? cancelToken,
   }) async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
-      throw UnsupportedError('flutter_archive không khả dụng trên nền tảng này');
+      throw UnsupportedError(L10nScope.current.errFlutterArchiveUnavailable);
     }
 
     if (cancelToken?.isCancelled == true) throw const ArchiveCancelledException();
@@ -423,7 +428,7 @@ class ArchiveService {
       final norm = innerPath.replaceAll('\\', '/');
       final out = p.join(tempDir.path, p.basename(norm));
       if (!File(out).existsSync()) {
-        throw FileSystemException('Không trích xuất được mục ZIP', innerPath);
+        throw FileSystemException(L10nScope.current.errCannotExtractZipEntry, innerPath);
       }
       return out;
     }
@@ -442,7 +447,7 @@ class ArchiveService {
     final norm = innerPath.replaceAll('\\', '/');
     final out = p.join(tempDir.path, p.basename(norm));
     if (!File(out).existsSync()) {
-      throw FileSystemException('Không trích xuất được mục ZIP', innerPath);
+      throw FileSystemException(L10nScope.current.errCannotExtractZipEntry, innerPath);
     }
     return out;
   }
@@ -459,7 +464,7 @@ class ArchiveService {
       ['tar', 'xf', tarPath, '-C', destDir],
     ];
 
-    var lastError = 'Không thể giải nén TAR';
+    var lastError = L10nScope.current.errCannotExtractTar;
     for (final cmd in commands) {
       try {
         final result = await Process.run(cmd.first, cmd.sublist(1));
@@ -577,8 +582,9 @@ class ArchiveService {
     final totalBytes = await _estimateZipSourcesBytes(sources);
     if (totalBytes > _legacyMaxBytes) {
       throw Exception(
-        'Dữ liệu quá lớn (${(totalBytes / (1024 * 1024)).toStringAsFixed(0)} MB). '
-        'Không thể nén trong bộ nhớ.',
+        L10nScope.current.errDataTooLargeCompress(
+          (totalBytes / (1024 * 1024)).toStringAsFixed(0),
+        ),
       );
     }
 
@@ -628,13 +634,13 @@ class ArchiveService {
 
     final hasDirectory = sources.any((s) => Directory(s).existsSync());
     if (hasDirectory) {
-      throw Exception('Không thể nén nhiều thư mục — thiếu lệnh zip trên thiết bị');
+      throw Exception(L10nScope.current.errMultiFolderZipNoCommand);
     }
 
     final commonParent = _commonParentDir(sources);
     final files = sources.map(File.new).where((f) => f.existsSync()).toList();
     if (files.isEmpty) {
-      throw Exception('Không có file hợp lệ để nén');
+      throw Exception(L10nScope.current.noFilesToZip);
     }
 
     onProgress?.call(0, p.basename(files.first.path));
@@ -691,13 +697,13 @@ class ArchiveService {
     }
 
     _checkZipCancel(cancelToken);
-    onProgress?.call(tracker.advance(), 'Đang ghi ZIP');
+    onProgress?.call(tracker.advance(), L10nScope.current.zipping);
 
     final encoder = password != null && password.isNotEmpty
         ? ZipEncoder(password: password)
         : ZipEncoder();
     final bytes = encoder.encode(archive);
-    if (bytes == null) throw Exception('Không thể tạo file ZIP');
+    if (bytes == null) throw Exception(L10nScope.current.errCannotCreateZip);
 
     _checkZipCancel(cancelToken);
 
@@ -752,12 +758,12 @@ class ArchiveService {
     try {
       final dir = Directory(destinationDir);
       if (!dir.parent.existsSync() && destinationDir != '/') {
-        throw FileSystemException('Thư mục cha không tồn tại', destinationDir);
+        throw FileSystemException(L10nScope.current.errParentDirNotFound, destinationDir);
       }
     } on FileSystemException {
       rethrow;
     } catch (e) {
-      throw FileSystemException('Không thể ghi vào thư mục đích', destinationDir);
+      throw FileSystemException(L10nScope.current.errCannotWriteDestDir, destinationDir);
     }
   }
 
@@ -769,8 +775,9 @@ class ArchiveService {
     final size = await File(zipPath).length();
     if (size > _legacyMaxBytes) {
       throw Exception(
-        'File ZIP quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
-        'Cần giải nén native hoặc lệnh unzip.',
+        L10nScope.current.errZipTooLargeExtract(
+          (size / (1024 * 1024)).toStringAsFixed(0),
+        ),
       );
     }
 
@@ -787,7 +794,7 @@ class ArchiveService {
           msg.contains('bad crc') ||
           msg.contains('decrypt') ||
           msg.contains('password error')) {
-        throw const ArchivePasswordException('Sai mật khẩu hoặc file bị lỗi');
+        throw ArchivePasswordException(L10nScope.current.wrongPasswordOrCorrupt);
       }
       rethrow;
     }
@@ -832,7 +839,7 @@ class ArchiveService {
           msg.contains('bad crc') ||
           msg.contains('decrypt') ||
           msg.contains('password error')) {
-        throw const ArchivePasswordException('Sai mật khẩu');
+        throw ArchivePasswordException(L10nScope.current.wrongPassword);
       }
       rethrow;
     }
@@ -846,7 +853,7 @@ class ArchiveService {
         return;
       }
     }
-    throw FileSystemException('Không tìm thấy mục trong ZIP', innerPath);
+    throw FileSystemException(L10nScope.current.errZipEntryNotFound, innerPath);
   }
 
   Future<void> _zipLegacyInMemory(List<String> sources, String zipPath, {String? password}) async {
@@ -865,7 +872,7 @@ class ArchiveService {
         ? ZipEncoder(password: password)
         : ZipEncoder();
     final bytes = encoder.encode(archive);
-    if (bytes == null) throw Exception('Không thể tạo file ZIP');
+    if (bytes == null) throw Exception(L10nScope.current.errCannotCreateZip);
 
     final out = File(zipPath);
     if (!out.parent.existsSync()) {

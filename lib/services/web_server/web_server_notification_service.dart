@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -41,10 +42,10 @@ class WebServerNotificationService {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await android?.createNotificationChannel(
-        const AndroidNotificationChannel(
+        AndroidNotificationChannel(
           _channelId,
           _channelName,
-          description: 'Thông báo khi Web Server đang chạy',
+          description: L10nScope.current.webServerNotificationChannel,
           importance: Importance.low,
         ),
       );
@@ -79,7 +80,7 @@ class WebServerNotificationService {
     return AndroidNotificationDetails(
       _channelId,
       _channelName,
-      channelDescription: 'Thông báo khi Web Server đang chạy',
+      channelDescription: L10nScope.current.webServerNotificationChannel,
       importance: Importance.low,
       priority: Priority.low,
       ongoing: true,
@@ -89,7 +90,7 @@ class WebServerNotificationService {
       additionalFlags: Int32List.fromList([2, 32]),
       styleInformation: BigPictureStyleInformation(
         ByteArrayAndroidBitmap(qrBytes),
-        contentTitle: 'Web Server đang chạy',
+        contentTitle: L10nScope.current.webServerRunningNotification,
         summaryText: url,
         hideExpandedLargeIcon: true,
       ),
@@ -115,7 +116,7 @@ class WebServerNotificationService {
           AndroidFlutterLocalNotificationsPlugin>();
       await android?.startForegroundService(
         _notificationId,
-        'Web Server đang chạy',
+        L10nScope.current.webServerRunningNotification,
         url,
         notificationDetails: androidDetails,
         foregroundServiceTypes: {AndroidServiceForegroundType.foregroundServiceTypeDataSync},
@@ -125,7 +126,7 @@ class WebServerNotificationService {
 
     await _plugin.show(
       _notificationId,
-      'Web Server đang chạy',
+      L10nScope.current.webServerRunningNotification,
       url,
       NotificationDetails(android: androidDetails),
     );

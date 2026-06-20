@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/utils/path_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -81,6 +82,7 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final workspace = context.watch<WorkspaceProvider>();
     final folders = _listFolders(workspace);
     final height = MediaQuery.sizeOf(context).height * 0.82;
@@ -94,9 +96,9 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Chọn thư mục chia sẻ',
+                    l10n.pickSharedFolder,
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -137,7 +139,7 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
             child: folders.isEmpty
                 ? Center(
                     child: Text(
-                      _error != null ? 'Không thể đọc thư mục' : 'Không có thư mục con',
+                      _error != null ? l10n.cannotReadFolder : l10n.noSubfolders,
                       style: TextStyle(color: VsCodeColors.foregroundDim),
                     ),
                   )
@@ -160,7 +162,7 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
             child: FilledButton.icon(
               onPressed: () => Navigator.pop(context, _currentPath),
               icon: const Icon(Icons.check),
-              label: const Text('Chọn thư mục này'),
+              label: Text(l10n.selectThisFolder),
             ),
           ),
         ],

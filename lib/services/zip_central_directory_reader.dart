@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cope_x_studio/models/zip_entry_meta.dart';
 import 'package:cope_x_studio/utils/zip_filename_decoder.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 
 /// Đọc Central Directory của ZIP — chỉ đọc phần cuối file, không nạp toàn bộ archive vào RAM.
 class ZipCentralDirectoryReader {
@@ -16,12 +17,12 @@ class ZipCentralDirectoryReader {
   Future<List<ZipEntryMeta>> readEntries(String zipPath) async {
     final file = File(zipPath);
     if (!await file.exists()) {
-      throw FileSystemException('File không tồn tại', zipPath);
+      throw FileSystemException(L10nScope.current.errFileNotExists, zipPath);
     }
 
     final length = await file.length();
     if (length < 22) {
-      throw const FormatException('File ZIP không hợp lệ');
+      throw FormatException(L10nScope.current.errInvalidZip);
     }
 
     final raf = await file.open();
@@ -33,7 +34,7 @@ class ZipCentralDirectoryReader {
 
       final eocdOffset = _findSignature(tail, _eocdSignature);
       if (eocdOffset == -1) {
-        throw const FormatException('Không tìm thấy End of Central Directory');
+        throw FormatException(L10nScope.current.errZipEocdNotFound);
       }
 
       final eocd = ByteData.sublistView(tail, eocdOffset);
@@ -49,20 +50,18 @@ class ZipCentralDirectoryReader {
       }
 
       if (cdOffset < 0 || cdSize < 0 || cdOffset + cdSize > length) {
-        throw const FormatException('Central Directory ZIP bị hỏng');
+        throw FormatException(L10nScope.current.errZipCdCorrupt);
       }
 
       if (cdSize > _maxCdInMemory) {
-        throw FormatException(
-          'Central Directory quá lớn (${(cdSize / (1024 * 1024)).toStringAsFixed(0)} MB)',
-        );
+        throw FormatException(L10nScope.current.errZipCdTooLarge((cdSize / (1024 * 1024)).toStringAsFixed(0)));
       }
 
       final cdBytes = Uint8List(cdSize);
       await raf.setPosition(cdOffset);
       final read = await raf.readInto(cdBytes);
       if (read != cdSize) {
-        throw const FormatException('Không đọc đủ Central Directory');
+        throw FormatException(L10nScope.current.errZipCdIncomplete);
       }
 
       return _parseCentralDirectory(cdBytes, entryCount);
@@ -74,7 +73,7 @@ class ZipCentralDirectoryReader {
   (int, int, int) _readZip64Eocd(RandomAccessFile raf, int fileLength, Uint8List tail, int eocdOffset) {
     final locatorOffset = _findSignature(tail, _zip64LocatorSignature);
     if (locatorOffset == -1) {
-      throw const FormatException('ZIP64 locator không hợp lệ');
+      throw FormatException(L10nScope.current.errZip64LocatorInvalid);
     }
 
     final locator = ByteData.sublistView(tail, locatorOffset);
@@ -86,13 +85,13 @@ class ZipCentralDirectoryReader {
 
     final headerData = ByteData.sublistView(header);
     if (headerData.getUint32(0, Endian.little) != _zip64EocdSignature) {
-      throw const FormatException('ZIP64 EOCD signature không hợp lệ');
+      throw FormatException(L10nScope.current.errZip64EocdInvalid);
     }
 
     final recordSize = headerData.getUint64(4, Endian.little);
     final readLen = (recordSize + 12).clamp(56, 65536).toInt();
     if (zip64EocdOffset + readLen > fileLength) {
-      throw const FormatException('ZIP64 EOCD nằm ngoài file');
+      throw FormatException(L10nScope.current.errZip64EocdOutOfFile);
     }
 
     final fullRecord = Uint8List(readLen);

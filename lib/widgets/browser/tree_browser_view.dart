@@ -1,9 +1,11 @@
+import 'package:cope_x_studio/l10n/generated/app_localizations.dart';
 import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/models/tree_browser_node.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/widgets/browser/file_thumbnail.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -27,6 +29,7 @@ class TreeBrowserView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final provider = context.watch<WorkspaceProvider>();
     final nodes = provider.listTreeNodes(tab.id);
 
@@ -48,13 +51,13 @@ class TreeBrowserView extends StatelessWidget {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'Đang tải cây thư mục...',
+                      l10n.treeLoading,
                       style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 15),
                     ),
                   ],
                 )
               : Text(
-                  'Thư mục trống',
+                  l10n.emptyFolder,
                   style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 16),
                 ),
         ),
@@ -94,6 +97,7 @@ class _TreeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final provider = context.read<WorkspaceProvider>();
     final entry = node.entry;
     final selected = provider.isSelected(tab.id, entry.path);
@@ -187,7 +191,7 @@ class _TreeRow extends StatelessWidget {
                       ),
                       if (_showsSubtitle(entry))
                         Text(
-                          _entrySubtitle(entry),
+                          _entrySubtitle(l10n, entry),
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: AppSizes.fontCaption,
@@ -211,9 +215,9 @@ class _TreeRow extends StatelessWidget {
     return false;
   }
 
-  String _entrySubtitle(BrowserEntry entry) {
+  String _entrySubtitle(AppLocalizations l10n, BrowserEntry entry) {
     if (entry.isDirectory && entry.childrenCount != null) {
-      return '${entry.childrenCount} mục';
+      return l10n.itemCount(entry.childrenCount!);
     }
     if (entry.size != null) return _formatSize(entry.size!);
     return '';

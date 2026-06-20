@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cope_x_studio/l10n/l10n_scope.dart';
 import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
@@ -34,10 +35,11 @@ class EntryPropertiesService {
   static const _maxId3ProbeBytes = 256 * 1024;
 
   Future<List<PropertyField>> buildFields(AppTab tab, BrowserEntry entry) async {
+    final l10n = L10nScope.current;
     final fields = <PropertyField>[
-      PropertyField('Tên', entry.name),
-      PropertyField('Loại', _fileTypeLabel(entry)),
-      PropertyField('Vị trí', _entryLocation(tab, entry)),
+      PropertyField(l10n.propertyName, entry.name),
+      PropertyField(l10n.propertyType, _fileTypeLabel(entry)),
+      PropertyField(l10n.propertyLocation, _entryLocation(tab, entry)),
     ];
 
     final path = entry.path;
@@ -45,17 +47,17 @@ class EntryPropertiesService {
 
     if (entry.isDirectory) {
       if (entry.childrenCount != null) {
-        fields.add(PropertyField('Số mục', '${entry.childrenCount}'));
+        fields.add(PropertyField(l10n.propertyItemCount, '${entry.childrenCount}'));
       }
       if (isLocal) {
         final stats = await calculateDirectoryStats(path);
-        fields.add(PropertyField('Kích thước', formatSize(stats.totalBytes)));
-        fields.add(PropertyField('Tệp', '${stats.fileCount}'));
+        fields.add(PropertyField(l10n.propertySize, formatSize(stats.totalBytes)));
+        fields.add(PropertyField(l10n.propertyFiles, '${stats.fileCount}'));
         if (stats.folderCount > 0) {
-          fields.add(PropertyField('Thư mục con', '${stats.folderCount}'));
+          fields.add(PropertyField(l10n.propertySubfolders, '${stats.folderCount}'));
         }
       } else if (entry.size != null) {
-        fields.add(PropertyField('Kích thước', formatSize(entry.size!)));
+        fields.add(PropertyField(l10n.propertySize, formatSize(entry.size!)));
       }
     } else {
       int? size = entry.size;
@@ -65,7 +67,7 @@ class EntryPropertiesService {
         } catch (_) {}
       }
       if (size != null) {
-        fields.add(PropertyField('Kích thước', formatSize(size)));
+        fields.add(PropertyField(l10n.propertySize, formatSize(size)));
       }
 
       if (isLocal) {
@@ -76,13 +78,13 @@ class EntryPropertiesService {
     if (isLocal) {
       try {
         final stat = (entry.isDirectory ? Directory(path) : File(path)).statSync();
-        fields.add(PropertyField('Sửa đổi', formatDateTime(stat.modified)));
-        fields.add(PropertyField('Truy cập', formatDateTime(stat.accessed)));
+        fields.add(PropertyField(l10n.propertyModified, formatDateTime(stat.modified)));
+        fields.add(PropertyField(l10n.propertyAccessed, formatDateTime(stat.accessed)));
       } catch (_) {}
     }
 
     if (entry.subtitle != null && entry.subtitle!.isNotEmpty) {
-      fields.add(PropertyField('Ghi chú', entry.subtitle!));
+      fields.add(PropertyField(l10n.propertyNotes, entry.subtitle!));
     }
 
     return fields;
@@ -147,7 +149,7 @@ class EntryPropertiesService {
       final image = img.decodeImage(bytes);
       if (image == null) return fields;
 
-      fields.add(PropertyField('Độ phân giải', '${image.width} × ${image.height} px'));
+      fields.add(PropertyField(L10nScope.current.propertyResolution, '${image.width} × ${image.height} px'));
 
       if (image.hasExif) {
         fields.addAll(_exifFields(image.exif));
@@ -159,6 +161,7 @@ class EntryPropertiesService {
   List<PropertyField> _exifFields(img.ExifData exif) {
     final fields = <PropertyField>[];
 
+    final l10n = L10nScope.current;
     void addTag(int tag, String label) {
       final value = exif.getTag(tag);
       if (value == null) return;
@@ -167,11 +170,11 @@ class EntryPropertiesService {
       fields.add(PropertyField(label, text));
     }
 
-    addTag(0x010F, 'Máy ảnh');
+    addTag(0x010F, l10n.propertyCamera);
     addTag(0x0110, 'Model');
-    addTag(0x9003, 'Chụp lúc');
-    addTag(0x0132, 'Ngày sửa');
-    addTag(0x0112, 'Hướng');
+    addTag(0x9003, l10n.propertyCapturedAt);
+    addTag(0x0132, l10n.propertyDateModified);
+    addTag(0x0112, l10n.propertyOrientation);
     return fields;
   }
 
@@ -184,10 +187,10 @@ class EntryPropertiesService {
       final size = controller.value.size;
       final duration = controller.value.duration;
       if (size.width > 0 && size.height > 0) {
-        fields.add(PropertyField('Độ phân giải', '${size.width.toInt()} × ${size.height.toInt()} px'));
+        fields.add(PropertyField(L10nScope.current.propertyResolution, '${size.width.toInt()} × ${size.height.toInt()} px'));
       }
       if (duration.inMilliseconds > 0) {
-        fields.add(PropertyField('Thời lượng', _formatDuration(duration)));
+        fields.add(PropertyField(L10nScope.current.propertyDuration, _formatDuration(duration)));
       }
     } catch (_) {
     } finally {
@@ -206,7 +209,7 @@ class EntryPropertiesService {
       await player.setSourceDeviceFile(path);
       final duration = await player.getDuration();
       if (duration != null && duration.inMilliseconds > 0) {
-        fields.add(PropertyField('Thời lượng', _formatDuration(duration)));
+        fields.add(PropertyField(L10nScope.current.propertyDuration, _formatDuration(duration)));
       }
     } catch (_) {
     } finally {
@@ -246,17 +249,17 @@ class EntryPropertiesService {
         if (text.isEmpty) continue;
         switch (frameId) {
           case 'TIT2':
-            fields.add(PropertyField('Tiêu đề', text));
+            fields.add(PropertyField(L10nScope.current.propertyTitle, text));
           case 'TPE1':
-            fields.add(PropertyField('Nghệ sĩ', text));
+            fields.add(PropertyField(L10nScope.current.propertyArtist, text));
           case 'TALB':
             fields.add(PropertyField('Album', text));
           case 'TCON':
           case 'TYP':
-            fields.add(PropertyField('Thể loại', text));
+            fields.add(PropertyField(L10nScope.current.propertyGenre, text));
           case 'TDRC':
           case 'TYER':
-            fields.add(PropertyField('Năm', text));
+            fields.add(PropertyField(L10nScope.current.propertyYear, text));
         }
       }
     } catch (_) {}
@@ -273,9 +276,10 @@ class EntryPropertiesService {
   static String formatDateTime(DateTime dt) => DateFormat('dd/MM/yyyy HH:mm').format(dt);
 
   static String _fileTypeLabel(BrowserEntry entry) {
-    if (entry.isDirectory) return 'Thư mục';
+    final l10n = L10nScope.current;
+    if (entry.isDirectory) return l10n.folderType;
     final ext = p.extension(entry.path).replaceFirst('.', '').toUpperCase();
-    return ext.isEmpty ? 'Tệp' : 'Tệp $ext';
+    return ext.isEmpty ? l10n.fileType : l10n.fileTypeExt(ext);
   }
 
   static String _entryLocation(AppTab tab, BrowserEntry entry) {
