@@ -1,1 +1,1 @@
-enum TabFileOperation { none, unzip, delete }
+enum TabFileOperation { none, unzip, zip, delete, paste, duplicate }

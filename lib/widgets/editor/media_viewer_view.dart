@@ -53,8 +53,10 @@ class _MediaViewerViewState extends State<MediaViewerView>
     WidgetsBinding.instance.addObserver(this);
     _currentFilePath = widget.tab.filePath!;
     _currentLocalPath = widget.tab.localPath;
-    _siblings =
-        context.read<WorkspaceProvider>().getMediaFilesOfSameType(_currentFilePath);
+    _siblings = context.read<WorkspaceProvider>().getMediaFilesOfSameType(
+          _currentFilePath,
+          forcedMode: widget.tab.forcedMediaMode,
+        );
     _initPlayer();
   }
 
@@ -92,6 +94,18 @@ class _MediaViewerViewState extends State<MediaViewerView>
   //  Player init
   // ══════════════════════════════════════════════════════════════
 
+  bool _treatAsImage() =>
+      widget.tab.forcedMediaMode == MediaOpenMode.image ||
+      (widget.tab.forcedMediaMode == null && FileTypeUtils.isImage(_currentFilePath));
+
+  bool _treatAsVideo() =>
+      widget.tab.forcedMediaMode == MediaOpenMode.video ||
+      (widget.tab.forcedMediaMode == null && FileTypeUtils.isVideo(_currentFilePath));
+
+  bool _treatAsAudio() =>
+      widget.tab.forcedMediaMode == MediaOpenMode.audio ||
+      (widget.tab.forcedMediaMode == null && FileTypeUtils.isAudio(_currentFilePath));
+
   Future<void> _initPlayer() async {
     _cancelAudioSubs();
     _disposeVideo();
@@ -99,7 +113,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
     if (_currentLocalPath == null) return;
     final handler = context.read<MediaPlayerHandler>();
 
-    if (FileTypeUtils.isVideo(_currentFilePath)) {
+    if (_treatAsVideo()) {
       // ── Video ───────────────────────────────────────────────
       // Tell handler to show video metadata in notification
       await handler.setVideoMode(
@@ -125,7 +139,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
       } catch (e) {
         debugPrint('Error initializing video: $e');
       }
-    } else if (FileTypeUtils.isAudio(_currentFilePath)) {
+    } else if (_treatAsAudio()) {
       // ── Audio ───────────────────────────────────────────────
       final isFtp = _currentFilePath.startsWith('@ftp/');
       List<MediaItem> mediaItems;
@@ -206,7 +220,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
   bool get _hasNext => _currentIndex < _siblings.length - 1;
 
   void _playPrev() {
-    if (FileTypeUtils.isAudio(_currentFilePath) && !_currentFilePath.startsWith('@ftp/')) {
+    if (_treatAsAudio() && !_currentFilePath.startsWith('@ftp/')) {
       context.read<MediaPlayerHandler>().skipToPrevious();
     } else {
       final idx = _currentIndex;
@@ -215,7 +229,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
   }
 
   void _playNext() {
-    if (FileTypeUtils.isAudio(_currentFilePath) && !_currentFilePath.startsWith('@ftp/')) {
+    if (_treatAsAudio() && !_currentFilePath.startsWith('@ftp/')) {
       context.read<MediaPlayerHandler>().skipToNext();
     } else {
       final idx = _currentIndex;
@@ -285,7 +299,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
         content: Row(
           children: [
             Icon(
-              FileTypeUtils.isVideo(_currentFilePath)
+              _treatAsVideo()
                   ? Icons.videocam_rounded
                   : Icons.music_note_rounded,
               size: 15,
@@ -470,14 +484,14 @@ class _MediaViewerViewState extends State<MediaViewerView>
       return const Text('Không thể tải tệp tin',
           style: TextStyle(color: Colors.white));
     }
-    if (FileTypeUtils.isImage(_currentFilePath)) {
+    if (_treatAsImage()) {
       return InteractiveViewer(
         maxScale: 4.0,
         child: Image.file(File(_currentLocalPath!), fit: BoxFit.contain),
       );
     }
-    if (FileTypeUtils.isVideo(_currentFilePath)) return _buildVideoPlayer();
-    if (FileTypeUtils.isAudio(_currentFilePath)) return _buildAudioPlayer();
+    if (_treatAsVideo()) return _buildVideoPlayer();
+    if (_treatAsAudio()) return _buildAudioPlayer();
     return const Text('Định dạng không được hỗ trợ',
         style: TextStyle(color: Colors.white));
   }

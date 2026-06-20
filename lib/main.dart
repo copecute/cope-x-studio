@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:cope_x_studio/app.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
@@ -11,6 +13,7 @@ import 'package:provider/provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Fullscreen áp dụng sau khi WorkspaceProvider load cài đặt.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -84,6 +87,7 @@ class _BootstrapAppState extends State<_BootstrapApp> with WidgetsBindingObserve
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       widget.security.onAppPaused();
+      unawaited(widget.workspace.saveSessionState());
     } else if (state == AppLifecycleState.resumed) {
       widget.workspace.recheckPermissions();
       widget.security.onAppResumed();

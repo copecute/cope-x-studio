@@ -85,8 +85,11 @@ class FileTypeUtils {
   /// True if the format supports password protection that we can handle
   static bool isPasswordable(String path) => isZip(path);
 
+  static bool isPdf(String path) =>
+      p.extension(path).toLowerCase() == '.pdf';
+
   static bool hasThumbnail(String path) =>
-      isImage(path) || isVideo(path) || isApk(path);
+      isImage(path) || isVideo(path) || isApk(path) || isPdf(path);
 
   static bool isEditableInApp(String path) =>
       _editableExts.contains(p.extension(path).toLowerCase());

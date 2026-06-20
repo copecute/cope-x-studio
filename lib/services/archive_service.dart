@@ -102,21 +102,27 @@ class ArchiveService {
     }
   }
 
-  /// Xác minh mật khẩu bằng cách thử giải mã (shell test hoặc decode RAM).
+  /// Xác minh mật khẩu bằng shell test (RAM thấp) hoặc decode mẫu nhỏ.
   Future<void> verifyZipPassword(String zipPath, String password) async {
     if (password.isEmpty) {
       throw const ArchivePasswordException('Vui lòng nhập mật khẩu');
     }
 
-    final usesAes = await _usesAesEncryption(zipPath);
-
-    if (!usesAes && ZipShellService.isAvailable) {
+    if (ZipShellService.isAvailable) {
       try {
         await ZipShellService.testArchive(zipPath, password);
         return;
       } on ArchivePasswordException {
         rethrow;
       } catch (_) {}
+    }
+
+    final size = await File(zipPath).length();
+    if (size > _legacyMaxBytes) {
+      throw ArchivePasswordException(
+        'ZIP quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
+        'Không thể xác minh mật khẩu trong bộ nhớ.',
+      );
     }
 
     await _verifyPasswordWithLegacyDecode(zipPath, password);
@@ -150,6 +156,18 @@ class ArchiveService {
     final prefix = innerPath.isEmpty ? '' : '${innerPath.replaceAll('\\', '/')}/';
     final children = <String, BrowserEntry>{};
 
+    final parentToChildren = <String, Set<String>>{};
+    for (final entry in entries) {
+      final name = entry.normalizedName;
+      final cleanName = name.endsWith('/') ? name.substring(0, name.length - 1) : name;
+      final parts = cleanName.split('/');
+      for (var i = 0; i < parts.length; i++) {
+        final parent = parts.sublist(0, i).join('/');
+        final child = parts[i];
+        parentToChildren.putIfAbsent(parent, () => {}).add(child);
+      }
+    }
+
     for (final entry in entries) {
       var name = entry.normalizedName;
       if (prefix.isNotEmpty) {
@@ -163,6 +181,7 @@ class ArchiveService {
       if (childName.isEmpty) continue;
 
       final childInner = innerPath.isEmpty ? childName : '$innerPath/$childName';
+      final childInnerNormalized = childInner.replaceAll('\\', '/');
 
       if (parts.length == 1) {
         children[childName] = BrowserEntry(
@@ -171,6 +190,7 @@ class ArchiveService {
           isDirectory: entry.isDirectory,
           size: entry.isDirectory ? null : entry.uncompressedSize,
           isZipVirtual: true,
+          childrenCount: entry.isDirectory ? (parentToChildren[childInnerNormalized]?.length ?? 0) : null,
         );
       } else if (!children.containsKey(childName)) {
         children[childName] = BrowserEntry(
@@ -178,6 +198,7 @@ class ArchiveService {
           path: childInner,
           isDirectory: true,
           isZipVirtual: true,
+          childrenCount: parentToChildren[childInnerNormalized]?.length ?? 0,
         );
       }
     }
@@ -250,48 +271,33 @@ class ArchiveService {
   }) async {
     if (cancelToken?.isCancelled == true) throw const ArchiveCancelledException();
 
-    final usesAes = await _usesAesEncryption(zipPath);
-    final size = await File(zipPath).length();
-
-    if (usesAes || size <= _legacyMaxBytes) {
+    if (ZipShellService.isAvailable) {
       try {
-        await _unzipLegacyInMemory(zipPath, destinationDir, password: password);
-        onProgress?.call(1.0, null);
+        await _unzipWithShell(
+          zipPath,
+          destinationDir,
+          password: password,
+          onProgress: onProgress,
+          cancelToken: cancelToken,
+        );
         return;
       } on ArchivePasswordException {
         rethrow;
       } on ArchiveCancelledException {
         rethrow;
-      } catch (e) {
-        if (usesAes) {
-          if (size > _legacyMaxBytes) {
-            throw ArchivePasswordException(
-              'ZIP AES (WinRAR) quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
-              'Giới hạn ${(_legacyMaxBytes / (1024 * 1024)).toStringAsFixed(0)} MB.',
-            );
-          }
-          rethrow;
-        }
-      }
+      } catch (_) {}
     }
 
-    try {
-      await _unzipWithShell(
-        zipPath,
-        destinationDir,
-        password: password,
-        onProgress: onProgress,
-        cancelToken: cancelToken,
+    final size = await File(zipPath).length();
+    if (size > _legacyMaxBytes) {
+      throw ArchivePasswordException(
+        'ZIP quá lớn (${(size / (1024 * 1024)).toStringAsFixed(0)} MB). '
+        'Cần lệnh unzip/7z trên thiết bị.',
       );
-    } catch (e) {
-      if (e is ArchivePasswordException || e is ArchiveCancelledException) rethrow;
-      if (size <= _legacyMaxBytes) {
-        await _unzipLegacyInMemory(zipPath, destinationDir, password: password);
-        onProgress?.call(1.0, null);
-        return;
-      }
-      rethrow;
     }
+
+    await _unzipLegacyInMemory(zipPath, destinationDir, password: password);
+    onProgress?.call(1.0, null);
   }
 
   Future<int> _countAllZipEntries(String zipPath) async {
@@ -466,13 +472,241 @@ class ArchiveService {
     throw Exception(lastError);
   }
 
-  Future<void> zipPaths(List<String> sources, String zipPath, {String? password}) async {
+  Future<void> zipPaths(
+    List<String> sources,
+    String zipPath, {
+    String? password,
+    ArchiveProgressCallback? onProgress,
+    ArchiveCancelToken? cancelToken,
+  }) async {
+    if (onProgress != null || cancelToken != null) {
+      await _zipWithProgress(
+        sources,
+        zipPath,
+        password: password,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
+      );
+      return;
+    }
+
     final hasPassword = password != null && password.isNotEmpty;
     if (hasPassword || kIsWeb || !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
       await _zipLegacyInMemory(sources, zipPath, password: password);
       return;
     }
     await _zipWithFlutterArchive(sources, zipPath);
+  }
+
+  void _checkZipCancel(ArchiveCancelToken? cancelToken) {
+    if (cancelToken?.isCancelled == true) throw const ArchiveCancelledException();
+  }
+
+  Future<List<({String archivePath, String filePath})>> _collectZipFileEntries(
+    List<String> sources,
+  ) async {
+    final entries = <({String archivePath, String filePath})>[];
+    for (final source in sources) {
+      final type = FileSystemEntity.typeSync(source);
+      if (type == FileSystemEntityType.directory) {
+        await _collectDirectoryZipEntries(Directory(source), p.basename(source), entries);
+      } else if (type == FileSystemEntityType.file) {
+        entries.add((archivePath: p.basename(source), filePath: source));
+      }
+    }
+    return entries;
+  }
+
+  Future<void> _collectDirectoryZipEntries(
+    Directory dir,
+    String basePath,
+    List<({String archivePath, String filePath})> entries,
+  ) async {
+    await for (final entity in dir.list(recursive: false, followLinks: false)) {
+      final name = p.basename(entity.path);
+      final archivePath = basePath.isEmpty ? name : '$basePath/$name';
+
+      if (entity is Directory) {
+        await _collectDirectoryZipEntries(entity, archivePath, entries);
+      } else if (entity is File) {
+        entries.add((archivePath: archivePath, filePath: entity.path));
+      }
+    }
+  }
+
+  Future<void> _zipWithProgress(
+    List<String> sources,
+    String zipPath, {
+    String? password,
+    ArchiveProgressCallback? onProgress,
+    ArchiveCancelToken? cancelToken,
+  }) async {
+    _checkZipCancel(cancelToken);
+
+    final hasPassword = password != null && password.isNotEmpty;
+
+    if (ZipShellService.isAvailable) {
+      try {
+        await ZipShellService.createFromPaths(
+          sources: sources,
+          zipPath: zipPath,
+          password: password,
+          cancelToken: cancelToken,
+          onProgress: onProgress,
+        );
+        return;
+      } on ArchiveCancelledException {
+        rethrow;
+      } catch (_) {
+        if (hasPassword) rethrow;
+      }
+    }
+
+    if (!hasPassword &&
+        !kIsWeb &&
+        (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
+      await _zipWithFlutterArchiveProgress(
+        sources,
+        zipPath,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
+      );
+      return;
+    }
+
+    final totalBytes = await _estimateZipSourcesBytes(sources);
+    if (totalBytes > _legacyMaxBytes) {
+      throw Exception(
+        'Dữ liệu quá lớn (${(totalBytes / (1024 * 1024)).toStringAsFixed(0)} MB). '
+        'Không thể nén trong bộ nhớ.',
+      );
+    }
+
+    await _zipLegacyInMemoryWithProgress(
+      sources,
+      zipPath,
+      password: password,
+      onProgress: onProgress,
+      cancelToken: cancelToken,
+    );
+  }
+
+  Future<void> _zipWithFlutterArchiveProgress(
+    List<String> sources,
+    String zipPath, {
+    ArchiveProgressCallback? onProgress,
+    ArchiveCancelToken? cancelToken,
+  }) async {
+    _checkZipCancel(cancelToken);
+
+    final out = File(zipPath);
+    if (!out.parent.existsSync()) {
+      await out.parent.create(recursive: true);
+    }
+
+    fa.OnZipping? onZipping;
+    if (onProgress != null || cancelToken != null) {
+      onZipping = (filePath, isDirectory, progress) {
+        if (cancelToken?.isCancelled == true) return fa.ZipFileOperation.cancel;
+        onProgress?.call(normalizeProgress(progress), p.basename(filePath));
+        return fa.ZipFileOperation.includeItem;
+      };
+    }
+
+    if (sources.length == 1 && Directory(sources.first).existsSync()) {
+      await fa.ZipFile.createFromDirectory(
+        sourceDir: Directory(sources.first),
+        zipFile: out,
+        includeBaseDirectory: true,
+        recurseSubDirs: true,
+        onZipping: onZipping,
+      );
+      _checkZipCancel(cancelToken);
+      onProgress?.call(1.0, p.basename(zipPath));
+      return;
+    }
+
+    final hasDirectory = sources.any((s) => Directory(s).existsSync());
+    if (hasDirectory) {
+      throw Exception('Không thể nén nhiều thư mục — thiếu lệnh zip trên thiết bị');
+    }
+
+    final commonParent = _commonParentDir(sources);
+    final files = sources.map(File.new).where((f) => f.existsSync()).toList();
+    if (files.isEmpty) {
+      throw Exception('Không có file hợp lệ để nén');
+    }
+
+    onProgress?.call(0, p.basename(files.first.path));
+    await fa.ZipFile.createFromFiles(
+      sourceDir: Directory(commonParent),
+      files: files,
+      zipFile: out,
+    );
+    _checkZipCancel(cancelToken);
+    onProgress?.call(1.0, p.basename(zipPath));
+  }
+
+  Future<int> _estimateZipSourcesBytes(List<String> sources) async {
+    var total = 0;
+    for (final source in sources) {
+      final type = FileSystemEntity.typeSync(source);
+      if (type == FileSystemEntityType.file) {
+        total += await File(source).length();
+      } else if (type == FileSystemEntityType.directory) {
+        total += await _directoryBytes(Directory(source));
+      }
+    }
+    return total;
+  }
+
+  Future<int> _directoryBytes(Directory dir) async {
+    var total = 0;
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is File) {
+        total += await entity.length();
+      }
+    }
+    return total;
+  }
+
+  Future<void> _zipLegacyInMemoryWithProgress(
+    List<String> sources,
+    String zipPath, {
+    String? password,
+    ArchiveProgressCallback? onProgress,
+    ArchiveCancelToken? cancelToken,
+  }) async {
+    _checkZipCancel(cancelToken);
+
+    final fileEntries = await _collectZipFileEntries(sources);
+    final tracker = EntryProgressTracker(fileEntries.length + 1);
+    final archive = Archive();
+
+    for (final entry in fileEntries) {
+      _checkZipCancel(cancelToken);
+      final data = await File(entry.filePath).readAsBytes();
+      archive.addFile(ArchiveFile(entry.archivePath, data.length, data));
+      onProgress?.call(tracker.advance(), p.basename(entry.filePath));
+    }
+
+    _checkZipCancel(cancelToken);
+    onProgress?.call(tracker.advance(), 'Đang ghi ZIP');
+
+    final encoder = password != null && password.isNotEmpty
+        ? ZipEncoder(password: password)
+        : ZipEncoder();
+    final bytes = encoder.encode(archive);
+    if (bytes == null) throw Exception('Không thể tạo file ZIP');
+
+    _checkZipCancel(cancelToken);
+
+    final out = File(zipPath);
+    if (!out.parent.existsSync()) {
+      await out.parent.create(recursive: true);
+    }
+    await out.writeAsBytes(bytes);
+    onProgress?.call(1.0, p.basename(zipPath));
   }
 
   Future<void> _zipWithFlutterArchive(List<String> sources, String zipPath) async {

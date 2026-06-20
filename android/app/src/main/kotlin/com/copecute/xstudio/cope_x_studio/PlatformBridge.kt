@@ -5,17 +5,22 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.util.Base64
+import androidx.core.content.FileProvider
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodCallHandler {
 
@@ -29,7 +34,46 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
                 "listDirectoryShell" -> {
                     val path = call.argument<String>("path") ?: "/"
                     val showHidden = call.argument<Boolean>("showHidden") ?: false
-                    result.success(listDirectoryShell(path, showHidden))
+                    val useSu = call.argument<Boolean>("useSu") ?: false
+                    val mountWritable = call.argument<Boolean>("mountWritable") ?: false
+                    result.success(listDirectoryShell(path, showHidden, useSu, mountWritable))
+                }
+                "checkRootAccess" -> {
+                    val mountWritable = call.argument<Boolean>("mountWritable") ?: false
+                    result.success(checkRootAccess(mountWritable))
+                }
+                "installApk" -> {
+                    val path = call.argument<String>("apkPath")
+                    if (path.isNullOrBlank()) {
+                        result.error("ARG", "apkPath required", null)
+                        return
+                    }
+                    activity.runOnUiThread {
+                        try {
+                            installApk(path)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("ERR", e.message, null)
+                        }
+                    }
+                    return
+                }
+                "getApkIconFromPath" -> {
+                    val path = call.argument<String>("apkPath")
+                    if (path.isNullOrBlank()) {
+                        result.error("ARG", "apkPath required", null)
+                        return
+                    }
+                    result.success(getApkIconFromPath(path))
+                }
+                "getPdfThumbnailFromPath" -> {
+                    val path = call.argument<String>("pdfPath")
+                    if (path.isNullOrBlank()) {
+                        result.error("ARG", "pdfPath required", null)
+                        return
+                    }
+                    val maxSize = call.argument<Int>("maxSize") ?: 120
+                    result.success(getPdfThumbnailFromPath(path, maxSize))
                 }
                 "listInstalledApps" -> {
                     val systemApps = call.argument<Boolean>("systemApps") ?: false
@@ -103,15 +147,33 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
         }
     }
 
-    private fun listDirectoryShell(path: String, showHidden: Boolean): List<Map<String, Any?>> {
+    private fun listDirectoryShell(
+        path: String,
+        showHidden: Boolean,
+        useSu: Boolean,
+        mountWritable: Boolean,
+    ): List<Map<String, Any?>> {
+        if (useSu && mountWritable) {
+            tryRemountWritable(path)
+        }
+
         val flag = if (showHidden) "-1Ap" else "-1p"
         val escaped = shellEscape(path)
-        val commands = listOf(
-            arrayOf("/system/bin/ls", flag, path),
-            arrayOf("/system/bin/toybox", "ls", flag, path),
-            arrayOf("ls", flag, path),
-            arrayOf("/system/bin/sh", "-c", "ls $flag $escaped"),
-            arrayOf("sh", "-c", "ls $flag $escaped"),
+        val commands = mutableListOf<Array<String>>()
+
+        if (useSu) {
+            commands.add(arrayOf("su", "-c", "ls $flag $escaped"))
+            commands.add(arrayOf("su", "0", "ls", flag, path))
+        }
+
+        commands.addAll(
+            listOf(
+                arrayOf("/system/bin/ls", flag, path),
+                arrayOf("/system/bin/toybox", "ls", flag, path),
+                arrayOf("ls", flag, path),
+                arrayOf("/system/bin/sh", "-c", "ls $flag $escaped"),
+                arrayOf("sh", "-c", "ls $flag $escaped"),
+            )
         )
 
         var lastError = "Không thể đọc thư mục"
@@ -133,7 +195,170 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
                 lastError = e.message ?: lastError
             }
         }
+        try {
+            val viaFile = listDirectoryViaFile(path, showHidden)
+            if (viaFile.isNotEmpty()) return viaFile
+        } catch (_: Exception) {
+        }
+
+        if (!useSu && (path == "/" || path.isEmpty())) {
+            val fallback = listRootFallback(showHidden)
+            if (fallback.isNotEmpty()) return fallback
+        }
+
         throw Exception(lastError)
+    }
+
+    private fun tryRemountWritable(path: String) {
+        val mountPoint = resolveMountPoint(path)
+        val commands = listOf(
+            "mount -o remount,rw $mountPoint",
+            "mount -o rw,remount $mountPoint",
+        )
+        for (cmd in commands) {
+            runSuCommand(cmd)
+        }
+    }
+
+    private fun resolveMountPoint(path: String): String {
+        return when {
+            path.startsWith("/system") -> "/system"
+            path.startsWith("/vendor") -> "/vendor"
+            path.startsWith("/product") -> "/product"
+            else -> "/"
+        }
+    }
+
+    private fun checkRootAccess(mountWritable: Boolean): Map<String, Any?> {
+        val idOutput = runSuCommand("id")
+        val hasSuperuser = idOutput?.contains("uid=0") == true
+        if (!hasSuperuser) {
+            return mapOf(
+                "granted" to false,
+                "message" to "Chưa được cấp quyền siêu người dùng. Thiết bị chưa root hoặc chưa cho phép ứng dụng truy cập root.",
+            )
+        }
+
+        if (!mountWritable) {
+            return mapOf("granted" to true, "message" to "")
+        }
+
+        val mountPoint = "/system"
+        tryRemountWritable(mountPoint)
+        val mountInfo = runSuCommand("mount | grep ' on $mountPoint '")
+            ?: runSuCommand("mount | grep $mountPoint")
+            ?: ""
+        val isWritable = mountInfo.contains(" rw,") ||
+            mountInfo.contains(",rw,") ||
+            mountInfo.contains(",rw ") ||
+            mountInfo.endsWith(" rw") ||
+            mountInfo.contains(" rw(")
+
+        if (isWritable) {
+            return mapOf("granted" to true, "message" to "")
+        }
+
+        val probe = runSuCommand(
+            "touch /system/.cope_x_mount_test 2>/dev/null && " +
+                "rm -f /system/.cope_x_mount_test 2>/dev/null && echo ok"
+        )
+        if (probe?.contains("ok") == true) {
+            return mapOf("granted" to true, "message" to "")
+        }
+
+        return mapOf(
+            "granted" to false,
+            "message" to "Đã có quyền siêu người dùng nhưng chưa được cấp quyền mount writable (remount rw).",
+        )
+    }
+
+    private fun runSuCommand(command: String): String? {
+        val escaped = shellEscape(command)
+        val commands = listOf(
+            arrayOf("su", "-c", command),
+            arrayOf("su", "0", "sh", "-c", command),
+            arrayOf("su", "-c", escaped),
+        )
+        for (cmd in commands) {
+            try {
+                val process = Runtime.getRuntime().exec(cmd)
+                val completed = process.waitFor(SU_COMMAND_TIMEOUT_SEC, TimeUnit.SECONDS)
+                if (!completed) {
+                    process.destroy()
+                    continue
+                }
+                val output = readStream(process.inputStream).trim()
+                val error = readStream(process.errorStream).trim()
+                val code = process.exitValue()
+                if (code == 0) {
+                    return output.ifBlank { "ok" }
+                }
+                if (error.contains("not found", ignoreCase = true) ||
+                    error.contains("permission denied", ignoreCase = true)
+                ) {
+                    continue
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return null
+    }
+
+    private fun listDirectoryViaFile(path: String, showHidden: Boolean): List<Map<String, Any?>> {
+        val normalized = if (path.isEmpty()) "/" else path
+        val dir = File(normalized)
+        if (!dir.exists() || !dir.isDirectory) {
+            throw Exception("Thư mục không tồn tại")
+        }
+        val files = dir.listFiles() ?: throw Exception("Không thể đọc thư mục")
+
+        val base = if (normalized.endsWith("/")) normalized.dropLast(1) else normalized
+        val entries = mutableListOf<Map<String, Any?>>()
+        for (file in files) {
+            val name = file.name
+            if (name.isEmpty() || name == "." || name == "..") continue
+            if (!showHidden && name.startsWith('.')) continue
+            val fullPath = if (base.isEmpty() || base == "/") "/$name" else "$base/$name"
+            entries.add(
+                mapOf(
+                    "name" to name,
+                    "path" to fullPath,
+                    "isDirectory" to file.isDirectory,
+                )
+            )
+        }
+
+        entries.sortWith(
+            compareBy<Map<String, Any?>> { !(it["isDirectory"] as Boolean) }
+                .thenBy { (it["name"] as String).lowercase(Locale.getDefault()) }
+        )
+        return entries
+    }
+
+    private fun listRootFallback(showHidden: Boolean): List<Map<String, Any?>> {
+        val names = listOf(
+            "acct", "apex", "bin", "cache", "config", "d", "data", "dev", "etc",
+            "linkerconfig", "mnt", "odm", "oem", "opt", "proc", "product", "sbin",
+            "sdcard", "storage", "sys", "system", "vendor",
+        )
+        val entries = mutableListOf<Map<String, Any?>>()
+        for (name in names) {
+            if (!showHidden && name.startsWith('.')) continue
+            val file = File("/$name")
+            if (!file.exists()) continue
+            entries.add(
+                mapOf(
+                    "name" to name,
+                    "path" to "/$name",
+                    "isDirectory" to file.isDirectory,
+                )
+            )
+        }
+        entries.sortWith(
+            compareBy<Map<String, Any?>> { !(it["isDirectory"] as Boolean) }
+                .thenBy { (it["name"] as String).lowercase(Locale.getDefault()) }
+        )
+        return entries
     }
 
     private fun parseLsOutput(output: String, dirPath: String, showHidden: Boolean): List<Map<String, Any?>> {
@@ -227,6 +452,77 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
 
         result.sortBy { (it["appName"] as String).lowercase(Locale.getDefault()) }
         return result
+    }
+
+    private fun installApk(apkPath: String) {
+        val file = File(apkPath)
+        if (!file.exists()) {
+            throw Exception("File APK không tồn tại")
+        }
+        val authority = "${activity.packageName}.fileprovider"
+        val uri = FileProvider.getUriForFile(activity, authority, file)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        activity.startActivity(Intent.createChooser(intent, "Cài đặt APK"))
+    }
+
+    private fun getApkIconFromPath(apkPath: String): String? {
+        val file = File(apkPath)
+        if (!file.exists()) return null
+        val pm = activity.packageManager
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getPackageArchiveInfo(
+                apkPath,
+                PackageManager.PackageInfoFlags.of(PackageManager.GET_META_DATA.toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getPackageArchiveInfo(apkPath, PackageManager.GET_META_DATA)
+        } ?: return null
+
+        val appInfo = info.applicationInfo ?: return null
+        appInfo.sourceDir = apkPath
+        appInfo.publicSourceDir = apkPath
+        return try {
+            drawableToBase64(appInfo.loadIcon(pm))
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun getPdfThumbnailFromPath(pdfPath: String, maxSize: Int): String? {
+        val file = File(pdfPath)
+        if (!file.exists()) return null
+        return try {
+            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+                PdfRenderer(pfd).use { renderer ->
+                    if (renderer.pageCount <= 0) return null
+                    renderer.openPage(0).use { page ->
+                        val scale = minOf(
+                            maxSize.toFloat() / page.width.toFloat(),
+                            maxSize.toFloat() / page.height.toFloat(),
+                            1f,
+                        )
+                        val width = (page.width * scale).toInt().coerceAtLeast(1)
+                        val height = (page.height * scale).toInt().coerceAtLeast(1)
+                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        bitmap.eraseColor(Color.WHITE)
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        bitmapToBase64Png(bitmap)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun bitmapToBase64Png(bitmap: Bitmap): String {
+        val stream = java.io.ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+        return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
     }
 
     private fun openAppSettings(packageName: String) {
@@ -328,5 +624,6 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
 
     companion object {
         const val CHANNEL = "cope_x_studio/platform"
+        private const val SU_COMMAND_TIMEOUT_SEC = 5L
     }
 }

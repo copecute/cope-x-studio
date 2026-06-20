@@ -2,18 +2,26 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
+import 'package:cope_x_studio/models/browser_view_mode.dart';
 import 'package:cope_x_studio/models/editor_tab.dart';
 import 'package:cope_x_studio/models/file_clipboard.dart';
+import 'package:cope_x_studio/models/file_open_as.dart';
+import 'package:cope_x_studio/models/file_op_notice.dart';
 import 'package:cope_x_studio/models/ftp_server_config.dart';
 import 'package:cope_x_studio/models/installed_app_info.dart';
 import 'package:cope_x_studio/models/recent_file_entry.dart';
+import 'package:cope_x_studio/models/root_access_mode.dart';
+import 'package:cope_x_studio/models/text_encoding.dart';
 import 'package:cope_x_studio/services/app_manager_service.dart';
 import 'package:cope_x_studio/models/tab_file_operation.dart';
 import 'package:cope_x_studio/models/tab_file_operation_state.dart';
+import 'package:cope_x_studio/models/tree_browser_node.dart';
 import 'package:cope_x_studio/services/archive_cancel_token.dart';
 import 'package:cope_x_studio/services/archive_password_exception.dart';
 import 'package:cope_x_studio/services/archive_service.dart';
@@ -29,6 +37,8 @@ import 'package:cope_x_studio/services/web_server/web_server_service.dart';
 import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/services/storage_roots.dart';
+import 'package:cope_x_studio/services/trash_service.dart';
+import 'package:cope_x_studio/services/text_encoding_service.dart';
 import 'package:cope_x_studio/utils/network_utils.dart';
 import 'package:cope_x_studio/utils/app_path_utils.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
@@ -37,6 +47,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -84,10 +95,30 @@ class WorkspaceProvider extends ChangeNotifier {
   bool _storageGranted = false;
   bool _permissionChecked = false;
   bool _showHidden = false;
+  BrowserViewMode _browserViewMode = BrowserViewMode.list;
+  bool _openApkAsZip = true;
+  RootAccessMode _rootAccessMode = RootAccessMode.normal;
+  TextEncoding _textEncoding = TextEncoding.utf8;
+  bool _hapticEnabled = true;
+  double _editorFontSize = 13;
+  bool _editorShowLineNumbers = true;
+  bool _editorWordWrap = false;
+  double _uiScale = 0.8;
+  bool _fullscreenEnabled = false;
+  bool _rememberLastPath = true;
+  bool _requireExitConfirmation = true;
+  bool _useTrash = false;
 
   final List<RecentFileEntry> _recentFiles = [];
   bool _recentLoading = false;
+  bool _recentScanInProgress = false;
   int _recentScanGeneration = 0;
+
+  List<BrowserEntry>? _homeEntriesCache;
+  bool _homeEntriesLoading = false;
+  int _homeLoadGeneration = 0;
+  String? _internalStoragePath;
+  bool get isHomeLoading => _homeEntriesLoading;
 
   // FTP State
   final List<FtpServerConfig> _ftpServers = [];
@@ -102,16 +133,23 @@ class WorkspaceProvider extends ChangeNotifier {
 
   final Map<String, List<BrowserEntry>> _shellDirCache = {};
   final Map<String, String> _shellErrors = {};
+  final Map<String, String> _dirAccessNotes = {};
   final Set<String> _shellLoadingPaths = {};
   bool isShellLoading(String path) => _shellLoadingPaths.contains(path);
   String? getShellError(String path) => _shellErrors[path];
+  String? getDirectoryAccessNote(String path) => _dirAccessNotes[path];
 
   final Map<String, List<InstalledAppInfo>> _appsCache = {};
   final Map<String, Uint8List> _appIcons = {};
-  bool _appsLoading = false;
+  final Set<String> _appsLoadingKeys = {};
+  final Map<String, int> _appsLoadGenerationByKey = {};
   String? _appsError;
-  int _appsLoadGeneration = 0;
-  bool get isAppsLoading => _appsLoading;
+  bool get isAppsLoading => _appsLoadingKeys.isNotEmpty;
+  bool isAppsListLoading(String listPath) {
+    if (!AppPathUtils.isAppsList(listPath)) return false;
+    final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
+    return _appsLoadingKeys.contains(cacheKey);
+  }
   String? get appsError => _appsError;
   Uint8List? appIcon(String packageName) => _appIcons[packageName];
   InstalledAppInfo? getAppInfo(String packageName) {
@@ -132,6 +170,23 @@ class WorkspaceProvider extends ChangeNotifier {
   bool get storageGranted => _storageGranted;
   bool get permissionChecked => _permissionChecked;
   bool get showHidden => _showHidden;
+  BrowserViewMode get browserViewMode => _browserViewMode;
+  bool get isGridView => _browserViewMode == BrowserViewMode.grid;
+  bool get isTreeView => _browserViewMode == BrowserViewMode.tree;
+  bool get openApkAsZip => _openApkAsZip;
+  RootAccessMode get rootAccessMode => _rootAccessMode;
+  TextEncoding get textEncoding => _textEncoding;
+  bool get hapticEnabled => _hapticEnabled;
+  double get editorFontSize => _editorFontSize;
+  bool get editorShowLineNumbers => _editorShowLineNumbers;
+  bool get editorWordWrap => _editorWordWrap;
+  double get uiScale => _uiScale;
+  bool get fullscreenEnabled => _fullscreenEnabled;
+  bool get rememberLastPath => _rememberLastPath;
+  bool get requireExitConfirmation => _requireExitConfirmation;
+  bool get useTrash => _useTrash;
+
+  double scaledSize(double value) => value * _uiScale;
 
   bool _isBusy = false;
   bool get isBusy => _isBusy;
@@ -141,7 +196,26 @@ class WorkspaceProvider extends ChangeNotifier {
   final Map<String, List<BrowserEntry>> _zipListCache = {};
   final Set<String> _zipListLoading = {};
 
+  // Tree view state
+  final Map<String, Set<String>> _treeExpandedByTab = {};
+  final Map<String, List<BrowserEntry>> _treeChildrenCache = {};
+  final Set<String> _treeLoadingKeys = {};
+
   final Map<String, TabFileOperationState> _tabFileOperations = {};
+
+  FileOpNotice? _pendingFileOpNotice;
+  FileOpNotice? get pendingFileOpNotice => _pendingFileOpNotice;
+
+  void clearPendingFileOpNotice() {
+    if (_pendingFileOpNotice == null) return;
+    _pendingFileOpNotice = null;
+    notifyListeners();
+  }
+
+  void _queueFileOpNotice(String title, String message) {
+    _pendingFileOpNotice = FileOpNotice(title: title, message: message);
+    notifyListeners();
+  }
 
   bool isFileOperationOverlayForTab(String tabId) => _tabFileOperations.containsKey(tabId);
 
@@ -155,6 +229,9 @@ class WorkspaceProvider extends ChangeNotifier {
 
   bool fileOperationCanCancelForTab(String tabId) =>
       _tabFileOperations[tabId]?.canCancel ?? false;
+
+  bool fileOperationIsRollingBackForTab(String tabId) =>
+      _tabFileOperations[tabId]?.isRollingBack ?? false;
 
   String fileOperationOverlayTitleForTab(String tabId) =>
       _tabFileOperations[tabId]?.overlayTitle ?? '';
@@ -218,28 +295,39 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> cancelArchiveExtraction([String? tabId]) async {
+  Future<void> cancelFileOperation([String? tabId]) async {
     final targetTabId = tabId ?? _activeTabId;
     if (targetTabId == null) return;
 
     final op = _tabFileOperations[targetTabId];
-    if (op?.type != TabFileOperation.unzip) return;
+    if (op == null || !op.canCancel) return;
 
-    op?.cancelToken?.cancel();
-    await _archiveService.abortExtraction();
-
-    final dest = op?.destDir;
-    if (dest != null) {
-      try {
-        final dir = Directory(dest);
-        if (await dir.exists()) {
-          await dir.delete(recursive: true);
-        }
-      } catch (_) {}
+    if (op.type == TabFileOperation.delete) {
+      op.cancelToken?.cancel();
+      return;
     }
 
-    _log('Đã hủy giải nén');
-    _statusMessage = 'Đã hủy giải nén';
+    op.cancelToken?.cancel();
+    if (op.type == TabFileOperation.unzip) {
+      await _archiveService.abortExtraction();
+    }
+
+    await _performOperationRollback(targetTabId);
+
+    _log(switch (op.type) {
+      TabFileOperation.unzip => 'Đã hủy giải nén',
+      TabFileOperation.zip => 'Đã hủy nén',
+      TabFileOperation.paste => 'Đã hủy dán',
+      TabFileOperation.duplicate => 'Đã hủy nhân đôi',
+      _ => 'Đã hủy thao tác',
+    });
+    _statusMessage = switch (op.type) {
+      TabFileOperation.unzip => 'Đã hủy giải nén',
+      TabFileOperation.zip => 'Đã hủy nén',
+      TabFileOperation.paste => 'Đã hủy dán',
+      TabFileOperation.duplicate => 'Đã hủy nhân đôi',
+      _ => 'Đã hủy thao tác',
+    };
     _endFileOperation(targetTabId);
     if (_tabFileOperations.isEmpty) {
       _setBusy(false);
@@ -247,9 +335,95 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _cancelArchiveExtractionIfActive(String tabId) {
-    if (_tabFileOperations[tabId]?.type == TabFileOperation.unzip) {
-      unawaited(cancelArchiveExtraction(tabId));
+  Future<void> _performOperationRollback(String tabId) async {
+    final op = _tabFileOperations[tabId];
+    if (op == null || op.isRollingBack) return;
+
+    op.isRollingBack = true;
+    op.progress = 0;
+    op.label = null;
+    notifyListeners();
+    await Future<void>.delayed(Duration.zero);
+
+    switch (op.type) {
+      case TabFileOperation.unzip:
+      case TabFileOperation.zip:
+        await _rollbackOperationPath(op.destDir);
+      case TabFileOperation.paste:
+        await _rollbackPasteOperation(op);
+      case TabFileOperation.duplicate:
+        await _rollbackCreatedPaths(op.rollbackPaths);
+      default:
+        break;
+    }
+  }
+
+  Future<void> _rollbackCreatedPaths(List<String> paths) async {
+    for (var i = paths.length - 1; i >= 0; i--) {
+      await _deletePathQuiet(paths[i]);
+    }
+  }
+
+  Future<void> _deletePathQuiet(String path) async {
+    try {
+      if (path.startsWith('@ftp/')) {
+        final (serverId, remotePath) = _parseFtpPath(path);
+        final client = await _connectFtp(serverId);
+        try {
+          if (_isFtpDirectory(path)) {
+            await client.getDirectory(remotePath).delete(recursive: true);
+          } else {
+            await client.getFile(remotePath).delete();
+          }
+        } finally {
+          await client.disconnect();
+        }
+      } else {
+        await _rollbackOperationPath(path);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _rollbackPasteOperation(TabFileOperationState op) async {
+    for (final pair in op.movedPairs.reversed) {
+      try {
+        if (await FileSystemEntity.type(pair.dest) != FileSystemEntityType.notFound &&
+            await FileSystemEntity.type(pair.src) == FileSystemEntityType.notFound) {
+          await _fileService.renameEntity(pair.dest, pair.src);
+        }
+      } catch (_) {}
+    }
+    await _rollbackCreatedPaths(op.rollbackPaths);
+  }
+
+  /// Giữ tên cũ cho tương thích UI.
+  Future<void> cancelArchiveExtraction([String? tabId]) => cancelFileOperation(tabId);
+
+  Future<void> _rollbackOperationPath(String? path) async {
+    if (path == null) return;
+    try {
+      final type = FileSystemEntity.typeSync(path);
+      if (type == FileSystemEntityType.directory) {
+        final dir = Directory(path);
+        if (await dir.exists()) await dir.delete(recursive: true);
+      } else if (type == FileSystemEntityType.file) {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      } else {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        } else {
+          final dir = Directory(path);
+          if (await dir.exists()) await dir.delete(recursive: true);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _cancelFileOperationIfActive(String tabId) {
+    if (_tabFileOperations.containsKey(tabId)) {
+      unawaited(cancelFileOperation(tabId));
     }
   }
 
@@ -264,6 +438,196 @@ class WorkspaceProvider extends ChangeNotifier {
   void _setBusy(bool val) {
     _isBusy = val;
     notifyListeners();
+  }
+
+  void _hapticOnFileOpComplete() {
+    if (_hapticEnabled) {
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  static void applyFullscreenMode(bool enabled) {
+    if (enabled) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Color(0xFF1E1E1E),
+        systemNavigationBarIconBrightness: Brightness.light,
+      ));
+    }
+  }
+
+  Future<void> _persistSetting(String key, String value) async {
+    try {
+      const storage = FlutterSecureStorage();
+      await storage.write(key: key, value: value);
+    } catch (_) {}
+  }
+
+  Future<void> setTextEncoding(TextEncoding encoding) async {
+    if (_textEncoding.id == encoding.id) return;
+    _textEncoding = encoding;
+    await _persistSetting('text_encoding', encoding.id);
+    notifyListeners();
+  }
+
+  Future<void> setHapticEnabled(bool value) async {
+    if (_hapticEnabled == value) return;
+    _hapticEnabled = value;
+    await _persistSetting('haptic_enabled', value ? 'true' : 'false');
+    notifyListeners();
+  }
+
+  Future<void> setEditorFontSize(double value) async {
+    final clamped = value.clamp(10.0, 28.0);
+    if (_editorFontSize == clamped) return;
+    _editorFontSize = clamped;
+    await _persistSetting('editor_font_size', clamped.toStringAsFixed(0));
+    notifyListeners();
+  }
+
+  Future<void> setEditorShowLineNumbers(bool value) async {
+    if (_editorShowLineNumbers == value) return;
+    _editorShowLineNumbers = value;
+    await _persistSetting('editor_show_line_numbers', value ? 'true' : 'false');
+    notifyListeners();
+  }
+
+  Future<void> setEditorWordWrap(bool value) async {
+    if (_editorWordWrap == value) return;
+    _editorWordWrap = value;
+    await _persistSetting('editor_word_wrap', value ? 'true' : 'false');
+    notifyListeners();
+  }
+
+  void adjustEditorFontSize(int delta) {
+    unawaited(setEditorFontSize(_editorFontSize + delta));
+  }
+
+  Future<void> setUiScale(double value) async {
+    final clamped = value.clamp(0.8, 1.4);
+    if (_uiScale == clamped) return;
+    _uiScale = clamped;
+    await _persistSetting('ui_scale', clamped.toStringAsFixed(2));
+    notifyListeners();
+  }
+
+  Future<void> setFullscreenEnabled(bool value) async {
+    if (_fullscreenEnabled == value) return;
+    _fullscreenEnabled = value;
+    applyFullscreenMode(value);
+    await _persistSetting('fullscreen_enabled', value ? 'true' : 'false');
+    notifyListeners();
+  }
+
+  Future<void> setRememberLastPath(bool value) async {
+    if (_rememberLastPath == value) return;
+    _rememberLastPath = value;
+    await _persistSetting('remember_last_path', value ? 'true' : 'false');
+    if (!value) {
+      await _persistSetting('session_state', '');
+    }
+    notifyListeners();
+  }
+
+  Future<void> setRequireExitConfirmation(bool value) async {
+    if (_requireExitConfirmation == value) return;
+    _requireExitConfirmation = value;
+    await _persistSetting('require_exit_confirmation', value ? 'true' : 'false');
+    notifyListeners();
+  }
+
+  Future<void> setUseTrash(bool value) async {
+    if (_useTrash == value) return;
+    _useTrash = value;
+    await _persistSetting('use_trash', value ? 'true' : 'false');
+    if (value) {
+      unawaited(TrashService.instance.purgeExpired());
+    }
+    notifyListeners();
+  }
+
+  Future<void> saveSessionState() async {
+    if (!_rememberLastPath || _tabs.isEmpty) return;
+    try {
+      const storage = FlutterSecureStorage();
+      final data = {
+        'activeTabId': _activeTabId,
+        'tabs': _tabs
+            .map(
+              (t) => {
+                'path': t.currentPath,
+                'mode': t.mode.name,
+                if (t.zipArchivePath != null) 'zipArchivePath': t.zipArchivePath,
+                if (t.zipInnerPath.isNotEmpty) 'zipInnerPath': t.zipInnerPath,
+              },
+            )
+            .toList(),
+      };
+      await storage.write(key: 'session_state', value: jsonEncode(data));
+    } catch (_) {}
+  }
+
+  Future<void> _tryRestoreSession() async {
+    if (!_rememberLastPath) return;
+    try {
+      const storage = FlutterSecureStorage();
+      final raw = await storage.read(key: 'session_state');
+      if (raw == null || raw.isEmpty) return;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final items = map['tabs'] as List<dynamic>?;
+      if (items == null || items.isEmpty) return;
+
+      _tabs.clear();
+      for (final item in items) {
+        final entry = Map<String, dynamic>.from(item as Map);
+        final path = entry['path'] as String? ?? '@home';
+        final modeName = entry['mode'] as String? ?? TabMode.browser.name;
+        final mode = TabMode.values.firstWhere(
+          (m) => m.name == modeName,
+          orElse: () => TabMode.browser,
+        );
+        final zipPath = entry['zipArchivePath'] as String?;
+        final zipInner = entry['zipInnerPath'] as String? ?? '';
+        _tabs.add(
+          AppTab(
+            currentPath: path,
+            mode: zipPath != null ? TabMode.zipViewer : mode,
+            zipArchivePath: zipPath,
+            zipInnerPath: zipInner,
+          ),
+        );
+      }
+      final savedActive = map['activeTabId'] as String?;
+      if (savedActive != null && _tabs.any((t) => t.id == savedActive)) {
+        _activeTabId = savedActive;
+      } else {
+        _activeTabId = _tabs.first.id;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadAppSettings(FlutterSecureStorage storage) async {
+    _textEncoding = TextEncoding.fromId(await storage.read(key: 'text_encoding'));
+    _hapticEnabled = (await storage.read(key: 'haptic_enabled')) != 'false';
+    _editorFontSize = double.tryParse(await storage.read(key: 'editor_font_size') ?? '') ?? 13;
+    _editorFontSize = _editorFontSize.clamp(10, 28);
+    _editorShowLineNumbers =
+        (await storage.read(key: 'editor_show_line_numbers')) != 'false';
+    _editorWordWrap = (await storage.read(key: 'editor_word_wrap')) == 'true';
+    _uiScale = double.tryParse(await storage.read(key: 'ui_scale') ?? '') ?? 0.8;
+    _uiScale = _uiScale.clamp(0.8, 1.4);
+    _fullscreenEnabled = (await storage.read(key: 'fullscreen_enabled')) == 'true';
+    _rememberLastPath = (await storage.read(key: 'remember_last_path')) != 'false';
+    _requireExitConfirmation = (await storage.read(key: 'require_exit_confirmation')) != 'false';
+    _useTrash = (await storage.read(key: 'use_trash')) == 'true';
+    applyFullscreenMode(_fullscreenEnabled);
+    if (_useTrash) {
+      unawaited(TrashService.instance.purgeExpired());
+    }
   }
 
   Future<void> unlockZip(String tabId, String zipPath, String password) async {
@@ -285,6 +649,8 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
   bool get isRecentLoading => _recentLoading;
+  List<String> get recentFilePaths =>
+      _recentFiles.map((e) => e.path).toList(growable: false);
   bool get isWebServerRunning => _webServerService.isRunning;
   String get defaultBrowsePath => StorageRoots.defaultRoot(_permissionService);
   String? get webServerRoot => _webServerService.rootPath;
@@ -331,11 +697,354 @@ class WorkspaceProvider extends ChangeNotifier {
       const storage = FlutterSecureStorage();
       await storage.write(key: 'show_hidden', value: value ? 'true' : 'false');
     } catch (_) {}
+    _shellDirCache.clear();
+    _invalidateTreeCache();
     notifyListeners();
   }
 
   Future<void> toggleShowHidden() async {
     await setShowHidden(!_showHidden);
+  }
+
+  Future<void> setBrowserViewMode(BrowserViewMode mode) async {
+    if (_browserViewMode == mode) return;
+    _browserViewMode = mode;
+    try {
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'browser_view_mode', value: mode.storageValue);
+    } catch (_) {}
+    if (mode == BrowserViewMode.tree && _activeTabId != null) {
+      await syncTreeExpansion(_activeTabId!);
+    }
+    notifyListeners();
+  }
+
+  Future<void> toggleViewMode() async {
+    final next = switch (_browserViewMode) {
+      BrowserViewMode.list => BrowserViewMode.grid,
+      BrowserViewMode.grid => BrowserViewMode.tree,
+      BrowserViewMode.tree => BrowserViewMode.list,
+    };
+    await setBrowserViewMode(next);
+  }
+
+  bool supportsTreeView(AppTab tab) {
+    if (tab.isZipViewer) return tab.zipArchivePath != null;
+    if (tab.currentPath.startsWith('@')) return false;
+    return true;
+  }
+
+  bool isTreeLoading(String tabId) {
+    final prefix = '$tabId|';
+    return _treeLoadingKeys.any((k) => k.startsWith(prefix));
+  }
+
+  bool isTreeExpanded(String tabId, String path) =>
+      _treeExpandedByTab[tabId]?.contains(path) ?? false;
+
+  String _treeCacheKey(String tabId, String path) => '$tabId|$path';
+
+  String _treeFilesystemRoot(String path) {
+    final normalized = p.normalize(path);
+    if (normalized == '/') return '/';
+    for (final root in PermissionService.androidStorageRoots) {
+      final r = p.normalize(root);
+      if (normalized == r || normalized.startsWith('$r/')) return r;
+    }
+    if (normalized.startsWith('/storage/')) {
+      final parts = normalized.split('/').where((s) => s.isNotEmpty).toList();
+      if (parts.length >= 2) return '/${parts[0]}/${parts[1]}';
+    }
+    return normalized;
+  }
+
+  String _treeListRoot(AppTab tab) {
+    if (tab.isZipViewer) return '';
+    return _treeFilesystemRoot(tab.currentPath);
+  }
+
+  String _treeCurrentPath(AppTab tab) {
+    if (tab.isZipViewer) return tab.zipInnerPath;
+    return tab.currentPath;
+  }
+
+  void _invalidateTreeCache({String? tabId}) {
+    if (tabId == null) {
+      _treeChildrenCache.clear();
+      _treeLoadingKeys.clear();
+      return;
+    }
+    final prefix = '$tabId|';
+    _treeChildrenCache.removeWhere((k, _) => k.startsWith(prefix));
+    _treeLoadingKeys.removeWhere((k) => k.startsWith(prefix));
+  }
+
+  Future<void> syncTreeExpansion(String tabId) async {
+    final tab = _tab(tabId);
+    if (!supportsTreeView(tab)) return;
+
+    final expanded = _treeExpandedByTab.putIfAbsent(tabId, () => {});
+    if (tab.isZipViewer) {
+      const root = '';
+      expanded.add(root);
+      await _ensureTreeChildrenLoaded(tabId, root);
+      var current = '';
+      for (final part in tab.zipInnerPath.split('/').where((s) => s.isNotEmpty)) {
+        current = current.isEmpty ? part : '$current/$part';
+        expanded.add(current);
+        await _ensureTreeChildrenLoaded(tabId, current);
+      }
+      notifyListeners();
+      return;
+    }
+
+    final root = _treeFilesystemRoot(tab.currentPath);
+    expanded.add(root);
+    await _ensureTreeChildrenLoaded(tabId, root);
+
+    if (tab.currentPath != root) {
+      final rel = p.relative(tab.currentPath, from: root);
+      var walk = root;
+      for (final part in p.split(rel)) {
+        if (part.isEmpty || part == '.') continue;
+        walk = p.normalize(p.join(walk, part));
+        expanded.add(walk);
+        await _ensureTreeChildrenLoaded(tabId, walk);
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> toggleTreeNode(String tabId, String path, bool isDirectory) async {
+    if (!isDirectory) return;
+    final expanded = _treeExpandedByTab.putIfAbsent(tabId, () => {});
+    if (expanded.contains(path)) {
+      expanded.remove(path);
+      notifyListeners();
+      return;
+    }
+    expanded.add(path);
+    await _ensureTreeChildrenLoaded(tabId, path);
+    notifyListeners();
+  }
+
+  Future<void> _ensureTreeChildrenLoaded(String tabId, String dirPath) async {
+    final key = _treeCacheKey(tabId, dirPath);
+    if (_treeChildrenCache.containsKey(key) || _treeLoadingKeys.contains(key)) return;
+
+    _treeLoadingKeys.add(key);
+    notifyListeners();
+    try {
+      final children = await _fetchTreeChildren(tabId, dirPath);
+      _treeChildrenCache[key] = children;
+    } catch (_) {
+      _treeChildrenCache[key] = [];
+    } finally {
+      _treeLoadingKeys.remove(key);
+      notifyListeners();
+    }
+  }
+
+  Future<List<BrowserEntry>> _fetchTreeChildren(String tabId, String dirPath) async {
+    final tab = _tab(tabId);
+    if (tab.isZipViewer && tab.zipArchivePath != null) {
+      final zipPath = tab.zipArchivePath!;
+      final pwd = _zipPasswords[zipPath];
+      final cacheKey = _zipListKey(zipPath, dirPath, pwd);
+      if (!_zipListCache.containsKey(cacheKey)) {
+        await _loadZipListing(tabId, zipPath, dirPath);
+      }
+      return List<BrowserEntry>.from(_zipListCache[cacheKey] ?? []);
+    }
+
+    if (ShellListService.shouldUseShell(dirPath, mode: _rootAccessMode)) {
+      if (!_shellDirCache.containsKey(dirPath)) {
+        await _loadShellDirectory(tabId, dirPath);
+      }
+      return List<BrowserEntry>.from(_shellDirCache[dirPath] ?? []);
+    }
+
+    if (_dirAccessNotes.containsKey(dirPath)) return [];
+
+    final probeAccess = ShellListService.isRootFilesystemPath(dirPath) &&
+        !_rootAccessMode.usesSuperuser;
+    return listDirectory(dirPath)
+        .map((entity) => _mapFileSystemEntity(entity, probeAccess: probeAccess))
+        .toList();
+  }
+
+  List<TreeBrowserNode> listTreeNodes(String tabId) {
+    final tab = _tab(tabId);
+    if (!supportsTreeView(tab)) return [];
+
+    final expanded = _treeExpandedByTab.putIfAbsent(tabId, () => {});
+    if (expanded.isEmpty) {
+      unawaited(syncTreeExpansion(tabId));
+      return [];
+    }
+
+    final current = _treeCurrentPath(tab);
+    final result = <TreeBrowserNode>[];
+
+    void walk(String parentPath, int depth) {
+      final key = _treeCacheKey(tabId, parentPath);
+      final children = _treeChildrenCache[key];
+      final loading = _treeLoadingKeys.contains(key);
+
+      if (children == null && !loading) {
+        unawaited(_ensureTreeChildrenLoaded(tabId, parentPath));
+        return;
+      }
+      if (children == null) return;
+
+      for (final child in children) {
+        final childPath = child.path;
+        final isExp = expanded.contains(childPath);
+        final childKey = _treeCacheKey(tabId, childPath);
+        result.add(
+          TreeBrowserNode(
+            entry: child,
+            depth: depth,
+            isExpanded: isExp,
+            hasChildren: child.isDirectory,
+            isLoading: _treeLoadingKeys.contains(childKey),
+            isCurrent: childPath == current,
+          ),
+        );
+        if (child.isDirectory && isExp) {
+          walk(childPath, depth + 1);
+        }
+      }
+    }
+
+    final root = _treeListRoot(tab);
+    walk(root, 0);
+    return result;
+  }
+
+  @Deprecated('Use setBrowserViewMode')
+  Future<void> setGridView(bool value) async {
+    await setBrowserViewMode(value ? BrowserViewMode.grid : BrowserViewMode.list);
+  }
+
+  Future<void> setOpenApkAsZip(bool value) async {
+    if (_openApkAsZip == value) return;
+    _openApkAsZip = value;
+    try {
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'open_apk_as_zip', value: value ? 'true' : 'false');
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  Future<String?> setRootAccessMode(RootAccessMode mode) async {
+    if (_rootAccessMode == mode) return null;
+
+    if (mode.usesSuperuser) {
+      final check = await _shellListService.checkRootAccess(mode);
+      if (!check.granted) {
+        return check.message.isNotEmpty
+            ? check.message
+            : 'Chưa được cấp quyền siêu người dùng';
+      }
+    }
+
+    _rootAccessMode = mode;
+    _shellDirCache.clear();
+    _shellErrors.clear();
+    _dirAccessNotes.clear();
+    try {
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'root_access_mode', value: mode.storageValue);
+    } catch (_) {}
+    if (mode == RootAccessMode.disabled) {
+      for (final tab in _tabs) {
+        if (tab.currentPath == '/' || ShellListService.isRootFilesystemPath(tab.currentPath)) {
+          _setTab(
+            tab.id,
+            tab.copyWith(currentPath: '@home', clearSelection: true),
+          );
+        }
+      }
+    }
+    notifyListeners();
+    return null;
+  }
+
+  bool _isPermissionDenied(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('permission denied') ||
+        msg.contains('eacces') ||
+        msg.contains('operation not permitted') ||
+        msg.contains('truy cập bị từ chối');
+  }
+
+  void _setDirectoryAccessDenied(String path) {
+    _dirAccessNotes[path] = 'Truy cập bị từ chối';
+    _shellErrors.remove(path);
+  }
+
+  static const entryAccessDeniedLabel = 'Truy cập bị từ chối';
+
+  bool _probeEntryAccessDenied(String path, bool isDirectory) {
+    if (!ShellListService.isRootFilesystemPath(path)) return false;
+    try {
+      if (isDirectory) {
+        Directory(path).listSync(followLinks: false);
+      } else {
+        File(path).statSync();
+      }
+      return false;
+    } on FileSystemException catch (e) {
+      return _isPermissionDenied(e);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  BrowserEntry _mapListedEntry(ListedEntry entity, {bool probeAccess = false}) {
+    final accessDenied = probeAccess && _probeEntryAccessDenied(entity.path, entity.isDirectory);
+    int? childrenCount;
+    if (entity.isDirectory && !accessDenied) {
+      try {
+        childrenCount = Directory(entity.path).listSync(followLinks: false).length;
+      } catch (_) {}
+    }
+    return BrowserEntry(
+      name: p.basename(entity.path),
+      path: entity.path,
+      isDirectory: entity.isDirectory,
+      size: entity.size,
+      childrenCount: childrenCount,
+      accessDenied: accessDenied,
+    );
+  }
+
+  BrowserEntry _mapFileSystemEntity(FileSystemEntity entity, {bool probeAccess = false}) {
+    final isDir = entity is Directory;
+    final accessDenied = probeAccess && _probeEntryAccessDenied(entity.path, isDir);
+    int? size;
+    if (entity is File && !accessDenied) {
+      try {
+        size = entity.statSync().size;
+      } catch (_) {}
+    }
+    int? childrenCount;
+    if (isDir && !accessDenied) {
+      try {
+        childrenCount = listDirectory(entity.path).length;
+      } catch (_) {
+        childrenCount = 0;
+      }
+    }
+    return BrowserEntry(
+      name: p.basename(entity.path),
+      path: entity.path,
+      isDirectory: isDir,
+      size: size,
+      childrenCount: childrenCount,
+      accessDenied: accessDenied,
+    );
   }
 
   // ── Permissions ──────────────────────────────────────────────
@@ -345,8 +1054,35 @@ class WorkspaceProvider extends ChangeNotifier {
 
     try {
       const storage = FlutterSecureStorage();
+      await _loadAppSettings(storage);
       final saved = await storage.read(key: 'show_hidden');
       _showHidden = saved == 'true';
+      final savedMode = await storage.read(key: 'browser_view_mode');
+      final savedGrid = await storage.read(key: 'is_grid_view');
+      _browserViewMode = BrowserViewMode.fromStorage(
+        savedMode,
+        legacyGrid: savedGrid == 'true',
+      );
+      final savedOpenApkAsZip = await storage.read(key: 'open_apk_as_zip');
+      _openApkAsZip = savedOpenApkAsZip != 'false';
+      final savedRootMode = await storage.read(key: 'root_access_mode');
+      _rootAccessMode = RootAccessModeLabels.fromStorage(savedRootMode);
+      if (_rootAccessMode.usesSuperuser) {
+        final check = await _shellListService.checkRootAccess(_rootAccessMode);
+        if (!check.granted) {
+          _rootAccessMode = RootAccessMode.normal;
+          await storage.write(
+            key: 'root_access_mode',
+            value: RootAccessMode.normal.storageValue,
+          );
+          _log(
+            check.message.isNotEmpty
+                ? check.message
+                : 'Chưa được cấp quyền siêu người dùng — đã chuyển về Bình thường',
+          );
+        }
+      }
+      await _tryRestoreSession();
     } catch (_) {}
 
     await loadFtpServers();
@@ -354,6 +1090,7 @@ class WorkspaceProvider extends ChangeNotifier {
     if (kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       _storageGranted = true;
       _ensureInitialTab();
+      _scheduleBackgroundDataPrefetch();
       notifyListeners();
       return;
     }
@@ -370,6 +1107,9 @@ class WorkspaceProvider extends ChangeNotifier {
       _storageGranted = true;
       _ensureInitialTab();
     }
+    if (_storageGranted) {
+      _scheduleBackgroundDataPrefetch();
+    }
     notifyListeners();
   }
 
@@ -379,7 +1119,9 @@ class WorkspaceProvider extends ChangeNotifier {
     _storageGranted = await _permissionService.hasManageExternalStorage();
     if (!wasGranted && _storageGranted) {
       _log('Đã cấp quyền truy cập tất cả file');
+      invalidateHomeEntries();
       _ensureInitialTab();
+      _scheduleBackgroundDataPrefetch();
     }
     notifyListeners();
   }
@@ -390,7 +1132,9 @@ class WorkspaceProvider extends ChangeNotifier {
     _permissionChecked = true;
     if (_storageGranted) {
       _log('Đã cấp quyền truy cập tất cả file');
+      invalidateHomeEntries();
       _ensureInitialTab();
+      _scheduleBackgroundDataPrefetch();
     } else {
       _log('Bật "Cho phép truy cập để quản lý tất cả tệp" trong Cài đặt');
     }
@@ -417,10 +1161,25 @@ class WorkspaceProvider extends ChangeNotifier {
     _activeTabId = tab.id;
     _log('Tab mới: ${PathUtils.displayName(browsePath)}');
     notifyListeners();
+    unawaited(saveSessionState());
+  }
+
+  void openZipInNewTab(String zipPath, {String innerPath = ''}) {
+    final tab = AppTab(
+      currentPath: zipPath,
+      mode: TabMode.zipViewer,
+      zipArchivePath: zipPath,
+      zipInnerPath: innerPath,
+    );
+    _tabs.add(tab);
+    _activeTabId = tab.id;
+    _log('Tab mới: ${tab.displayName}');
+    notifyListeners();
+    unawaited(saveSessionState());
   }
 
   void closeTab(String tabId) {
-    _cancelArchiveExtractionIfActive(tabId);
+    _cancelFileOperationIfActive(tabId);
     final index = _tabIndex(tabId);
     if (index == -1) return;
     _tabs.removeAt(index);
@@ -430,7 +1189,10 @@ class WorkspaceProvider extends ChangeNotifier {
     if (_tabs.isEmpty && _storageGranted) {
       _ensureInitialTab();
     }
+    _treeExpandedByTab.remove(tabId);
+    _invalidateTreeCache(tabId: tabId);
     notifyListeners();
+    unawaited(saveSessionState());
   }
 
   void activateTab(String tabId) {
@@ -443,7 +1205,7 @@ class WorkspaceProvider extends ChangeNotifier {
   // ── Browser navigation (per tab) ─────────────────────────
 
   Future<void> navigateTo(String tabId, String path) async {
-    _cancelArchiveExtractionIfActive(tabId);
+    _cancelFileOperationIfActive(tabId);
     final virtualPath = path.startsWith('@');
     _setTab(
       tabId,
@@ -458,18 +1220,45 @@ class WorkspaceProvider extends ChangeNotifier {
       ),
     );
     if (path == '@recent') {
-      await _refreshRecentForView();
+      if (_recentFiles.isNotEmpty) {
+        unawaited(_refreshRecentInBackground(showLoadingIfEmpty: false, tabId: tabId));
+      } else {
+        await _refreshRecentInBackground(tabId: tabId);
+      }
+    } else if (path == '@home') {
+      if (_homeEntriesCache == null) {
+        await _loadHomeEntries(tabId: tabId);
+      }
     } else if (AppPathUtils.isAppsList(path)) {
-      await _refreshAppsForView(path, tabId: tabId);
-    } else if (path == '/' && ShellListService.shouldUseShell(path)) {
+      final cacheKey = AppPathUtils.isSystemList(path) ? 'system' : 'user';
+      if ((_appsCache[cacheKey]?.isNotEmpty ?? false)) {
+        unawaited(_refreshAppsForView(path, tabId: tabId, showLoadingIfEmpty: false));
+      } else {
+        await _refreshAppsForView(path, tabId: tabId);
+      }
+    } else if (ShellListService.shouldUseShell(path, mode: _rootAccessMode)) {
       await _loadShellDirectory(tabId, path);
     } else {
+      _dirAccessNotes.remove(path);
+      if (ShellListService.isRootFilesystemPath(path)) {
+        try {
+          listDirectory(path);
+        } on FileAccessException catch (e) {
+          if (_isPermissionDenied(e)) {
+            _setDirectoryAccessDenied(path);
+          }
+        }
+      }
       _log(PathUtils.displayName(path));
-      notifyListeners();
     }
     if (path == '@recent' || AppPathUtils.isAppsList(path)) {
       _log(PathUtils.displayName(path));
     }
+    notifyListeners();
+    if (_browserViewMode == BrowserViewMode.tree) {
+      unawaited(syncTreeExpansion(tabId));
+    }
+    unawaited(saveSessionState());
   }
 
   Future<void> revealFileLocation(String tabId, String filePath) async {
@@ -480,8 +1269,12 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   void navigateUp(String tabId) {
-    _cancelArchiveExtractionIfActive(tabId);
+    _cancelFileOperationIfActive(tabId);
     final tab = _tab(tabId);
+    if (tab.isEditing) {
+      closeEditorInTab(tabId);
+      return;
+    }
     if (tab.isZipViewer) {
       navigateZipUp(tabId);
       return;
@@ -553,6 +1346,9 @@ class WorkspaceProvider extends ChangeNotifier {
       _tab(tabId).copyWith(zipInnerPath: innerPath, clearSelection: true),
     );
     notifyListeners();
+    if (_browserViewMode == BrowserViewMode.tree) {
+      unawaited(syncTreeExpansion(tabId));
+    }
   }
 
   void navigateZipUp(String tabId) {
@@ -585,8 +1381,38 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool isSelectable(String tabId, BrowserEntry entry) {
+    final tab = _tab(tabId);
+    final currentPath = tab.currentPath;
+    if (currentPath == '@home' || currentPath == '@apps' || currentPath == '@ftp') {
+      return false;
+    }
+    if (entry.path == '@add_ftp_server' || entry.path == '@display') {
+      return false;
+    }
+    return true;
+  }
+
+  void selectAll(String tabId) {
+    final tab = _tab(tabId);
+    final entries = listEntriesForTab(tabId);
+    final selectablePaths = entries
+        .where((e) => isSelectable(tabId, e))
+        .map((e) => e.path)
+        .toSet();
+    _setTab(tabId, tab.copyWith(selectedPaths: selectablePaths));
+    notifyListeners();
+  }
+
   void toggleSelection(String tabId, String path) {
     final tab = _tab(tabId);
+    final currentPath = tab.currentPath;
+    if (currentPath == '@home' || currentPath == '@apps' || currentPath == '@ftp') {
+      return;
+    }
+    if (path == '@add_ftp_server' || path == '@display') {
+      return;
+    }
     final norm = _norm(path);
     final next = <String>{};
     var removed = false;
@@ -672,38 +1498,162 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   void _scheduleShellLoad(String tabId, String path) {
-    if (_shellLoadingPaths.contains(path) || _shellDirCache.containsKey(path)) return;
+    if (_shellLoadingPaths.contains(path)) return;
+    if (_shellDirCache.containsKey(path)) {
+      _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+      return;
+    }
     _scheduleAfterFrame(() => unawaited(_loadShellDirectory(tabId, path)));
   }
 
   void _scheduleAppsRefresh(String tabId, String listPath) {
-    if (_appsLoading) return;
-    _scheduleAfterFrame(() => unawaited(_refreshAppsForView(listPath, tabId: tabId)));
+    final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
+    if (_appsLoadingKeys.contains(cacheKey)) return;
+    _scheduleAfterFrame(() => unawaited(_refreshAppsForView(listPath, tabId: tabId, showLoadingIfEmpty: false)));
   }
 
-  Future<void> _refreshAppsForView(String listPath, {String? tabId}) async {
+  void _scheduleBackgroundDataPrefetch() {
+    if (!_storageGranted) return;
+    unawaited(_refreshRecentInBackground(showLoadingIfEmpty: false));
+    if (Platform.isAndroid) {
+      unawaited(_refreshAppsForView(AppPathUtils.systemListPath, showLoadingIfEmpty: false));
+      unawaited(_refreshAppsForView(AppPathUtils.userListPath, showLoadingIfEmpty: false));
+    }
+  }
+
+  String _recentPathKey(String path) {
+    final normalized = p.normalize(path);
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
+  }
+
+  int _mergeRecentResults(List<RecentFileEntry> scanned) {
+    if (_recentFiles.isEmpty) {
+      _recentFiles.addAll(scanned);
+      return scanned.length;
+    }
+
+    final known = _recentFiles.map((e) => _recentPathKey(e.path)).toSet();
+    var added = 0;
+    for (final entry in scanned) {
+      if (known.add(_recentPathKey(entry.path))) {
+        _recentFiles.add(entry);
+        added++;
+      }
+    }
+    if (added > 0) {
+      _recentFiles.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+      if (_recentFiles.length > RecentFilesScanner.maxResults) {
+        _recentFiles.removeRange(RecentFilesScanner.maxResults, _recentFiles.length);
+      }
+    }
+    return added;
+  }
+
+  int _mergeAppsResults(String cacheKey, List<InstalledAppInfo> scanned) {
+    final existing = _appsCache[cacheKey];
+    if (existing == null || existing.isEmpty) {
+      final sorted = List<InstalledAppInfo>.from(scanned)
+        ..sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
+      _appsCache[cacheKey] = sorted;
+      return scanned.length;
+    }
+
+    final known = existing.map((a) => a.packageName).toSet();
+    var added = 0;
+    for (final app in scanned) {
+      if (known.add(app.packageName)) {
+        existing.add(app);
+        added++;
+      }
+    }
+    if (added > 0) {
+      existing.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
+    }
+    return added;
+  }
+
+  Future<void> _refreshRecentInBackground({
+    bool showLoadingIfEmpty = true,
+    String? tabId,
+  }) async {
+    if (_recentScanInProgress) return;
+    _recentScanInProgress = true;
+
+    final generation = ++_recentScanGeneration;
+    final showSpinner = showLoadingIfEmpty && _recentFiles.isEmpty;
+    if (showSpinner) {
+      _recentLoading = true;
+      notifyListeners();
+    }
+
+    try {
+      final roots = StorageRoots.discover(_permissionService);
+      final results = await RecentFilesScanner.scan(
+        roots: roots,
+        showHidden: _showHidden,
+      );
+      if (generation != _recentScanGeneration) return;
+      final added = _mergeRecentResults(results);
+      if (added > 0) {
+        _log('Đã thêm $added tập tin gần đây');
+      } else if (_recentFiles.isEmpty && results.isNotEmpty) {
+        _log('Đã quét ${results.length} tập tin gần đây');
+      }
+    } catch (e) {
+      if (generation == _recentScanGeneration) {
+        _log('Lỗi quét tập tin gần đây: $e');
+      }
+    } finally {
+      _recentScanInProgress = false;
+      if (generation == _recentScanGeneration) {
+        _recentLoading = false;
+        if (tabId != null) _setTab(tabId, _tab(tabId).bumpList());
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _refreshAppsForView(
+    String listPath, {
+    String? tabId,
+    bool showLoadingIfEmpty = true,
+  }) async {
     await Future<void>.delayed(Duration.zero);
 
     final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
-    final generation = ++_appsLoadGeneration;
-    _appsLoading = true;
-    _appsError = null;
-    notifyListeners();
+    if (_appsLoadingKeys.contains(cacheKey)) return;
+
+    final generation = (_appsLoadGenerationByKey[cacheKey] ?? 0) + 1;
+    _appsLoadGenerationByKey[cacheKey] = generation;
+
+    final showSpinner = showLoadingIfEmpty && (_appsCache[cacheKey]?.isEmpty ?? true);
+    if (showSpinner) {
+      _appsLoadingKeys.add(cacheKey);
+      _appsError = null;
+      notifyListeners();
+    }
 
     try {
       final apps = await _appManagerService.listApps(systemApps: cacheKey == 'system');
-      if (generation != _appsLoadGeneration) return;
-      _appsCache[cacheKey] = apps;
-      _log('Đã tải ${apps.length} ứng dụng');
-      unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
+      if (generation != _appsLoadGenerationByKey[cacheKey]) return;
+      final added = _mergeAppsResults(cacheKey, apps);
+      if (added > 0) {
+        final label = cacheKey == 'system' ? 'hệ thống' : 'người dùng';
+        _log('Đã thêm $added ứng dụng ($label)');
+        unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
+      } else if (_appsCache[cacheKey]?.isEmpty ?? true) {
+        _log('Đã tải ${apps.length} ứng dụng');
+        unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
+      }
     } catch (e) {
-      if (generation == _appsLoadGeneration) {
+      if (generation == _appsLoadGenerationByKey[cacheKey]) {
         _appsError = e.toString();
         _log('Lỗi tải ứng dụng: $e');
       }
     } finally {
-      if (generation == _appsLoadGeneration) {
-        _appsLoading = false;
+      if (generation == _appsLoadGenerationByKey[cacheKey]) {
+        _appsLoadingKeys.remove(cacheKey);
         if (tabId != null) _setTab(tabId, _tab(tabId).bumpList());
         notifyListeners();
       }
@@ -739,28 +1689,44 @@ class WorkspaceProvider extends ChangeNotifier {
   Future<void> _loadShellDirectory(String tabId, String path) async {
     await Future<void>.delayed(Duration.zero);
 
-    if (_shellLoadingPaths.contains(path) || _shellDirCache.containsKey(path)) return;
+    if (_shellDirCache.containsKey(path)) {
+      _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+      return;
+    }
+    if (_shellLoadingPaths.contains(path)) return;
 
     _shellLoadingPaths.add(path);
     _shellErrors.remove(path);
+    _dirAccessNotes.remove(path);
     notifyListeners();
 
     try {
-      final entries = await _shellListService.listDirectory(path, showHidden: _showHidden);
+      final entries = await _shellListService.listDirectory(
+        path,
+        showHidden: _showHidden,
+        rootMode: _rootAccessMode,
+      );
       _shellDirCache[path] = entries
-          .map(
-            (entity) => BrowserEntry(
-              name: p.basename(entity.path),
-              path: entity.path,
-              isDirectory: entity.isDirectory,
-              size: entity.size,
-            ),
-          )
+          .map((entity) => _mapListedEntry(
+                entity,
+                probeAccess: ShellListService.isRootFilesystemPath(path) &&
+                    !_rootAccessMode.usesSuperuser,
+              ))
           .toList();
-      _log('Đã đọc ${entries.length} mục tại Root');
+      if (path == '/') {
+        _log('Đã đọc ${entries.length} mục tại Root');
+      } else {
+        _log('Đã đọc ${entries.length} mục tại ${PathUtils.displayName(path)}');
+      }
     } catch (e) {
-      _shellErrors[path] = e.toString();
-      _log('Lỗi đọc Root: $e');
+      if (_isPermissionDenied(e) && ShellListService.isRootFilesystemPath(path)) {
+        _setDirectoryAccessDenied(path);
+      } else {
+        _shellErrors[path] = e.toString();
+        _dirAccessNotes.remove(path);
+        _log('Lỗi đọc ${PathUtils.displayName(path)}: $e');
+      }
     } finally {
       _shellLoadingPaths.remove(path);
       _setTab(tabId, _tab(tabId).bumpList());
@@ -871,76 +1837,168 @@ class WorkspaceProvider extends ChangeNotifier {
     await backupAppApk(packageName);
   }
 
-  List<BrowserEntry> _getHomeEntries() {
-    final rootSpace = getDiskSpace('/');
-    final storageSpace = getDiskSpace('/storage/emulated/0');
+  String _storageSubtitle(String path) {
+    final space = getDiskSpace(path);
+    return space != null ? 'Trống ${space['free']}/${space['total']}' : path;
+  }
 
-    final rootSub = rootSpace != null ? 'Trống ${rootSpace['free']}/${rootSpace['total']}' : '/';
-    final storageSub = storageSpace != null ? 'Trống ${storageSpace['free']}/${storageSpace['total']}' : '/storage/emulated/0';
+  /// Đường dẫn dùng `df` — Root (`/`) lấy theo bộ nhớ trong, không phải partition hệ thống.
+  String diskSpacePathFor(String entryPath) {
+    if (entryPath == '/') {
+      return _internalStoragePath ?? StorageRoots.defaultRoot(_permissionService);
+    }
+    return entryPath;
+  }
 
-    return [
+  Future<List<BrowserEntry>> _buildHomeEntries() async {
+    final volumes = await StorageRoots.discoverHomeVolumes(_permissionService);
+    final entries = <BrowserEntry>[];
+    final removable = volumes.where((v) => v.isRemovable).toList();
+    HomeStorageVolume? internalVolume;
+    for (final volume in volumes) {
+      if (!volume.isRemovable) {
+        internalVolume = volume;
+        break;
+      }
+    }
+    _internalStoragePath = internalVolume?.path ?? StorageRoots.defaultRoot(_permissionService);
+
+    for (final volume in volumes) {
+      if (volume.isRemovable) {
+        final name = removable.length > 1
+            ? 'Thẻ nhớ SD (${volume.volumeId ?? p.basename(volume.path)})'
+            : 'Thẻ nhớ SD';
+        entries.add(
+          BrowserEntry(
+            name: name,
+            path: volume.path,
+            isDirectory: true,
+            subtitle: _storageSubtitle(volume.path),
+            isVirtual: true,
+          ),
+        );
+      } else {
+        entries.add(
+          BrowserEntry(
+            name: 'Bộ nhớ thiết bị',
+            path: volume.path,
+            isDirectory: true,
+            subtitle: _storageSubtitle(volume.path),
+            isVirtual: true,
+          ),
+        );
+      }
+    }
+
+    if (_rootAccessMode != RootAccessMode.disabled) {
+      entries.add(
+        BrowserEntry(
+          name: 'Root',
+          path: '/',
+          isDirectory: true,
+          subtitle: _storageSubtitle(_internalStoragePath!),
+          isVirtual: true,
+        ),
+      );
+    }
+
+    entries.addAll(const [
       BrowserEntry(
-        name: 'Bộ nhớ thiết bị',
-        path: '/storage/emulated/0',
-        isDirectory: true,
-        subtitle: storageSub,
-        isVirtual: true,
-      ),
-      BrowserEntry(
-        name: 'Root',
-        path: '/',
-        isDirectory: true,
-        subtitle: rootSub,
-        isVirtual: true,
-      ),
-      const BrowserEntry(
         name: 'Các tập tin gần đây',
         path: '@recent',
         isDirectory: true,
         isVirtual: true,
       ),
-      const BrowserEntry(
+      BrowserEntry(
         name: 'Trình quản lý ứng dụng',
         path: '@apps',
         isDirectory: true,
         subtitle: 'Hệ thống · Cài đặt',
         isVirtual: true,
       ),
-      const BrowserEntry(
+      BrowserEntry(
         name: 'FTP',
         path: '@ftp',
         isDirectory: true,
         isVirtual: true,
       ),
-    ];
+    ]);
+
+    return entries;
   }
 
-  Future<void> _refreshRecentForView() async {
-    final generation = ++_recentScanGeneration;
-    _recentLoading = true;
+  Future<void> _loadHomeEntries({String? tabId}) async {
+    if (_homeEntriesLoading) return;
+
+    final generation = ++_homeLoadGeneration;
+    _homeEntriesLoading = true;
     notifyListeners();
 
     try {
-      final roots = StorageRoots.discover(_permissionService);
-      final results = await RecentFilesScanner.scan(
-        roots: roots,
-        showHidden: _showHidden,
-      );
-      if (generation != _recentScanGeneration) return;
-      _recentFiles
-        ..clear()
-        ..addAll(results);
-      _log('Đã quét ${results.length} tập tin gần đây');
+      _homeEntriesCache = await _buildHomeEntries();
     } catch (e) {
-      if (generation == _recentScanGeneration) {
-        _log('Lỗi quét tập tin gần đây: $e');
+      if (generation == _homeLoadGeneration) {
+        _log('Lỗi tải màn hình chính: $e');
+        _homeEntriesCache ??= [
+          BrowserEntry(
+            name: 'Bộ nhớ thiết bị',
+            path: StorageRoots.defaultRoot(_permissionService),
+            isDirectory: true,
+            subtitle: StorageRoots.defaultRoot(_permissionService),
+            isVirtual: true,
+          ),
+          if (_rootAccessMode != RootAccessMode.disabled)
+            BrowserEntry(
+              name: 'Root',
+              path: '/',
+              isDirectory: true,
+              subtitle: _storageSubtitle(
+                _internalStoragePath ?? StorageRoots.defaultRoot(_permissionService),
+              ),
+              isVirtual: true,
+            ),
+          const BrowserEntry(
+            name: 'Các tập tin gần đây',
+            path: '@recent',
+            isDirectory: true,
+            isVirtual: true,
+          ),
+          const BrowserEntry(
+            name: 'Trình quản lý ứng dụng',
+            path: '@apps',
+            isDirectory: true,
+            subtitle: 'Hệ thống · Cài đặt',
+            isVirtual: true,
+          ),
+          const BrowserEntry(
+            name: 'FTP',
+            path: '@ftp',
+            isDirectory: true,
+            isVirtual: true,
+          ),
+        ];
       }
     } finally {
-      if (generation == _recentScanGeneration) {
-        _recentLoading = false;
+      if (generation == _homeLoadGeneration) {
+        _homeEntriesLoading = false;
+        if (tabId != null) _setTab(tabId, _tab(tabId).bumpList());
         notifyListeners();
       }
     }
+  }
+
+  void _scheduleHomeLoad(String tabId) {
+    if (_homeEntriesCache != null) {
+      _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+      return;
+    }
+    if (_homeEntriesLoading) return;
+    _scheduleAfterFrame(() => unawaited(_loadHomeEntries(tabId: tabId)));
+  }
+
+  void invalidateHomeEntries() {
+    _homeEntriesCache = null;
   }
 
   String _recentSubtitle(RecentFileEntry entry) {
@@ -1119,9 +2177,7 @@ class WorkspaceProvider extends ChangeNotifier {
     final cacheKey = remotePath.isEmpty ? '@ftp/$serverId' : '@ftp/$serverId/$remotePath';
     if (_ftpLoadingPaths.contains(cacheKey)) return;
     _ftpLoadingPaths.add(cacheKey);
-    _ftpErrors.remove(cacheKey);
 
-    // Schedule notification for background fetch
     Future.microtask(() => notifyListeners());
 
     final server = _ftpServers.firstWhere((s) => s.id == serverId);
@@ -1137,7 +2193,7 @@ class WorkspaceProvider extends ChangeNotifier {
     );
 
     try {
-      await client.connect().timeout(const Duration(seconds: 10));
+      await client.connect().timeout(const Duration(seconds: 15));
       if (remotePath.isNotEmpty) {
         final ftpPath = remotePath.startsWith('/') ? remotePath : '/$remotePath';
         await client.fs.changeDirectory(ftpPath);
@@ -1149,7 +2205,6 @@ class WorkspaceProvider extends ChangeNotifier {
         final isDir = item is FtpDirectory;
         final name = item.name;
 
-        // Filter out hidden files
         if (!_showHidden && (name.startsWith('.') || name == 'Thumbs.db' || name == 'desktop.ini')) {
           continue;
         }
@@ -1171,16 +2226,33 @@ class WorkspaceProvider extends ChangeNotifier {
       });
 
       _ftpCache[cacheKey] = entries;
+      _ftpErrors.remove(cacheKey);
     } catch (e) {
-      _ftpErrors[cacheKey] = e.toString();
+      _ftpErrors[cacheKey] = _formatFtpError(e);
       _log('Lỗi FTP: $e');
     } finally {
       try {
         await client.disconnect();
       } catch (_) {}
       _ftpLoadingPaths.remove(cacheKey);
+      _setTab(tabId, _tab(tabId).bumpList());
       notifyListeners();
     }
+  }
+
+  String _formatFtpError(Object error) {
+    final msg = error.toString();
+    if (msg.contains('Failed host lookup') ||
+        msg.contains('No address associated with hostname')) {
+      return 'Không thể kết nối máy chủ FTP.\nKiểm tra tên miền hoặc kết nối mạng.';
+    }
+    if (msg.contains('TimeoutException') || msg.contains('timed out')) {
+      return 'Hết thời gian kết nối FTP.\nMáy chủ không phản hồi.';
+    }
+    if (msg.contains('Connection refused')) {
+      return 'Máy chủ FTP từ chối kết nối.\nKiểm tra cổng và địa chỉ.';
+    }
+    return msg;
   }
 
   void _scheduleZipListing(String tabId, String zipPath, String innerPath) {
@@ -1230,14 +2302,19 @@ class WorkspaceProvider extends ChangeNotifier {
     List<BrowserEntry> items;
 
     if (tab.currentPath == '@home') {
-      items = _getHomeEntries();
+      if (_homeEntriesCache != null) {
+        items = _homeEntriesCache!;
+      } else {
+        _scheduleHomeLoad(tabId);
+        return [];
+      }
     } else if (tab.currentPath == '@recent') {
       items = _getRecentEntries();
     } else if (tab.currentPath == '@apps') {
       items = _getAppsHomeEntries();
     } else if (AppPathUtils.isAppsList(tab.currentPath)) {
       items = _getInstalledAppsEntries(tab.currentPath);
-      if (items.isEmpty && !_appsLoading && _appsError == null) {
+      if (items.isEmpty && !isAppsListLoading(tab.currentPath) && _appsError == null) {
         _scheduleAppsRefresh(tabId, tab.currentPath);
       }
     } else if (tab.currentPath == '@ftp') {
@@ -1251,6 +2328,8 @@ class WorkspaceProvider extends ChangeNotifier {
       final cacheKey = tab.currentPath;
       if (_ftpCache.containsKey(cacheKey)) {
         items = _ftpCache[cacheKey]!;
+      } else if (_ftpErrors.containsKey(cacheKey)) {
+        items = [];
       } else {
         loadFtpEntries(tabId, serverId, remotePath);
         return [];
@@ -1270,7 +2349,7 @@ class WorkspaceProvider extends ChangeNotifier {
       }
     } else {
       try {
-        if (ShellListService.shouldUseShell(tab.currentPath)) {
+        if (ShellListService.shouldUseShell(tab.currentPath, mode: _rootAccessMode)) {
           if (_shellDirCache.containsKey(tab.currentPath)) {
             items = _shellDirCache[tab.currentPath]!;
           } else {
@@ -1278,24 +2357,24 @@ class WorkspaceProvider extends ChangeNotifier {
             return [];
           }
         } else {
-          items = listDirectory(tab.currentPath).map((entity) {
-            final isDir = entity is Directory;
-            int? size;
-            if (entity is File) {
-              try {
-                size = entity.statSync().size;
-              } catch (_) {}
-            }
-            return BrowserEntry(
-              name: p.basename(entity.path),
-              path: entity.path,
-              isDirectory: isDir,
-              size: size,
-            );
-          }).toList();
+          if (_dirAccessNotes.containsKey(tab.currentPath)) {
+            items = [];
+          } else {
+            final probeAccess = ShellListService.isRootFilesystemPath(tab.currentPath) &&
+                !_rootAccessMode.usesSuperuser;
+            items = listDirectory(tab.currentPath)
+                .map((entity) => _mapFileSystemEntity(entity, probeAccess: probeAccess))
+                .toList();
+          }
         }
-      } on FileAccessException {
-        rethrow;
+      } on FileAccessException catch (e) {
+        if (ShellListService.isRootFilesystemPath(tab.currentPath) &&
+            _isPermissionDenied(e)) {
+          _setDirectoryAccessDenied(tab.currentPath);
+          items = [];
+        } else {
+          rethrow;
+        }
       }
     }
 
@@ -1306,10 +2385,22 @@ class WorkspaceProvider extends ChangeNotifier {
     return items;
   }
 
+  void _resyncTreeAfterRefresh(String tabId) {
+    if (_browserViewMode != BrowserViewMode.tree) return;
+    if (!supportsTreeView(_tab(tabId))) return;
+    unawaited(syncTreeExpansion(tabId));
+  }
+
   void refreshTab(String tabId) {
+    _invalidateTreeCache(tabId: tabId);
     final tab = _tab(tabId);
+    if (tab.currentPath == '@home') {
+      invalidateHomeEntries();
+      unawaited(_loadHomeEntries(tabId: tabId));
+      return;
+    }
     if (tab.currentPath == '@recent') {
-      unawaited(_refreshRecentForView());
+      unawaited(_refreshRecentInBackground(showLoadingIfEmpty: false, tabId: tabId));
       return;
     }
     if (tab.currentPath == '@ftp') {
@@ -1317,9 +2408,8 @@ class WorkspaceProvider extends ChangeNotifier {
       return;
     }
     if (AppPathUtils.isAppsList(tab.currentPath)) {
-      _appsCache.remove(AppPathUtils.isSystemList(tab.currentPath) ? 'system' : 'user');
       _appsError = null;
-      unawaited(_refreshAppsForView(tab.currentPath, tabId: tabId));
+      unawaited(_refreshAppsForView(tab.currentPath, tabId: tabId, showLoadingIfEmpty: false));
       return;
     }
     if (tab.currentPath == '@apps') {
@@ -1330,19 +2420,33 @@ class WorkspaceProvider extends ChangeNotifier {
     if (tab.isZipViewer && tab.zipArchivePath != null) {
       _archiveService.clearZipCache(tab.zipArchivePath);
       _zipListCache.removeWhere((k, _) => k.startsWith('${tab.zipArchivePath}|'));
-      unawaited(_loadZipListing(tabId, tab.zipArchivePath!, tab.zipInnerPath));
+      unawaited(_loadZipListing(tabId, tab.zipArchivePath!, tab.zipInnerPath).then((_) {
+        _resyncTreeAfterRefresh(tabId);
+      }));
       return;
     }
-    if (ShellListService.shouldUseShell(tab.currentPath)) {
+    if (ShellListService.shouldUseShell(tab.currentPath, mode: _rootAccessMode)) {
       _shellDirCache.remove(tab.currentPath);
-      unawaited(_loadShellDirectory(tabId, tab.currentPath));
+      _shellErrors.remove(tab.currentPath);
+      _dirAccessNotes.remove(tab.currentPath);
+      unawaited(_loadShellDirectory(tabId, tab.currentPath).then((_) {
+        _resyncTreeAfterRefresh(tabId);
+      }));
       return;
     }
     if (tab.currentPath.startsWith('@ftp/')) {
       _ftpCache.remove(tab.currentPath);
+      _ftpErrors.remove(tab.currentPath);
+      final inner = tab.currentPath.substring(5);
+      final parts = inner.split('/');
+      final serverId = parts[0];
+      final remotePath = parts.sublist(1).join('/');
+      unawaited(loadFtpEntries(tabId, serverId, remotePath));
+      return;
     }
     _setTab(tabId, _tab(tabId).bumpList());
     notifyListeners();
+    _resyncTreeAfterRefresh(tabId);
   }
 
   Future<void> _refreshFtpList(String tabId) async {
@@ -1352,9 +2456,14 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   void closeEditorInTab(String tabId) {
+    final tab = _tab(tabId);
+    final restoreZip = tab.zipArchivePath != null;
     _setTab(
       tabId,
-      _tab(tabId).copyWith(mode: TabMode.browser, clearEditor: true),
+      tab.copyWith(
+        mode: restoreZip ? TabMode.zipViewer : TabMode.browser,
+        clearEditor: true,
+      ),
     );
     notifyListeners();
   }
@@ -1382,6 +2491,101 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> openFileAs(String tabId, String filePath, FileOpenAs openAs) async {
+    try {
+      if (openAs == FileOpenAs.archive) {
+        if (FileTypeUtils.isZip(filePath)) {
+          openZipView(tabId, filePath);
+        } else if (FileTypeUtils.isTar(filePath)) {
+          await unzipFile(tabId, filePath);
+        } else {
+          _log('Định dạng ${FileTypeUtils.archiveFormatName(filePath)} chưa được hỗ trợ.');
+          notifyListeners();
+        }
+        return;
+      }
+
+      final editor = await _loadEditorTabAs(filePath, openAs);
+      _setTab(
+        tabId,
+        _tab(tabId).copyWith(mode: TabMode.editor, editor: editor),
+      );
+      _activeTabId = tabId;
+      _log('Đã mở ${p.basename(filePath)}');
+      notifyListeners();
+    } catch (e) {
+      _log('Lỗi mở file: $e');
+      notifyListeners();
+    }
+  }
+
+  Future<String?> _resolveLocalPath(String filePath) async {
+    if (filePath.startsWith('@ftp/')) {
+      return downloadFtpFileToTemp(filePath);
+    }
+    return filePath;
+  }
+
+  Future<EditorTab> _loadEditorTabAs(String filePath, FileOpenAs openAs) async {
+    switch (openAs) {
+      case FileOpenAs.text:
+        final String content;
+        if (filePath.startsWith('@ftp/')) {
+          final (serverId, remotePath) = _parseFtpPath(filePath);
+          final client = await _connectFtp(serverId);
+          try {
+            final ftpFile = client.getFile(remotePath);
+            final bytes = await client.fs.downloadFile(ftpFile);
+            content = TextEncodingService.instance.decode(bytes, _textEncoding);
+          } finally {
+            await client.disconnect();
+          }
+        } else {
+          content = await _fileService.readText(filePath, encoding: _textEncoding);
+        }
+        return EditorTab(
+          type: EditorTabType.text,
+          filePath: filePath,
+          title: p.basename(filePath),
+          content: content,
+          language: LanguageDetector.detect(filePath),
+        );
+      case FileOpenAs.pdf:
+        return EditorTab(
+          type: EditorTabType.pdf,
+          filePath: filePath,
+          localPath: await _resolveLocalPath(filePath),
+          title: p.basename(filePath),
+        );
+      case FileOpenAs.image:
+        return EditorTab(
+          type: EditorTabType.media,
+          filePath: filePath,
+          localPath: await _resolveLocalPath(filePath),
+          title: p.basename(filePath),
+          forcedMediaMode: MediaOpenMode.image,
+        );
+      case FileOpenAs.video:
+        return EditorTab(
+          type: EditorTabType.media,
+          filePath: filePath,
+          localPath: await _resolveLocalPath(filePath),
+          title: p.basename(filePath),
+          forcedMediaMode: MediaOpenMode.video,
+        );
+      case FileOpenAs.audio:
+        return EditorTab(
+          type: EditorTabType.media,
+          filePath: filePath,
+          localPath: await _resolveLocalPath(filePath),
+          title: p.basename(filePath),
+          forcedMediaMode: MediaOpenMode.audio,
+        );
+      case FileOpenAs.archive:
+        throw StateError('Archive open-as is handled separately');
+    }
+  }
+
   Future<String?> downloadFtpFileToTemp(String filePath) async {
     if (!filePath.startsWith('@ftp/')) return filePath;
     final (serverId, remotePath) = _parseFtpPath(filePath);
@@ -1401,10 +2605,20 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
 
-  List<String> getMediaFilesOfSameType(String filePath) {
-    final isImg = FileTypeUtils.isImage(filePath);
-    final isVid = FileTypeUtils.isVideo(filePath);
-    final isAud = FileTypeUtils.isAudio(filePath);
+  List<String> getMediaFilesOfSameType(String filePath, {MediaOpenMode? forcedMode}) {
+    bool matches(String path) {
+      if (forcedMode != null) {
+        return switch (forcedMode) {
+          MediaOpenMode.image => FileTypeUtils.isImage(path),
+          MediaOpenMode.video => FileTypeUtils.isVideo(path),
+          MediaOpenMode.audio => FileTypeUtils.isAudio(path),
+        };
+      }
+      if (FileTypeUtils.isImage(filePath)) return FileTypeUtils.isImage(path);
+      if (FileTypeUtils.isVideo(filePath)) return FileTypeUtils.isVideo(path);
+      if (FileTypeUtils.isAudio(filePath)) return FileTypeUtils.isAudio(path);
+      return false;
+    }
 
     if (filePath.startsWith('@ftp/')) {
       final parentPath = p.dirname(filePath).replaceAll('\\', '/');
@@ -1412,12 +2626,7 @@ class WorkspaceProvider extends ChangeNotifier {
       return entries
           .where((e) => !e.isDirectory)
           .map((e) => e.path)
-          .where((path) {
-            if (isImg) return FileTypeUtils.isImage(path);
-            if (isVid) return FileTypeUtils.isVideo(path);
-            if (isAud) return FileTypeUtils.isAudio(path);
-            return false;
-          })
+          .where(matches)
           .toList();
     } else {
       final parentDir = p.dirname(filePath);
@@ -1426,12 +2635,7 @@ class WorkspaceProvider extends ChangeNotifier {
         return entities
             .whereType<File>()
             .map((f) => f.path)
-            .where((path) {
-              if (isImg) return FileTypeUtils.isImage(path);
-              if (isVid) return FileTypeUtils.isVideo(path);
-              if (isAud) return FileTypeUtils.isAudio(path);
-              return false;
-            })
+            .where(matches)
             .toList();
       } catch (_) {
         return [filePath];
@@ -1477,12 +2681,12 @@ class WorkspaceProvider extends ChangeNotifier {
       try {
         final ftpFile = client.getFile(remotePath);
         final bytes = await client.fs.downloadFile(ftpFile);
-        content = utf8.decode(bytes, allowMalformed: true);
+        content = TextEncodingService.instance.decode(bytes, _textEncoding);
       } finally {
         await client.disconnect();
       }
     } else {
-      content = await _fileService.readText(filePath);
+      content = await _fileService.readText(filePath, encoding: _textEncoding);
     }
     return EditorTab(
       type: EditorTabType.text,
@@ -1595,14 +2799,50 @@ class WorkspaceProvider extends ChangeNotifier {
     if (isFtp) {
       _ftpLoadingPaths.add(destinationDir);
     }
+
+    final isMove = _clipboard!.operation == ClipboardOperation.cut;
+    final cancelToken = ArchiveCancelToken();
+    _startFileOperation(
+      TabFileOperation.paste,
+      tabId,
+      label: '${_clipboard!.paths.length} mục',
+      cancelToken: cancelToken,
+    );
     _setBusy(true);
+    _statusMessage = isMove ? 'Đang di chuyển...' : 'Đang dán...';
+
+    final op = _tabFileOperations[tabId]!;
+
     try {
-      _log('Đang thực hiện dán...');
+      _log(isMove ? 'Đang di chuyển...' : 'Đang dán...');
       notifyListeners();
 
-      final isMove = _clipboard!.operation == ClipboardOperation.cut;
+      final total = isFtp
+          ? _clipboard!.paths.length
+          : await _countTransferItems(_clipboard!.paths, isMove: isMove);
+      final tracker = EntryProgressTracker(total > 0 ? total : _clipboard!.paths.length);
+
+      void onTransferProgress(String name, double progress) {
+        _setTabOperationProgress(tabId, progress, name);
+        if (_activeTabId == tabId) {
+          final verb = isMove ? 'Di chuyển' : 'Dán';
+          _statusMessage = '$verb: $name (${(progress * 100).toStringAsFixed(0)}%)';
+        }
+        notifyListeners();
+      }
+
       for (final srcPath in _clipboard!.paths) {
-        await _transferSinglePath(srcPath, destinationDir, isMove: isMove);
+        if (cancelToken.isCancelled) throw const ArchiveCancelledException();
+        await _transferSinglePath(
+          srcPath,
+          destinationDir,
+          isMove: isMove,
+          tracker: tracker,
+          onProgress: onTransferProgress,
+          cancelToken: cancelToken,
+          rollbackPaths: op.rollbackPaths,
+          movedPairs: isMove ? op.movedPairs : null,
+        );
       }
 
       if (isMove) {
@@ -1610,19 +2850,44 @@ class WorkspaceProvider extends ChangeNotifier {
       }
       _log('Đã dán thành công');
       clearSelection(tabId);
+      _hapticOnFileOpComplete();
       refreshTab(tabId);
+    } on ArchiveCancelledException {
+      await _performOperationRollback(tabId);
+      _log('Đã hủy dán');
+      _statusMessage = 'Đã hủy dán';
     } catch (e) {
+      await _performOperationRollback(tabId);
       _log('Lỗi paste: $e');
       notifyListeners();
     } finally {
       if (isFtp) {
         _ftpLoadingPaths.remove(destinationDir);
       }
-      _setBusy(false);
+      _endFileOperation(tabId);
+      if (_tabFileOperations.isEmpty) {
+        _setBusy(false);
+      }
     }
   }
 
-  Future<void> _transferSinglePath(String sourcePath, String destDir, {required bool isMove}) async {
+  Future<int> _countTransferItems(List<String> paths, {required bool isMove}) async {
+    if (isMove) return paths.length;
+    return _fileService.countDeletionItemsInPaths(paths);
+  }
+
+  Future<void> _transferSinglePath(
+    String sourcePath,
+    String destDir, {
+    required bool isMove,
+    EntryProgressTracker? tracker,
+    void Function(String name, double progress)? onProgress,
+    ArchiveCancelToken? cancelToken,
+    List<String>? rollbackPaths,
+    List<({String src, String dest})>? movedPairs,
+  }) async {
+    if (cancelToken?.isCancelled == true) throw const ArchiveCancelledException();
+
     final name = p.basename(sourcePath);
     final destPath = p.join(destDir, name).replaceAll('\\', '/');
     
@@ -1646,6 +2911,8 @@ class WorkspaceProvider extends ChangeNotifier {
       } else {
         await _archiveService.extractEntry(zipPath, innerPath, destDir);
       }
+      rollbackPaths?.add(destPath);
+      onProgress?.call(name, tracker?.advance() ?? 1.0);
       return;
     }
     
@@ -1687,6 +2954,12 @@ class WorkspaceProvider extends ChangeNotifier {
           await _transferFtpFileCrossServer(sourcePath, destPath, isMove: isMove);
         }
       }
+      if (isMove) {
+        movedPairs?.add((src: sourcePath, dest: destPath));
+      } else {
+        rollbackPaths?.add(destPath);
+      }
+      onProgress?.call(name, tracker?.advance() ?? 1.0);
     } else if (srcIsFtp && !destIsFtp) {
       // FTP to Local
       final isDir = _isFtpDirectory(sourcePath);
@@ -1695,6 +2968,12 @@ class WorkspaceProvider extends ChangeNotifier {
       } else {
         await _downloadFtpFile(sourcePath, destPath, isMove: isMove);
       }
+      if (isMove) {
+        movedPairs?.add((src: sourcePath, dest: destPath));
+      } else {
+        rollbackPaths?.add(destPath);
+      }
+      onProgress?.call(name, tracker?.advance() ?? 1.0);
     } else if (!srcIsFtp && destIsFtp) {
       // Local to FTP
       final isDir = _fileService.isDirectory(sourcePath);
@@ -1703,12 +2982,31 @@ class WorkspaceProvider extends ChangeNotifier {
       } else {
         await _uploadLocalFile(sourcePath, destPath, isMove: isMove);
       }
+      if (isMove) {
+        movedPairs?.add((src: sourcePath, dest: destPath));
+      } else {
+        rollbackPaths?.add(destPath);
+      }
+      onProgress?.call(name, tracker?.advance() ?? 1.0);
     } else {
       // Local to Local
       if (isMove) {
         await _fileService.movePaths([sourcePath], destDir);
+        movedPairs?.add((src: sourcePath, dest: destPath));
+        onProgress?.call(name, tracker?.advance() ?? 1.0);
+      } else if (tracker != null && onProgress != null) {
+        final created = await _fileService.copyPathWithProgress(
+          sourcePath,
+          destDir,
+          tracker,
+          onProgress,
+          shouldCancel: () => cancelToken?.isCancelled ?? false,
+        );
+        rollbackPaths?.add(created);
       } else {
-        await _fileService.copyPaths([sourcePath], destDir);
+        final created = await _fileService.copyPath(sourcePath, destDir);
+        rollbackPaths?.add(created);
+        onProgress?.call(name, tracker?.advance() ?? 1.0);
       }
     }
   }
@@ -1886,49 +3184,92 @@ class WorkspaceProvider extends ChangeNotifier {
     if (isFtp) {
       _ftpLoadingPaths.add(dir);
     }
+
+    final cancelToken = ArchiveCancelToken();
+    _startFileOperation(
+      TabFileOperation.duplicate,
+      tabId,
+      label: '${paths.length} mục',
+      cancelToken: cancelToken,
+    );
     _setBusy(true);
+    _statusMessage = 'Đang nhân đôi...';
+
+    final op = _tabFileOperations[tabId]!;
+
     try {
       _log('Đang nhân đôi...');
       notifyListeners();
+
+      final total = isFtp ? paths.length : await _fileService.countDeletionItemsInPaths(paths);
+      final tracker = EntryProgressTracker(total > 0 ? total : paths.length);
+
+      void onDuplicateProgress(String name, double progress) {
+        _setTabOperationProgress(tabId, progress, name);
+        if (_activeTabId == tabId) {
+          _statusMessage = 'Nhân đôi: $name (${(progress * 100).toStringAsFixed(0)}%)';
+        }
+        notifyListeners();
+      }
+
       for (final path in paths) {
+        if (cancelToken.isCancelled) throw const ArchiveCancelledException();
         if (path.startsWith('@ftp/')) {
           final (serverId, remotePath) = _parseFtpPath(path);
           final client = await _connectFtp(serverId);
           try {
             final isDir = _isFtpDirectory(path);
-            final dir = p.dirname(remotePath).replaceAll('\\', '/');
+            final remoteDir = p.dirname(remotePath).replaceAll('\\', '/');
             final base = p.basename(remotePath);
             final String newName;
             if (isDir) {
-              newName = _uniqueFtpName('@ftp/$serverId/${dir.startsWith('/') ? dir.substring(1) : dir}', '$base - Copy');
-              final targetDestPath = p.join(dir, newName).replaceAll('\\', '/');
+              newName = _uniqueFtpName('@ftp/$serverId/${remoteDir.startsWith('/') ? remoteDir.substring(1) : remoteDir}', '$base - Copy');
+              final targetDestPath = p.join(remoteDir, newName).replaceAll('\\', '/');
               await _copyFtpDirectoryWithinServer(client, remotePath, targetDestPath);
+              op.rollbackPaths.add('@ftp/$serverId/${targetDestPath.startsWith('/') ? targetDestPath.substring(1) : targetDestPath}');
             } else {
               final ext = p.extension(base);
               final name = p.basenameWithoutExtension(base);
-              newName = _uniqueFtpName('@ftp/$serverId/${dir.startsWith('/') ? dir.substring(1) : dir}', '$name - Copy$ext');
-              final targetDestPath = p.join(dir, newName).replaceAll('\\', '/');
+              newName = _uniqueFtpName('@ftp/$serverId/${remoteDir.startsWith('/') ? remoteDir.substring(1) : remoteDir}', '$name - Copy$ext');
+              final targetDestPath = p.join(remoteDir, newName).replaceAll('\\', '/');
               final ftpFile = client.getFile(remotePath);
               await ftpFile.copy(targetDestPath);
+              op.rollbackPaths.add('@ftp/$serverId/${targetDestPath.startsWith('/') ? targetDestPath.substring(1) : targetDestPath}');
             }
           } finally {
             await client.disconnect();
           }
+          onDuplicateProgress(p.basename(path), tracker.advance());
         } else {
-          await _fileService.duplicate(path);
+          final created = await _fileService.duplicateWithProgress(
+            path,
+            tracker,
+            onDuplicateProgress,
+            shouldCancel: () => cancelToken.isCancelled,
+          );
+          op.rollbackPaths.add(created);
         }
       }
       _log('Đã nhân đôi ${paths.length} mục');
       clearSelection(tabId);
+      _hapticOnFileOpComplete();
       refreshTab(tabId);
+    } on ArchiveCancelledException {
+      await _performOperationRollback(tabId);
+      _log('Đã hủy nhân đôi');
+      _statusMessage = 'Đã hủy nhân đôi';
     } catch (e) {
+      await _performOperationRollback(tabId);
       _log('Lỗi nhân đôi: $e');
       notifyListeners();
     } finally {
       if (isFtp) {
         _ftpLoadingPaths.remove(dir);
       }
-      _setBusy(false);
+      _endFileOperation(tabId);
+      if (_tabFileOperations.isEmpty) {
+        _setBusy(false);
+      }
     }
   }
 
@@ -1942,9 +3283,15 @@ class WorkspaceProvider extends ChangeNotifier {
       _ftpLoadingPaths.add(dir);
     }
 
-    _startFileOperation(TabFileOperation.delete, tabId, label: '${paths.length} mục');
+    _startFileOperation(
+      TabFileOperation.delete,
+      tabId,
+      label: '${paths.length} mục',
+      cancelToken: ArchiveCancelToken(),
+    );
     _setBusy(true);
     _statusMessage = 'Đang xóa...';
+    final cancelToken = _tabFileOperations[tabId]!.cancelToken!;
 
     try {
       final total = isFtp ? paths.length : await _fileService.countDeletionItemsInPaths(paths);
@@ -1961,7 +3308,12 @@ class WorkspaceProvider extends ChangeNotifier {
       _log('Đang xóa ${paths.length} mục...');
       notifyListeners();
 
+      var stoppedEarly = false;
       for (final path in paths) {
+        if (cancelToken.isCancelled) {
+          stoppedEarly = true;
+          break;
+        }
         if (path.startsWith('@ftp/')) {
           final (serverId, remotePath) = _parseFtpPath(path);
           final client = await _connectFtp(serverId);
@@ -1984,17 +3336,42 @@ class WorkspaceProvider extends ChangeNotifier {
             await client.disconnect();
           }
           onDeleteProgress(p.basename(path), tracker.advance());
+        } else if (_useTrash) {
+          await TrashService.instance.moveToTrash(path);
+          ThumbnailService.instance.evict(path);
+          onDeleteProgress(p.basename(path), tracker.advance());
         } else {
-          await _fileService.deletePathWithProgress(path, tracker, onDeleteProgress);
+          await _fileService.deletePathWithProgress(
+            path,
+            tracker,
+            onDeleteProgress,
+            shouldCancel: () => cancelToken.isCancelled,
+          );
+          ThumbnailService.instance.evict(path);
+        }
+        if (cancelToken.isCancelled) {
+          stoppedEarly = true;
+          break;
         }
       }
 
-      if (tab.isEditing && tab.editor?.filePath != null) {
+      if (tab.isEditing && tab.editor?.filePath != null && !stoppedEarly) {
         if (paths.any((path) => _norm(path) == _norm(tab.editor!.filePath!))) {
           closeEditorInTab(tabId);
         }
       }
-      _log('Đã xóa ${paths.length} mục');
+
+      if (stoppedEarly) {
+        _queueFileOpNotice(
+          'Đã dừng xóa',
+          'Các mục đã xóa không thể khôi phục. Phần còn lại chưa bị xóa.',
+        );
+        _log('Đã dừng xóa');
+        _statusMessage = 'Đã dừng xóa';
+      } else {
+        _log(_useTrash ? 'Đã chuyển ${paths.length} mục vào thùng rác' : 'Đã xóa ${paths.length} mục');
+        _hapticOnFileOpComplete();
+      }
       clearSelection(tabId);
       refreshTab(tabId);
     } catch (e) {
@@ -2066,17 +3443,52 @@ class WorkspaceProvider extends ChangeNotifier {
 
   // ── Zip / Unzip / Open with system ─────────────────────────
 
-  Future<void> zipPaths(String tabId, List<String> paths, {String? password}) async {
+  Future<void> zipPaths(
+    String tabId,
+    List<String> paths, {
+    String? zipName,
+    String? password,
+  }) async {
     if (paths.isEmpty) return;
-    final dir = _tab(tabId).currentPath;
+    var dir = _tab(tabId).currentPath;
+    if (dir == '@recent') {
+      dir = StorageRoots.defaultRoot(_permissionService);
+    }
     final isFtp = dir.startsWith('@ftp/');
     if (isFtp) {
       _ftpLoadingPaths.add(dir);
     }
+
+    final cancelToken = ArchiveCancelToken();
+    var baseName = zipName?.trim() ?? '';
+    if (baseName.isEmpty) {
+      baseName = paths.length == 1
+          ? '${p.basenameWithoutExtension(paths.first)}.zip'
+          : 'archive.zip';
+    }
+    if (!baseName.toLowerCase().endsWith('.zip')) {
+      baseName = '$baseName.zip';
+    }
+
+    _startFileOperation(
+      TabFileOperation.zip,
+      tabId,
+      label: baseName,
+      cancelToken: cancelToken,
+    );
     _setBusy(true);
-    final baseName = paths.length == 1
-        ? '${p.basenameWithoutExtension(paths.first)}.zip'
-        : 'archive.zip';
+    _statusMessage = 'Đang nén...';
+
+    String? rollbackPath;
+
+    void onProgress(double progress, String? file) {
+      _setTabOperationProgress(tabId, progress.clamp(0.0, 1.0), file ?? baseName);
+      if (_activeTabId == tabId && file != null) {
+        final pct = (progress * 100).toStringAsFixed(0);
+        _statusMessage = 'Nén: ${p.basename(file)} ($pct%)';
+      }
+      notifyListeners();
+    }
 
     try {
       _log('Đang nén...');
@@ -2085,12 +3497,16 @@ class WorkspaceProvider extends ChangeNotifier {
       if (isFtp) {
         final (serverId, remoteDirPath) = _parseFtpPath(dir);
         final zipName = _uniqueFtpName(dir, baseName);
-        
+
         final tempDir = await Directory.systemTemp.createTemp('cope_zip_');
+        rollbackPath = tempDir.path;
+        _tabFileOperations[tabId]?.destDir = rollbackPath;
+
         final localZipPath = p.join(tempDir.path, zipName);
-        
-        final List<String> localPathsToZip = [];
+
+        final localPathsToZip = <String>[];
         for (final path in paths) {
+          if (cancelToken.isCancelled) throw const ArchiveCancelledException();
           final name = p.basename(path);
           final localDest = p.join(tempDir.path, name);
           final isDir = _isFtpDirectory(path);
@@ -2101,9 +3517,19 @@ class WorkspaceProvider extends ChangeNotifier {
           }
           localPathsToZip.add(localDest);
         }
-        
-        await _archiveService.zipPaths(localPathsToZip, localZipPath, password: password);
-        
+
+        if (cancelToken.isCancelled) throw const ArchiveCancelledException();
+
+        await _archiveService.zipPaths(
+          localPathsToZip,
+          localZipPath,
+          password: password,
+          onProgress: onProgress,
+          cancelToken: cancelToken,
+        );
+
+        if (cancelToken.isCancelled) throw const ArchiveCancelledException();
+
         final destClient = await _connectFtp(serverId);
         try {
           final remoteZipPath = p.join(remoteDirPath, zipName).replaceAll('\\', '/');
@@ -2113,24 +3539,54 @@ class WorkspaceProvider extends ChangeNotifier {
         } finally {
           await destClient.disconnect();
         }
-        
+
         await tempDir.delete(recursive: true);
+        rollbackPath = null;
+        _tabFileOperations[tabId]?.destDir = null;
         _log('Đã nén thành $zipName');
       } else {
         final zipName = _fileService.uniqueName(dir, baseName);
         final zipPath = p.join(dir, zipName);
-        await _archiveService.zipPaths(paths, zipPath, password: password);
+        rollbackPath = zipPath;
+        _tabFileOperations[tabId]?.destDir = rollbackPath;
+
+        await _archiveService.zipPaths(
+          paths,
+          zipPath,
+          password: password,
+          onProgress: onProgress,
+          cancelToken: cancelToken,
+        );
+
+        rollbackPath = null;
+        _tabFileOperations[tabId]?.destDir = null;
         _log('Đã nén thành $zipName');
       }
+      _hapticOnFileOpComplete();
+      clearSelection(tabId);
       refreshTab(tabId);
+    } on ArchiveCancelledException {
+      if (rollbackPath != null) {
+        _tabFileOperations[tabId]?.destDir ??= rollbackPath;
+      }
+      await _performOperationRollback(tabId);
+      _log('Đã hủy nén');
+      _statusMessage = 'Đã hủy nén';
     } catch (e) {
+      if (rollbackPath != null) {
+        _tabFileOperations[tabId]?.destDir ??= rollbackPath;
+      }
+      await _performOperationRollback(tabId);
       _log('Lỗi nén ZIP: $e');
       notifyListeners();
     } finally {
       if (isFtp) {
         _ftpLoadingPaths.remove(dir);
       }
-      _setBusy(false);
+      _endFileOperation(tabId);
+      if (_tabFileOperations.isEmpty) {
+        _setBusy(false);
+      }
     }
   }
 
@@ -2229,27 +3685,21 @@ class WorkspaceProvider extends ChangeNotifier {
         _tabFileOperations[tabId]?.destDir = null;
         _log('Đã giải nén vào $folderName');
       }
+      _hapticOnFileOpComplete();
       refreshTab(tabId);
     } on ArchiveCancelledException {
+      if (destDir != null) {
+        _tabFileOperations[tabId]?.destDir ??= destDir;
+      }
+      await _performOperationRollback(tabId);
       _log('Đã hủy giải nén');
-      if (destDir != null) {
-        try {
-          final rollbackDir = Directory(destDir);
-          if (await rollbackDir.exists()) {
-            await rollbackDir.delete(recursive: true);
-          }
-        } catch (_) {}
-      }
+      _statusMessage = 'Đã hủy giải nén';
     } catch (e) {
-      _log('Lỗi giải nén: $e');
       if (destDir != null) {
-        try {
-          final rollbackDir = Directory(destDir);
-          if (await rollbackDir.exists()) {
-            await rollbackDir.delete(recursive: true);
-          }
-        } catch (_) {}
+        _tabFileOperations[tabId]?.destDir ??= destDir;
       }
+      await _performOperationRollback(tabId);
+      _log('Lỗi giải nén: $e');
       notifyListeners();
     } finally {
       if (isFtp) {
@@ -2282,6 +3732,11 @@ class WorkspaceProvider extends ChangeNotifier {
       } else {
         finalPath = filePath;
       }
+
+      if (FileTypeUtils.isApk(finalPath)) {
+        await installApkFile(finalPath);
+        return;
+      }
       
       final result = await _openWithService.openWithSystem(finalPath);
       _log(await _openWithService.openResultMessage(result));
@@ -2294,8 +3749,67 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> installApkFile(String filePath) async {
+    _setBusy(true);
+    try {
+      if (!File(filePath).existsSync()) {
+        _log('File APK không tồn tại');
+        notifyListeners();
+        return;
+      }
+      final result = await _openWithService.openWithSystem(filePath);
+      final message = result.type == ResultType.done
+          ? 'Đã mở trình cài đặt'
+          : await _openWithService.openResultMessage(result);
+      _log(message);
+      notifyListeners();
+    } catch (e) {
+      _log('Lỗi cài APK: $e');
+      notifyListeners();
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   Future<String> _extractZipEntryToTemp(String zipPath, String innerPath, {String? password}) {
     return _archiveService.extractEntryToTemp(zipPath, innerPath, password: password);
+  }
+
+  Future<void> openZipFileAs(
+    String tabId,
+    String zipPath,
+    String innerPath,
+    FileOpenAs openAs, {
+    String? password,
+  }) async {
+    _setZipOpening(zipPath, innerPath);
+    _statusMessage = 'Đang mở ${p.basename(innerPath)}...';
+    _setBusy(true);
+    try {
+      var pwd = password;
+      if (pwd == null || pwd.isEmpty) {
+        final protected = await _archiveService.isPasswordProtected(zipPath);
+        if (protected) {
+          _zipErrors[zipPath] = 'File nén được bảo vệ bằng mật khẩu';
+          notifyListeners();
+          return;
+        }
+      }
+
+      _log('Đang mở file từ ZIP...');
+      notifyListeners();
+      final tempPath = await _extractZipEntryToTemp(zipPath, innerPath, password: pwd);
+      await openFileAs(tabId, tempPath, openAs);
+    } catch (e) {
+      if (e is ArchivePasswordException) {
+        _zipErrors[zipPath] = e.toString();
+      }
+      _log('Lỗi mở file: $e');
+      notifyListeners();
+    } finally {
+      _setZipOpening(null, null);
+      _setBusy(false);
+    }
   }
 
   Future<void> openZipFile(String tabId, String zipPath, String innerPath, {String? password}) async {
@@ -2346,7 +3860,7 @@ class WorkspaceProvider extends ChangeNotifier {
 
   Future<void> handleItemTap(String tabId, BrowserEntry entry) async {
     final tab = _tab(tabId);
-    if (tab.hasSelection) {
+    if (tab.hasSelection && isSelectable(tabId, entry)) {
       toggleSelection(tabId, entry.path);
       return;
     }
@@ -2368,6 +3882,15 @@ class WorkspaceProvider extends ChangeNotifier {
     if (AppPathUtils.isAppPackage(entry.path)) {
       final package = AppPathUtils.packageFromPath(entry.path);
       if (package != null) await openSelectedApp(package);
+      return;
+    }
+
+    if (!entry.isDirectory && FileTypeUtils.isApk(entry.path)) {
+      if (_openApkAsZip) {
+        openZipView(tabId, entry.path);
+      } else {
+        await installApkFile(entry.path);
+      }
       return;
     }
 
@@ -2435,13 +3958,13 @@ class WorkspaceProvider extends ChangeNotifier {
             final client = await _connectFtp(serverId);
             try {
               final ftpFile = client.getFile(remotePath);
-              final bytes = utf8.encode(editor.content);
+              final bytes = TextEncodingService.instance.encode(editor.content, _textEncoding);
               await client.fs.uploadFile(ftpFile, bytes);
             } finally {
               await client.disconnect();
             }
           } else {
-            await _fileService.writeText(path, editor.content);
+            await _fileService.writeText(path, editor.content, encoding: _textEncoding);
           }
           _setTab(tabId, tab.copyWith(editor: editor.copyWith(filePath: path, title: p.basename(path), isModified: false)));
         case EditorTabType.empty:

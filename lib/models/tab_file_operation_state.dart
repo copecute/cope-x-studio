@@ -15,12 +15,27 @@ class TabFileOperationState {
   String? label;
   final ArchiveCancelToken? cancelToken;
   String? destDir;
+  bool isRollingBack = false;
+  final List<String> rollbackPaths = [];
+  final List<({String src, String dest})> movedPairs = [];
 
-  bool get canCancel => type == TabFileOperation.unzip;
+  bool get canCancel =>
+      !isRollingBack &&
+      (type == TabFileOperation.unzip ||
+          type == TabFileOperation.zip ||
+          type == TabFileOperation.paste ||
+          type == TabFileOperation.duplicate ||
+          type == TabFileOperation.delete);
 
-  String get overlayTitle => switch (type) {
-        TabFileOperation.unzip => 'Đang giải nén...',
-        TabFileOperation.delete => 'Đang xóa...',
-        TabFileOperation.none => '',
-      };
+  String get overlayTitle {
+    if (isRollingBack) return 'Đang hoàn tác...';
+    return switch (type) {
+      TabFileOperation.unzip => 'Đang giải nén...',
+      TabFileOperation.zip => 'Đang nén...',
+      TabFileOperation.delete => 'Đang xóa...',
+      TabFileOperation.paste => 'Đang dán...',
+      TabFileOperation.duplicate => 'Đang nhân đôi...',
+      TabFileOperation.none => '',
+    };
+  }
 }

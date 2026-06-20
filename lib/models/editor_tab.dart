@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 
 enum EditorTabType { text, empty, pdf, media }
 
+enum MediaOpenMode { image, video, audio }
+
 class EditorTab extends Equatable {
   EditorTab({
     String? id,
@@ -13,6 +15,7 @@ class EditorTab extends Equatable {
     this.isModified = false,
     this.language = 'plaintext',
     this.localPath,
+    this.forcedMediaMode,
   }) : id = id ?? const Uuid().v4();
 
   final String id;
@@ -23,6 +26,7 @@ class EditorTab extends Equatable {
   final bool isModified;
   final String language;
   final String? localPath;
+  final MediaOpenMode? forcedMediaMode;
 
   String get displayName {
     final name = title.isNotEmpty ? title : 'Untitled';
@@ -37,6 +41,7 @@ class EditorTab extends Equatable {
     bool? isModified,
     String? language,
     String? localPath,
+    MediaOpenMode? forcedMediaMode,
   }) {
     return EditorTab(
       id: id,
@@ -47,9 +52,10 @@ class EditorTab extends Equatable {
       isModified: isModified ?? this.isModified,
       language: language ?? this.language,
       localPath: localPath ?? this.localPath,
+      forcedMediaMode: forcedMediaMode ?? this.forcedMediaMode,
     );
   }
 
   @override
-  List<Object?> get props => [id, filePath, isModified, title, localPath];
+  List<Object?> get props => [id, filePath, isModified, title, localPath, forcedMediaMode];
 }

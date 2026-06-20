@@ -241,7 +241,7 @@ function updateShowHiddenButton() {
 }
 
 function hasThumbnail(ext) {
-  return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.mkv', '.webm', '.avi', '.mov', '.apk'].includes(ext.toLowerCase());
+  return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif', '.mp4', '.mkv', '.webm', '.avi', '.mov', '.pdf', '.apk'].includes(ext.toLowerCase());
 }
 
 function showFallbackIconMini(img) {

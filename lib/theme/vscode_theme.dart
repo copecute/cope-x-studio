@@ -5,6 +5,7 @@ class VsCodeColors {
   static const activityBar = Color(0xFF333333);
   static const sidebar = Color(0xFF252526);
   static const editor = Color(0xFF1E1E1E);
+  static const editorGutter = Color(0xFF181818);
   static const tabBar = Color(0xFF2D2D2D);
   static const tabActive = Color(0xFF1E1E1E);
   static const tabInactive = Color(0xFF2D2D2D);

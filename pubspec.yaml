@@ -21,6 +21,8 @@ dependencies:
   flutter_highlight: ^0.7.0
   excel: ^4.0.6
   archive: ^3.6.1
+  charset: ^2.0.1
+  dart3_big5: ^0.1.0
   flutter_archive: ^6.0.4
   xml: ^6.5.0
   equatable: ^2.0.8

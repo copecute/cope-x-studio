@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:cope_x_studio/models/root_access_mode.dart';
+import 'package:cope_x_studio/models/text_encoding.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
@@ -12,6 +16,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  RootAccessMode? _checkingRootMode;
+
   Future<void> _showPasswordSheet() async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -67,6 +73,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return 'Khóa đang tắt. Chạm để đổi mật khẩu.';
     }
     return 'Chạm để đặt mật khẩu, sau đó bật switch để kích hoạt.';
+  }
+
+  Future<void> _onRootAccessModeChanged(RootAccessMode mode) async {
+    if (_checkingRootMode != null) return;
+    final workspace = context.read<WorkspaceProvider>();
+    if (workspace.rootAccessMode == mode) return;
+
+    if (mode.usesSuperuser) {
+      setState(() => _checkingRootMode = mode);
+    }
+
+    final error = await workspace.setRootAccessMode(mode);
+
+    if (!mounted) return;
+    setState(() => _checkingRootMode = null);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
+  }
+
+  Future<void> _showEncodingSheet() async {
+    final workspace = context.read<WorkspaceProvider>();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VsCodeColors.sidebar,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(
+                'Mã hóa văn bản',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Dùng khi mở và lưu file văn bản trong trình soạn thảo.',
+                style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: TextEncoding.values.length,
+                itemBuilder: (_, index) {
+                  final encoding = TextEncoding.values[index];
+                  return RadioListTile<TextEncoding>(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    title: Text(encoding.label),
+                    value: encoding,
+                    groupValue: workspace.textEncoding,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      workspace.setTextEncoding(value);
+                      Navigator.pop(ctx);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -131,6 +215,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           const Divider(height: 40, color: VsCodeColors.border),
           const Text(
+            'Truy cập Root',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ...RootAccessMode.values.map(
+            (mode) {
+              final checking = _checkingRootMode == mode;
+              return RadioListTile<RootAccessMode>(
+                contentPadding: EdgeInsets.zero,
+                title: Text(mode.label),
+                subtitle: checking
+                    ? const Row(
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Đang kiểm tra quyền siêu người dùng...',
+                            style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        mode.description,
+                        style: const TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
+                      ),
+                value: mode,
+                groupValue: workspace.rootAccessMode,
+                onChanged: _checkingRootMode != null
+                    ? null
+                    : (value) {
+                        if (value != null) unawaited(_onRootAccessModeChanged(value));
+                      },
+              );
+            },
+          ),
+          const Divider(height: 40, color: VsCodeColors.border),
+          const Text(
             'Hiển thị',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
@@ -143,6 +268,119 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (v) {
               workspace.setShowHidden(v);
             },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Mở APK như ZIP'),
+            subtitle: const Text(
+              'Duyệt file APK như ZIP. Tắt để mở bằng trình cài đặt hệ thống.',
+            ),
+            value: workspace.openApkAsZip,
+            onChanged: workspace.setOpenApkAsZip,
+          ),
+          const Divider(height: 40, color: VsCodeColors.border),
+          const Text(
+            'Văn bản & trình soạn thảo',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Mã hóa văn bản'),
+            subtitle: Text(workspace.textEncoding.label),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showEncodingSheet,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Cỡ chữ trình soạn thảo (${workspace.editorFontSize.toInt()})'),
+            subtitle: const Text('Chỉ áp dụng trong trình soạn thảo, không ảnh hưởng giao diện chung'),
+            trailing: SizedBox(
+              width: 140,
+              child: Slider(
+                value: workspace.editorFontSize,
+                min: 10,
+                max: 28,
+                divisions: 18,
+                label: workspace.editorFontSize.toInt().toString(),
+                onChanged: workspace.setEditorFontSize,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Hiển thị số dòng'),
+            subtitle: const Text('Cột số dòng bên trái trong trình soạn thảo'),
+            value: workspace.editorShowLineNumbers,
+            onChanged: workspace.setEditorShowLineNumbers,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Xuống dòng tự động (Word wrap)'),
+            subtitle: const Text('Tự xuống dòng khi văn bản dài hơn chiều rộng màn hình'),
+            value: workspace.editorWordWrap,
+            onChanged: workspace.setEditorWordWrap,
+          ),
+          const Divider(height: 40, color: VsCodeColors.border),
+          const Text(
+            'Giao diện & thao tác',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Kích thước hiển thị (${(workspace.uiScale * 100).round()}%)'),
+            subtitle: Slider(
+              value: workspace.uiScale,
+              min: 0.8,
+              max: 1.4,
+              divisions: 12,
+              label: '${(workspace.uiScale * 100).round()}%',
+              onChanged: workspace.setUiScale,
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Toàn màn hình'),
+            subtitle: const Text('Ẩn thanh trạng thái và điều hướng hệ thống'),
+            value: workspace.fullscreenEnabled,
+            onChanged: workspace.setFullscreenEnabled,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Rung khi hoàn tất thao tác'),
+            subtitle: const Text('Phản hồi rung nhẹ sau khi sao chép, di chuyển hoặc xóa'),
+            value: workspace.hapticEnabled,
+            onChanged: workspace.setHapticEnabled,
+          ),
+          const Divider(height: 40, color: VsCodeColors.border),
+          const Text(
+            'Ứng dụng',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Nhớ đường dẫn gần nhất'),
+            subtitle: const Text('Mở lại tab và thư mục khi khởi động lại app'),
+            value: workspace.rememberLastPath,
+            onChanged: workspace.setRememberLastPath,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Yêu cầu xác nhận khi thoát'),
+            subtitle: const Text('Hiện hộp thoại trước khi đóng ứng dụng'),
+            value: workspace.requireExitConfirmation,
+            onChanged: workspace.setRequireExitConfirmation,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Sử dụng thùng rác'),
+            subtitle: const Text(
+              'Xóa file sẽ chuyển vào /copecute/.trash và tự xóa sau 30 ngày',
+            ),
+            value: workspace.useTrash,
+            onChanged: workspace.setUseTrash,
           ),
         ],
       ),

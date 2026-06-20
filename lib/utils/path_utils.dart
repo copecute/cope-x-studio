@@ -13,6 +13,16 @@ class PathUtils {
     return normalized;
   }
 
+  /// Màn hình được phép dùng «Nén thư mục hiện tại» (bộ nhớ, root, gần đây, FTP).
+  static bool canZipCurrentFolder(String path, {bool isZipViewer = false}) {
+    if (isZipViewer) return false;
+    if (path == '@home' || path == '@apps' || path == '@ftp') return false;
+    if (AppPathUtils.isAppsList(path) || AppPathUtils.isAppPackage(path)) return false;
+    if (path.startsWith('@ftp/')) return true;
+    if (path == '@recent') return true;
+    return !path.startsWith('@');
+  }
+
   static String displayName(String path) {
     switch (path) {
       case '@home':

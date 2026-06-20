@@ -10,6 +10,8 @@ class BrowserEntry {
     this.subtitle,
     this.isVirtual = false,
     this.iconBytes,
+    this.childrenCount,
+    this.accessDenied = false,
   });
 
   final String name;
@@ -20,5 +22,7 @@ class BrowserEntry {
   final String? subtitle;
   final bool isVirtual;
   final Uint8List? iconBytes;
+  final int? childrenCount;
+  final bool accessDenied;
 }
 

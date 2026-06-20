@@ -21,6 +21,7 @@ class CodeEditorView extends StatefulWidget {
 class _CodeEditorViewState extends State<CodeEditorView> {
   late CodeController _controller;
   final FocusNode _editorFocusNode = FocusNode();
+  final ScrollController _editorScrollController = ScrollController();
 
   // Undo / Redo history
   final List<TextEditingValue> _undoStack = [];
@@ -41,6 +42,95 @@ class _CodeEditorViewState extends State<CodeEditorView> {
     super.initState();
     _initController();
     _searchController.addListener(_updateMatches);
+  }
+
+  @override
+  void dispose() {
+    _historyTimer?.cancel();
+    _editorScrollController.dispose();
+    _editorFocusNode.dispose();
+    _controller.removeListener(_onTextChanged);
+    _controller.dispose();
+    _searchController.dispose();
+    _replaceController.dispose();
+    super.dispose();
+  }
+
+  static const _codeFieldLeftPad = 8.0;
+  static const _gutterMargin = 4.0;
+
+  double _lineHeightFor(double fontSize) => fontSize * 1.4;
+
+  double _charWidthFor(double fontSize) => fontSize * 0.6;
+
+  double _gutterStyleWidth(double fontSize, int lineCount) {
+    final maxDigits = lineCount.toString().length;
+    final digitWidth = fontSize * 0.65;
+    const foldingColumn = 16.0;
+    const innerPad = 6.0;
+    final numbersWidth = maxDigits * digitWidth + innerPad + _gutterMargin;
+    return numbersWidth + foldingColumn;
+  }
+
+  double _textAreaLeftFor(double gutterWidth, bool showLineNumbers) {
+    if (!showLineNumbers) return _codeFieldLeftPad;
+    return _codeFieldLeftPad + gutterWidth;
+  }
+
+  int _offsetForLine(int lineIndex, List<String> lines) {
+    var offset = 0;
+    for (var i = 0; i < lineIndex && i < lines.length; i++) {
+      offset += lines[i].length + 1;
+    }
+    return offset;
+  }
+
+  void _setCursorOffset(int offset) {
+    final clamped = offset.clamp(0, _controller.text.length);
+    _controller.selection = TextSelection.collapsed(offset: clamped);
+  }
+
+  void _handleEditorPointerDown(
+    PointerDownEvent event,
+    double fontSize,
+    double gutterWidth,
+    bool showLineNumbers,
+  ) {
+    _editorFocusNode.requestFocus();
+
+    final lineHeight = _lineHeightFor(fontSize);
+    final textAreaLeft = _textAreaLeftFor(gutterWidth, showLineNumbers);
+    final charWidth = _charWidthFor(fontSize);
+    final scrollOffset =
+        _editorScrollController.hasClients ? _editorScrollController.offset : 0.0;
+    final tapY = event.localPosition.dy + scrollOffset;
+    final tapX = event.localPosition.dx;
+
+    final text = _controller.text;
+    final lines = text.isEmpty ? <String>[''] : text.split('\n');
+    final contentHeight = lines.length * lineHeight;
+
+    if (tapY >= contentHeight) {
+      _setCursorOffset(text.length);
+      return;
+    }
+
+    final lineIndex = (tapY / lineHeight).floor().clamp(0, lines.length - 1);
+    final lineText = lines[lineIndex];
+
+    if (tapX < textAreaLeft) {
+      _setCursorOffset(_offsetForLine(lineIndex, lines));
+      return;
+    }
+
+    final textWidth = lineText.length * charWidth;
+    if (tapX > textAreaLeft + textWidth) {
+      _setCursorOffset(_offsetForLine(lineIndex, lines) + lineText.length);
+      return;
+    }
+
+    final col = ((tapX - textAreaLeft) / charWidth).round().clamp(0, lineText.length);
+    _setCursorOffset(_offsetForLine(lineIndex, lines) + col);
   }
 
   @override
@@ -284,19 +374,11 @@ class _CodeEditorViewState extends State<CodeEditorView> {
     _editorFocusNode.requestFocus();
   }
 
-  @override
-  void dispose() {
-    _controller.removeListener(_onTextChanged);
-    _controller.dispose();
-    _editorFocusNode.dispose();
-    _searchController.dispose();
-    _replaceController.dispose();
-    _historyTimer?.cancel();
-    super.dispose();
-  }
-
-  Widget _buildToolbar() {
+  Widget _buildToolbar(WorkspaceProvider workspace) {
     final hasSelection = _controller.selection.isValid && !_controller.selection.isCollapsed;
+    final fontSize = workspace.editorFontSize;
+    final showLineNumbers = workspace.editorShowLineNumbers;
+    final wordWrap = workspace.editorWordWrap;
     return Container(
       height: 38,
       decoration: const BoxDecoration(
@@ -306,8 +388,11 @@ class _CodeEditorViewState extends State<CodeEditorView> {
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           IconButton(
             icon: const Icon(Icons.undo, size: 18),
             tooltip: 'Hoàn tác',
@@ -353,7 +438,51 @@ class _CodeEditorViewState extends State<CodeEditorView> {
             },
             color: _showSearch ? VsCodeColors.accent : Colors.white,
           ),
-        ],
+          const VerticalDivider(width: 12, indent: 8, endIndent: 8, color: VsCodeColors.border),
+          IconButton(
+            icon: Icon(
+              Icons.format_list_numbered,
+              size: 18,
+              color: showLineNumbers ? VsCodeColors.accent : VsCodeColors.foregroundDim,
+            ),
+            tooltip: showLineNumbers ? 'Ẩn số dòng' : 'Hiện số dòng',
+            onPressed: () => workspace.setEditorShowLineNumbers(!showLineNumbers),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.wrap_text,
+              size: 18,
+              color: wordWrap ? VsCodeColors.accent : VsCodeColors.foregroundDim,
+            ),
+            tooltip: wordWrap ? 'Tắt xuống dòng tự động' : 'Bật xuống dòng tự động',
+            onPressed: () => workspace.setEditorWordWrap(!wordWrap),
+          ),
+          IconButton(
+            icon: const Icon(Icons.text_decrease, size: 18),
+            tooltip: 'Giảm cỡ chữ',
+            onPressed: fontSize > 10 ? () => workspace.adjustEditorFontSize(-1) : null,
+            color: fontSize > 10 ? Colors.white : VsCodeColors.foregroundDim,
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '${fontSize.toInt()}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: VsCodeColors.foreground,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.text_increase, size: 18),
+            tooltip: 'Tăng cỡ chữ',
+            onPressed: fontSize < 28 ? () => workspace.adjustEditorFontSize(1) : null,
+            color: fontSize < 28 ? Colors.white : VsCodeColors.foregroundDim,
+          ),
+          ],
+        ),
       ),
     );
   }
@@ -490,42 +619,82 @@ class _CodeEditorViewState extends State<CodeEditorView> {
 
   @override
   Widget build(BuildContext context) {
+    final workspace = context.watch<WorkspaceProvider>();
+    final fontSize = workspace.editorFontSize;
+    final showLineNumbers = workspace.editorShowLineNumbers;
+    final wordWrap = workspace.editorWordWrap;
     final lineCount = _controller.text.split('\n').length;
-    final maxDigits = lineCount.toString().length;
-    final double gutterWidth = (44 + maxDigits * 8).toDouble().clamp(64.0, 200.0);
+    final gutterWidth = showLineNumbers ? _gutterStyleWidth(fontSize, lineCount) : 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildToolbar(),
+        _buildToolbar(workspace),
         if (_showSearch) _buildSearchPanel(),
         Expanded(
-          child: Container(
-            color: VsCodeColors.editor,
-            child: CodeTheme(
-              data: CodeThemeData(styles: vs2015Theme),
-              child: SingleChildScrollView(
-                child: CodeField(
-                  controller: _controller,
-                  focusNode: _editorFocusNode,
-                  textStyle: const TextStyle(
-                    fontFamily: 'Consolas',
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                  gutterStyle: GutterStyle(
-                    width: gutterWidth,
-                    margin: 8,
-                    textStyle: const TextStyle(
-                      color: VsCodeColors.foregroundDim,
-                      fontSize: 12,
-                      fontFamily: 'Consolas',
-                    ),
-                  ),
-                  wrap: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (event) => _handleEditorPointerDown(
+                  event,
+                  fontSize,
+                  gutterWidth,
+                  showLineNumbers,
                 ),
-              ),
-            ),
+                child: Stack(
+                  children: [
+                    if (showLineNumbers)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: _codeFieldLeftPad + gutterWidth,
+                        child: const ColoredBox(color: VsCodeColors.editorGutter),
+                      ),
+                    ColoredBox(
+                      color: VsCodeColors.editor,
+                      child: CodeTheme(
+                        data: CodeThemeData(styles: vs2015Theme),
+                        child: SingleChildScrollView(
+                          controller: _editorScrollController,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: CodeField(
+                              controller: _controller,
+                              focusNode: _editorFocusNode,
+                              textStyle: TextStyle(
+                                fontFamily: 'Consolas',
+                                fontSize: fontSize,
+                                height: 1.4,
+                              ),
+                              gutterStyle: showLineNumbers
+                                  ? GutterStyle(
+                                      width: gutterWidth,
+                                      margin: _gutterMargin,
+                                      background: VsCodeColors.editorGutter,
+                                      showLineNumbers: true,
+                                      showErrors: false,
+                                      showFoldingHandles: true,
+                                      textStyle: TextStyle(
+                                        color: VsCodeColors.foregroundDim,
+                                        fontSize: (fontSize - 1).clamp(9.0, 26.0),
+                                        fontFamily: 'Consolas',
+                                      ),
+                                    )
+                                  : GutterStyle.none,
+                              wrap: wordWrap,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],

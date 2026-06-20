@@ -7,5 +7,5 @@ class ArchiveCancelToken {
 class ArchiveCancelledException implements Exception {
   const ArchiveCancelledException();
   @override
-  String toString() => 'Đã hủy giải nén';
+  String toString() => 'Đã hủy thao tác';
 }

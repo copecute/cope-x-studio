@@ -3,10 +3,11 @@ import 'dart:typed_data';
 import 'package:cope_x_studio/services/thumbnail_service.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
+import 'package:cope_x_studio/widgets/browser/folder_icon_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
-/// Thumbnail 40x40 cho ảnh / video / APK trong danh sách file.
+/// Thumbnail 40x40 cho ảnh / video / PDF / APK trong danh sách file.
 class FileThumbnail extends StatefulWidget {
   const FileThumbnail({
     super.key,
@@ -60,7 +61,10 @@ class _FileThumbnailState extends State<FileThumbnail> {
     final name = p.basename(widget.path);
 
     if (widget.isDirectory) {
-      return _iconBox(Icons.folder, const Color(0xFFDCA458));
+      return FolderIconWidget(
+        folderName: p.basename(widget.path),
+        size: widget.size,
+      );
     }
 
     if (_bytes != null) {
@@ -121,6 +125,7 @@ class _FileThumbnailState extends State<FileThumbnail> {
       '.apk' || '.xapk' => Icons.android,
       '.mp3' || '.wav' || '.flac' || '.aac' => Icons.audiotrack,
       '.mp4' || '.mkv' || '.avi' => Icons.videocam_outlined,
+      '.pdf' => Icons.picture_as_pdf_outlined,
       '.jpg' || '.jpeg' || '.png' || '.gif' || '.webp' => Icons.image_outlined,
       _ => Icons.insert_drive_file_outlined,
     };
@@ -135,6 +140,7 @@ class _FileThumbnailState extends State<FileThumbnail> {
       '.pptx' => const Color(0xFFD24726),
       '.apk' || '.xapk' => const Color(0xFF3DDC84),
       '.zip' => const Color(0xFFE8B84A),
+      '.pdf' => const Color(0xFFE53935),
       _ => VsCodeColors.foregroundDim,
     };
   }

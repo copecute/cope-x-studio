@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:cope_x_studio/models/text_encoding.dart';
+import 'package:cope_x_studio/services/archive_cancel_token.dart';
+import 'package:cope_x_studio/services/text_encoding_service.dart';
 import 'package:cope_x_studio/utils/entry_progress_tracker.dart';
 import 'package:path/path.dart' as p;
 
@@ -52,12 +55,18 @@ class FileService {
     return entries;
   }
 
-  Future<String> readText(String filePath) async {
-    return File(filePath).readAsString();
+  Future<String> readText(String filePath, {TextEncoding encoding = TextEncoding.utf8}) async {
+    final bytes = await File(filePath).readAsBytes();
+    return TextEncodingService.instance.decode(bytes, encoding);
   }
 
-  Future<void> writeText(String filePath, String content) async {
-    await File(filePath).writeAsString(content);
+  Future<void> writeText(
+    String filePath,
+    String content, {
+    TextEncoding encoding = TextEncoding.utf8,
+  }) async {
+    final bytes = TextEncodingService.instance.encode(content, encoding);
+    await File(filePath).writeAsBytes(bytes);
   }
 
   Future<void> writeBytes(String filePath, List<int> bytes) async {
@@ -109,12 +118,18 @@ class FileService {
     return total;
   }
 
-  /// Xóa và báo tiến độ theo từng mục.
+  /// Xóa và báo tiến độ theo từng mục. Kiểm tra [shouldCancel] sau mỗi mục đã xóa xong.
   Future<void> deletePathWithProgress(
     String path,
     EntryProgressTracker tracker,
-    void Function(String name, double progress) onProgress,
-  ) async {
+    void Function(String name, double progress) onProgress, {
+    bool Function()? shouldCancel,
+  }) async {
+    bool stopIfRequested() {
+      if (shouldCancel?.call() == true) return true;
+      return false;
+    }
+
     final type = FileSystemEntity.typeSync(path);
     if (type == FileSystemEntityType.file) {
       final file = File(path);
@@ -132,10 +147,13 @@ class FileService {
         if (entity is File) {
           await entity.delete();
           onProgress(p.basename(entity.path), tracker.advance());
+          if (stopIfRequested()) return;
         } else if (entity is Directory) {
-          await deletePathWithProgress(entity.path, tracker, onProgress);
+          await deletePathWithProgress(entity.path, tracker, onProgress, shouldCancel: shouldCancel);
+          if (stopIfRequested()) return;
         }
       }
+      if (stopIfRequested()) return;
       if (dir.existsSync()) {
         await dir.delete();
         onProgress(p.basename(path), tracker.advance());
@@ -163,16 +181,121 @@ class FileService {
 
   Future<void> copyPaths(List<String> sources, String destinationDir) async {
     for (final source in sources) {
-      final name = p.basename(source);
-      final dest = p.join(destinationDir, name);
-      if (exists(dest)) {
-        throw FileSystemException('Đã tồn tại', dest);
-      }
-      final type = FileSystemEntity.typeSync(source);
-      if (type == FileSystemEntityType.directory) {
-        await _copyDirectory(Directory(source), Directory(dest));
-      } else {
-        await File(source).copy(dest);
+      await copyPath(source, destinationDir);
+    }
+  }
+
+  Future<String> copyPath(String source, String destinationDir) async {
+    final name = p.basename(source);
+    final dest = p.join(destinationDir, name);
+    if (exists(dest)) {
+      throw FileSystemException('Đã tồn tại', dest);
+    }
+    final type = FileSystemEntity.typeSync(source);
+    if (type == FileSystemEntityType.directory) {
+      await _copyDirectory(Directory(source), Directory(dest));
+    } else {
+      await File(source).copy(dest);
+    }
+    return dest;
+  }
+
+  Future<String> copyPathWithProgress(
+    String source,
+    String destinationDir,
+    EntryProgressTracker tracker,
+    void Function(String name, double progress) onProgress, {
+    bool Function()? shouldCancel,
+  }) async {
+    void checkCancel() {
+      if (shouldCancel?.call() == true) throw const ArchiveCancelledException();
+    }
+
+    checkCancel();
+    final name = p.basename(source);
+    final dest = p.join(destinationDir, name);
+    if (exists(dest)) {
+      throw FileSystemException('Đã tồn tại', dest);
+    }
+
+    final type = FileSystemEntity.typeSync(source);
+    if (type == FileSystemEntityType.directory) {
+      await _copyDirectoryWithProgress(
+        Directory(source),
+        Directory(dest),
+        tracker,
+        onProgress,
+        shouldCancel: shouldCancel,
+      );
+    } else {
+      await File(source).copy(dest);
+      onProgress(name, tracker.advance());
+    }
+    return dest;
+  }
+
+  Future<String> duplicateWithProgress(
+    String sourcePath,
+    EntryProgressTracker tracker,
+    void Function(String name, double progress) onProgress, {
+    bool Function()? shouldCancel,
+  }) async {
+    final dir = p.dirname(sourcePath);
+    final base = p.basename(sourcePath);
+    final isDir = isDirectory(sourcePath);
+    final String newName;
+    if (isDir) {
+      newName = uniqueName(dir, '$base - Copy');
+    } else {
+      final ext = p.extension(base);
+      final name = p.basenameWithoutExtension(base);
+      newName = uniqueName(dir, '$name - Copy$ext');
+    }
+    final dest = p.join(dir, newName);
+    if (isDir) {
+      await _copyDirectoryWithProgress(
+        Directory(sourcePath),
+        Directory(dest),
+        tracker,
+        onProgress,
+        shouldCancel: shouldCancel,
+      );
+    } else {
+      if (shouldCancel?.call() == true) throw const ArchiveCancelledException();
+      await File(sourcePath).copy(dest);
+      onProgress(newName, tracker.advance());
+    }
+    return dest;
+  }
+
+  Future<void> _copyDirectoryWithProgress(
+    Directory source,
+    Directory dest,
+    EntryProgressTracker tracker,
+    void Function(String name, double progress) onProgress, {
+    bool Function()? shouldCancel,
+  }) async {
+    void checkCancel() {
+      if (shouldCancel?.call() == true) throw const ArchiveCancelledException();
+    }
+
+    if (!dest.existsSync()) {
+      await dest.create(recursive: true);
+    }
+    await for (final entity in source.list(recursive: false, followLinks: false)) {
+      checkCancel();
+      final newPath = p.join(dest.path, p.basename(entity.path));
+      if (entity is Directory) {
+        await _copyDirectoryWithProgress(
+          entity,
+          Directory(newPath),
+          tracker,
+          onProgress,
+          shouldCancel: shouldCancel,
+        );
+      } else if (entity is File) {
+        await entity.copy(newPath);
+        onProgress(p.basename(entity.path), tracker.advance());
       }
     }
   }
