@@ -11,7 +11,7 @@ class LogConsoleSheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: VsCodeColors.sidebar,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
@@ -34,7 +34,7 @@ class LogConsoleSheet extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
           child: Row(
             children: [
-              const Icon(Icons.terminal, color: VsCodeColors.accent, size: 22),
+              Icon(Icons.terminal, color: VsCodeColors.accent, size: 22),
               const SizedBox(width: 8),
               const Text('Console Log', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const Spacer(),
@@ -49,10 +49,10 @@ class LogConsoleSheet extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1, color: VsCodeColors.border),
+        Divider(height: 1, color: VsCodeColors.border),
         Expanded(
           child: logs.isEmpty
-              ? const Center(child: Text('Chưa có log', style: TextStyle(color: VsCodeColors.foregroundDim)))
+              ? Center(child: Text('Chưa có log', style: TextStyle(color: VsCodeColors.foregroundDim)))
               : ListView.builder(
                   reverse: true,
                   padding: const EdgeInsets.all(12),
@@ -62,7 +62,7 @@ class LogConsoleSheet extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 6),
                       child: SelectableText(
                         logs[index],
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Consolas',
                           fontSize: 13,
                           color: VsCodeColors.foreground,

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:cope_x_studio/models/app_tab.dart';
+import 'package:cope_x_studio/models/app_theme_mode.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/models/browser_view_mode.dart';
 import 'package:cope_x_studio/models/editor_tab.dart';
@@ -33,6 +34,7 @@ import 'package:cope_x_studio/services/recent_files_scanner.dart';
 import 'package:cope_x_studio/utils/entry_progress_tracker.dart';
 import 'package:cope_x_studio/services/shell_list_service.dart';
 import 'package:cope_x_studio/services/thumbnail_service.dart';
+import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/services/web_server/web_server_service.dart';
 import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
@@ -108,6 +110,7 @@ class WorkspaceProvider extends ChangeNotifier {
   bool _rememberLastPath = true;
   bool _requireExitConfirmation = true;
   bool _useTrash = false;
+  AppThemeMode _appThemeMode = AppThemeMode.dark;
 
   final List<RecentFileEntry> _recentFiles = [];
   bool _recentLoading = false;
@@ -185,6 +188,15 @@ class WorkspaceProvider extends ChangeNotifier {
   bool get rememberLastPath => _rememberLastPath;
   bool get requireExitConfirmation => _requireExitConfirmation;
   bool get useTrash => _useTrash;
+  AppThemeMode get appThemeMode => _appThemeMode;
+  ThemeMode get themeMode => _appThemeMode.themeMode;
+
+  Brightness get effectiveBrightness => switch (_appThemeMode) {
+        AppThemeMode.dark => Brightness.dark,
+        AppThemeMode.light => Brightness.light,
+        AppThemeMode.system =>
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+      };
 
   double scaledSize(double value) => value * _uiScale;
 
@@ -446,17 +458,21 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
 
-  static void applyFullscreenMode(bool enabled) {
-    if (enabled) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    } else {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Color(0xFF1E1E1E),
-        systemNavigationBarIconBrightness: Brightness.light,
-      ));
+  static void applyFullscreenMode(bool enabled, {Brightness brightness = Brightness.dark}) {
+    applyVsCodeSystemOverlay(brightness, fullscreen: enabled);
+  }
+
+  void _applySystemChrome() {
+    applyVsCodeSystemOverlay(effectiveBrightness, fullscreen: _fullscreenEnabled);
+  }
+
+  Brightness? _lastAppliedThemeBrightness;
+
+  void applySystemChromeForTheme(Brightness brightness) {
+    if (_lastAppliedThemeBrightness == brightness) return;
+    _lastAppliedThemeBrightness = brightness;
+    if (!_fullscreenEnabled) {
+      applyVsCodeSystemOverlay(brightness, fullscreen: false);
     }
   }
 
@@ -515,10 +531,18 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setAppThemeMode(AppThemeMode mode) async {
+    if (_appThemeMode == mode) return;
+    _appThemeMode = mode;
+    await _persistSetting('app_theme_mode', mode.storageValue);
+    _applySystemChrome();
+    notifyListeners();
+  }
+
   Future<void> setFullscreenEnabled(bool value) async {
     if (_fullscreenEnabled == value) return;
     _fullscreenEnabled = value;
-    applyFullscreenMode(value);
+    _applySystemChrome();
     await _persistSetting('fullscreen_enabled', value ? 'true' : 'false');
     notifyListeners();
   }
@@ -624,7 +648,8 @@ class WorkspaceProvider extends ChangeNotifier {
     _rememberLastPath = (await storage.read(key: 'remember_last_path')) != 'false';
     _requireExitConfirmation = (await storage.read(key: 'require_exit_confirmation')) != 'false';
     _useTrash = (await storage.read(key: 'use_trash')) == 'true';
-    applyFullscreenMode(_fullscreenEnabled);
+    _appThemeMode = AppThemeMode.fromStorage(await storage.read(key: 'app_theme_mode'));
+    _applySystemChrome();
     if (_useTrash) {
       unawaited(TrashService.instance.purgeExpired());
     }

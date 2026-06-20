@@ -308,14 +308,14 @@ class _MediaViewerViewState extends State<MediaViewerView>
             const SizedBox(width: 8),
             Expanded(
               child: Text(name,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  style: TextStyle(color: VsCodeColors.foreground, fontSize: 13),
                   overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF252526),
+        backgroundColor: VsCodeColors.sidebar,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(12),
       ),
@@ -360,7 +360,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: VsCodeColors.editor,
       body: Column(
         children: [
           _buildHeader(),
@@ -370,13 +370,13 @@ class _MediaViewerViewState extends State<MediaViewerView>
                 Expanded(
                   child: Center(
                     child: _loading
-                        ? const Column(
+                        ? Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               CircularProgressIndicator(color: VsCodeColors.accent),
                               SizedBox(height: 16),
                               Text('Đang tải tệp tin...',
-                                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                  style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13)),
                             ],
                           )
                         : _buildPreview(),
@@ -405,8 +405,8 @@ class _MediaViewerViewState extends State<MediaViewerView>
     final hasPlaylist = _siblings.length > 1;
     return Container(
       height: 40,
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
+      decoration: BoxDecoration(
+        color: VsCodeColors.tabBar,
         border: Border(bottom: BorderSide(color: VsCodeColors.border, width: 1)),
       ),
       child: Row(
@@ -438,7 +438,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                             size: 16,
                             color: _showPlaylist
                                 ? VsCodeColors.accent
-                                : Colors.white54,
+                                : VsCodeColors.foregroundDim,
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -446,8 +446,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                       Expanded(
                         child: Text(
                           p.basename(_currentFilePath),
-                          style:
-                              const TextStyle(color: Colors.white70, fontSize: 12),
+                          style: TextStyle(color: VsCodeColors.foreground, fontSize: 12),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -463,12 +462,12 @@ class _MediaViewerViewState extends State<MediaViewerView>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: VsCodeColors.foreground.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '${_currentIndex + 1}/${_siblings.length}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 11),
                 ),
               ),
             ),
@@ -481,8 +480,8 @@ class _MediaViewerViewState extends State<MediaViewerView>
 
   Widget _buildPreview() {
     if (_currentLocalPath == null) {
-      return const Text('Không thể tải tệp tin',
-          style: TextStyle(color: Colors.white));
+      return Text('Không thể tải tệp tin',
+          style: TextStyle(color: VsCodeColors.foreground));
     }
     if (_treatAsImage()) {
       return InteractiveViewer(
@@ -492,8 +491,8 @@ class _MediaViewerViewState extends State<MediaViewerView>
     }
     if (_treatAsVideo()) return _buildVideoPlayer();
     if (_treatAsAudio()) return _buildAudioPlayer();
-    return const Text('Định dạng không được hỗ trợ',
-        style: TextStyle(color: Colors.white));
+    return Text('Định dạng không được hỗ trợ',
+        style: TextStyle(color: VsCodeColors.foreground));
   }
 
   // ── Video player ────────────────────────────────────────────────
@@ -501,7 +500,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
   Widget _buildVideoPlayer() {
     final ctrl = _videoController;
     if (ctrl == null || !ctrl.value.isInitialized) {
-      return const CircularProgressIndicator(color: VsCodeColors.accent);
+      return CircularProgressIndicator(color: VsCodeColors.accent);
     }
 
     final position = ctrl.value.position;
@@ -573,7 +572,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
                 VsCodeColors.accent.withValues(alpha: 0.3),
-                const Color(0xFF1A1A1A),
+                VsCodeColors.editor,
               ]),
               boxShadow: [
                 BoxShadow(
@@ -583,14 +582,14 @@ class _MediaViewerViewState extends State<MediaViewerView>
                 ),
               ],
             ),
-            child: const Icon(Icons.music_note_rounded,
+            child: Icon(Icons.music_note_rounded,
                 size: 64, color: VsCodeColors.accent),
           ),
           const SizedBox(height: 24),
           Text(
             p.basename(_currentFilePath),
-            style: const TextStyle(
-                color: Colors.white,
+            style: TextStyle(
+                color: VsCodeColors.foreground,
                 fontSize: 15,
                 fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
@@ -641,8 +640,8 @@ class _MediaViewerViewState extends State<MediaViewerView>
               overlayShape:
                   const RoundSliderOverlayShape(overlayRadius: 14),
               activeTrackColor: VsCodeColors.accent,
-              inactiveTrackColor: Colors.white12,
-              thumbColor: Colors.white,
+              inactiveTrackColor: VsCodeColors.border,
+              thumbColor: VsCodeColors.foreground,
               overlayColor: VsCodeColors.accent.withValues(alpha: 0.2),
             ),
             child: Slider(value: progress, onChanged: onChanged),
@@ -654,10 +653,10 @@ class _MediaViewerViewState extends State<MediaViewerView>
               children: [
                 Text(_fmt(position),
                     style:
-                        const TextStyle(color: Colors.white54, fontSize: 11)),
+                        TextStyle(color: VsCodeColors.foregroundDim, fontSize: 11)),
                 Text(_fmt(duration),
                     style:
-                        const TextStyle(color: Colors.white54, fontSize: 11)),
+                        TextStyle(color: VsCodeColors.foregroundDim, fontSize: 11)),
               ],
             ),
           ),
@@ -741,7 +740,8 @@ class _MediaViewerViewState extends State<MediaViewerView>
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Icon(icon,
-            size: size, color: enabled ? Colors.white : Colors.white24),
+            size: size,
+            color: enabled ? VsCodeColors.foreground : VsCodeColors.foregroundDim.withValues(alpha: 0.4)),
       ),
     );
     return tooltip != null ? Tooltip(message: tooltip, child: btn) : btn;
@@ -773,8 +773,8 @@ class _MediaViewerViewState extends State<MediaViewerView>
 
   Widget _buildPlaylistPanel() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF161616),
+      decoration: BoxDecoration(
+        color: VsCodeColors.sidebar,
         border: Border(left: BorderSide(color: VsCodeColors.border, width: 1)),
       ),
       child: Column(
@@ -782,30 +782,30 @@ class _MediaViewerViewState extends State<MediaViewerView>
           Container(
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1E1E1E),
+            decoration: BoxDecoration(
+              color: VsCodeColors.tabBar,
               border:
                   Border(bottom: BorderSide(color: VsCodeColors.border, width: 1)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.queue_music_rounded,
-                    size: 14, color: Colors.white54),
+                Icon(Icons.queue_music_rounded,
+                    size: 14, color: VsCodeColors.foregroundDim),
                 const SizedBox(width: 6),
-                const Expanded(
+                Expanded(
                   child: Text('Danh sách',
                       style: TextStyle(
-                          color: Colors.white70,
+                          color: VsCodeColors.foreground,
                           fontSize: 12,
                           fontWeight: FontWeight.w500)),
                 ),
                 InkWell(
                   borderRadius: BorderRadius.circular(4),
                   onTap: () => setState(() => _showPlaylist = false),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
                     child: Icon(Icons.close_rounded,
-                        size: 16, color: Colors.white54),
+                        size: 16, color: VsCodeColors.foregroundDim),
                   ),
                 ),
               ],
@@ -863,7 +863,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isActive ? Colors.white : Colors.white70,
+                      color: isActive ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
                       fontSize: 11,
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                       height: 1.3,
@@ -875,11 +875,11 @@ class _MediaViewerViewState extends State<MediaViewerView>
                       Container(
                         width: 6,
                         height: 6,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                             shape: BoxShape.circle, color: VsCodeColors.accent),
                       ),
                       const SizedBox(width: 4),
-                      const Text('Đang phát',
+                      Text('Đang phát',
                           style: TextStyle(
                               color: VsCodeColors.accent, fontSize: 9)),
                     ]),
@@ -898,7 +898,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
       return Image.file(File(path),
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) =>
-              _iconThumb(Icons.broken_image_rounded, Colors.white24));
+              _iconThumb(Icons.broken_image_rounded, VsCodeColors.foregroundDim));
     }
     if (FileTypeUtils.isImage(path)) {
       return _iconThumb(Icons.image_rounded, Colors.lightBlue.shade300);
@@ -909,12 +909,12 @@ class _MediaViewerViewState extends State<MediaViewerView>
     if (FileTypeUtils.isAudio(path)) {
       return _iconThumb(Icons.music_note_rounded, VsCodeColors.accent);
     }
-    return _iconThumb(Icons.insert_drive_file_rounded, Colors.white38);
+    return _iconThumb(Icons.insert_drive_file_rounded, VsCodeColors.foregroundDim);
   }
 
   Widget _iconThumb(IconData icon, Color color) {
     return Container(
-      color: Colors.white.withValues(alpha: 0.06),
+      color: VsCodeColors.hover,
       child: Center(child: Icon(icon, size: 20, color: color)),
     );
   }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cope_x_studio/models/app_theme_mode.dart';
 import 'package:cope_x_studio/models/root_access_mode.dart';
 import 'package:cope_x_studio/models/text_encoding.dart';
 import 'package:cope_x_studio/providers/security_provider.dart';
@@ -119,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 'Dùng khi mở và lưu file văn bản trong trình soạn thảo.',
@@ -178,14 +179,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _showPasswordSheet,
             onToggle: _onLockToggle,
           ),
-          const Divider(height: 40, color: VsCodeColors.border),
+          Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Sinh trắc học',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           if (!security.canUseBiometric)
-            const Text(
+            Text(
               'Thiết bị không hỗ trợ vân tay / Face ID.',
               style: TextStyle(color: VsCodeColors.foregroundDim),
             )
@@ -213,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
                   : null,
             ),
-          const Divider(height: 40, color: VsCodeColors.border),
+          Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Truy cập Root',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -226,7 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(mode.label),
                 subtitle: checking
-                    ? const Row(
+                    ? Row(
                         children: [
                           SizedBox(
                             width: 14,
@@ -242,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       )
                     : Text(
                         mode.description,
-                        style: const TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
+                        style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.35),
                       ),
                 value: mode,
                 groupValue: workspace.rootAccessMode,
@@ -254,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          const Divider(height: 40, color: VsCodeColors.border),
+          Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Hiển thị',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -278,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: workspace.openApkAsZip,
             onChanged: workspace.setOpenApkAsZip,
           ),
-          const Divider(height: 40, color: VsCodeColors.border),
+          Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Văn bản & trình soạn thảo',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -321,12 +322,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: workspace.editorWordWrap,
             onChanged: workspace.setEditorWordWrap,
           ),
-          const Divider(height: 40, color: VsCodeColors.border),
+          Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Giao diện & thao tác',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
+          const Text(
+            'Chế độ giao diện',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          ...AppThemeMode.values.map(
+            (mode) => RadioListTile<AppThemeMode>(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(mode.label),
+              value: mode,
+              groupValue: workspace.appThemeMode,
+              onChanged: (value) {
+                if (value != null) workspace.setAppThemeMode(value);
+              },
+            ),
+          ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Kích thước hiển thị (${(workspace.uiScale * 100).round()}%)'),
@@ -353,7 +370,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: workspace.hapticEnabled,
             onChanged: workspace.setHapticEnabled,
           ),
-          const Divider(height: 40, color: VsCodeColors.border),
+          Divider(height: 40, color: VsCodeColors.border),
           const Text(
             'Ứng dụng',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -421,7 +438,7 @@ class _AppLockTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim, height: 1.3),
+                      style: TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim, height: 1.3),
                     ),
                   ],
                 ),
@@ -517,7 +534,7 @@ class _AppLockPasswordSheetState extends State<_AppLockPasswordSheet> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Mật khẩu dùng để khóa app khi mở lại (sau 1 phút rời app).',
             style: TextStyle(color: VsCodeColors.foregroundDim, height: 1.4),
           ),

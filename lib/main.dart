@@ -29,7 +29,7 @@ Future<void> main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.cope_x_studio.media',
       androidNotificationChannelName: 'Cope X Studio',
-      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidNotificationIcon: 'drawable/logo_notification',
       androidShowNotificationBadge: false,
       // Stop foreground service (dismiss notification) when paused
       androidStopForegroundOnPause: true,

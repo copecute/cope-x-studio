@@ -58,7 +58,7 @@ class BrowserTabView extends StatelessWidget {
                 : (provider.archiveProgressForTab(tab.id) > 0
                     ? provider.archiveProgressForTab(tab.id)
                     : null),
-            valueColor: const AlwaysStoppedAnimation<Color>(VsCodeColors.accent),
+            valueColor: AlwaysStoppedAnimation<Color>(VsCodeColors.accent),
           ),
         if (tab.showSearch) _SearchBar(tab: tab),
         if (tab.hasSelection) _SelectionBar(tab: tab),
@@ -93,7 +93,7 @@ class BrowserTabView extends StatelessWidget {
                                         ? provider.archiveProgressForTab(tab.id)
                                         : null),
                                 backgroundColor: Colors.white24,
-                                valueColor: const AlwaysStoppedAnimation<Color>(VsCodeColors.accent),
+                                valueColor: AlwaysStoppedAnimation<Color>(VsCodeColors.accent),
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -123,7 +123,7 @@ class BrowserTabView extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 '${(provider.archiveProgressForTab(tab.id) * 100).toStringAsFixed(0)}%',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: VsCodeColors.accent,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 15,
@@ -206,11 +206,11 @@ Future<void> _showFileOpNotice(BuildContext context, FileOpNotice notice) {
       backgroundColor: VsCodeColors.tabBar,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
-        side: const BorderSide(color: VsCodeColors.border),
+        side: BorderSide(color: VsCodeColors.border),
       ),
       title: Row(
         children: [
-          const Icon(Icons.info_outline, color: VsCodeColors.accent, size: 22),
+          Icon(Icons.info_outline, color: VsCodeColors.accent, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -222,7 +222,7 @@ Future<void> _showFileOpNotice(BuildContext context, FileOpNotice notice) {
       ),
       content: Text(
         notice.message,
-        style: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: 14, height: 1.4),
+        style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 14, height: 1.4),
       ),
       actions: [
         FilledButton(
@@ -247,7 +247,7 @@ class _PermissionGate extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.sd_storage, size: 64, color: VsCodeColors.accent),
+            Icon(Icons.sd_storage, size: 64, color: VsCodeColors.accent),
             const SizedBox(height: 16),
             const Text(
               'Cần quyền truy cập tất cả file',
@@ -255,7 +255,7 @@ class _PermissionGate extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Bật MANAGE_EXTERNAL_STORAGE để duyệt toàn bộ bộ nhớ.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 15, color: VsCodeColors.foregroundDim),
@@ -316,11 +316,11 @@ class _BrowserToolbar extends StatelessWidget {
           ),
           if (tab.isZipViewer) ...[
             IconButton(
-              icon: const Icon(Icons.unarchive_outlined, size: AppSizes.iconMedium, color: VsCodeColors.accent),
+              icon: Icon(Icons.unarchive_outlined, size: AppSizes.iconMedium, color: VsCodeColors.accent),
               tooltip: 'Giải nén',
               onPressed: () => _handleUnzip(context, provider, tab.id, tab.zipArchivePath!),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(right: 6),
               child: Icon(Icons.folder_zip, size: 18, color: VsCodeColors.accent),
             ),
@@ -343,7 +343,7 @@ class _BrowserToolbar extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: Text(
                   _displayPath(),
-                  style: const TextStyle(fontSize: AppSizes.fontSmall, color: VsCodeColors.foregroundDim),
+                  style: TextStyle(fontSize: AppSizes.fontSmall, color: VsCodeColors.foregroundDim),
                 ),
               ),
             ),
@@ -575,8 +575,8 @@ class _SearchBarState extends State<_SearchBar> {
         style: const TextStyle(fontSize: AppSizes.fontSmall),
         decoration: InputDecoration(
           hintText: 'Tìm kiếm trong thư mục...',
-          hintStyle: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: AppSizes.fontSmall),
-          prefixIcon: const Icon(Icons.search, size: 20, color: VsCodeColors.foregroundDim),
+          hintStyle: TextStyle(color: VsCodeColors.foregroundDim, fontSize: AppSizes.fontSmall),
+          prefixIcon: Icon(Icons.search, size: 20, color: VsCodeColors.foregroundDim),
           suffixIcon: _controller.text.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, size: 18),
@@ -589,7 +589,7 @@ class _SearchBarState extends State<_SearchBar> {
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           filled: true,
-          fillColor: const Color(0xFF2A2A2A),
+          fillColor: VsCodeColors.hover,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
             borderSide: BorderSide.none,
@@ -631,7 +631,7 @@ class _SelectionBar extends StatelessWidget {
             tooltip: 'Đóng',
             onPressed: () => provider.clearSelection(tab.id),
           ),
-          const VerticalDivider(width: 8, color: Colors.white24, indent: 8, endIndent: 8),
+          VerticalDivider(width: 8, color: VsCodeColors.border, indent: 8, endIndent: 8),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -745,7 +745,7 @@ class _FileListArea extends StatelessWidget {
       }
 
       if (provider.isFtpLoading(tab.currentPath) && entries.isEmpty && accessNote == null) {
-        return const Center(
+        return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -762,7 +762,7 @@ class _FileListArea extends StatelessWidget {
     }
 
     if (tab.isZipViewer && provider.isZipListing && entries.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -780,7 +780,7 @@ class _FileListArea extends StatelessWidget {
     if (usesShell && provider.isShellLoading(tab.currentPath)) {
       return _wrapWithAccessBanner(
         accessNote,
-        const Center(
+        Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -828,7 +828,7 @@ class _FileListArea extends StatelessWidget {
     }
 
     if (AppPathUtils.isAppsList(tab.currentPath) && provider.isAppsListLoading(tab.currentPath) && entries.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -875,7 +875,7 @@ class _FileListArea extends StatelessWidget {
     }
 
     if (tab.currentPath == '@home' && provider.isHomeLoading && entries.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -891,7 +891,7 @@ class _FileListArea extends StatelessWidget {
     }
 
     if (tab.currentPath == '@recent' && provider.isRecentLoading && entries.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -913,7 +913,7 @@ class _FileListArea extends StatelessWidget {
           accessNote,
           _EmptyGestureArea(
             tab: tab,
-            child: const Center(
+            child: Center(
               child: Icon(Icons.lock_outline, size: 48, color: VsCodeColors.foregroundDim),
             ),
           ),
@@ -953,18 +953,7 @@ class _FileListArea extends StatelessWidget {
                     onEntryLongPress: (ctx, entry, pos) => _showTreeEntryMenu(ctx, provider, tab, entry, pos),
                     onBackgroundMenu: (ctx, pos) => _showBackgroundMenu(ctx, provider, tab, pos),
                   )
-                : provider.browserViewMode == BrowserViewMode.tree
-                    ? _EmptyGestureArea(
-                        tab: tab,
-                        child: const Center(
-                          child: Text(
-                            'Chế độ cây chỉ hỗ trợ thư mục hệ thống và file nén',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 14),
-                          ),
-                        ),
-                      )
-                    : provider.isGridView
+                : provider.isGridView
                 ? GridView.builder(
                     padding: const EdgeInsets.all(10),
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -1001,7 +990,7 @@ class _FileListArea extends StatelessWidget {
                         const SizedBox(height: 16),
                         Text(
                           'Đang giải nén và mở file...',
-                          style: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: 15),
+                          style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 15),
                         ),
                         if (provider.zipOpeningLabel != null) ...[
                           const SizedBox(height: 8),
@@ -1287,7 +1276,7 @@ class _FileTile extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(2),
                                   child: LinearProgressIndicator(
                                     value: pct / 100,
-                                    backgroundColor: Colors.white12,
+                                    backgroundColor: VsCodeColors.border,
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                       pct > 90 ? Colors.redAccent : VsCodeColors.accent,
                                     ),
@@ -1303,7 +1292,7 @@ class _FileTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (entry.isDirectory) const Icon(Icons.chevron_right, color: VsCodeColors.foregroundDim),
+                if (entry.isDirectory) Icon(Icons.chevron_right, color: VsCodeColors.foregroundDim),
               ],
             ),
           ),
@@ -1725,7 +1714,7 @@ String _formatSize(int size) {
   return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 }
 
-const _overlayProgressLabelStyle = TextStyle(
+final _overlayProgressLabelStyle = TextStyle(
   color: VsCodeColors.foregroundDim,
   fontSize: 14,
   height: 1.35,
@@ -2007,7 +1996,7 @@ PopupMenuItem<void> _openAsMenuItem(
         }
       });
     },
-    child: const Row(
+    child: Row(
       children: [
         Icon(Icons.open_in_new, size: 20),
         SizedBox(width: 10),
@@ -2167,12 +2156,12 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
         children: [
           TextField(
             controller: _nameController,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: VsCodeColors.foreground),
+            decoration: InputDecoration(
               labelText: 'Tên file',
-              labelStyle: TextStyle(color: Colors.white70),
-              border: OutlineInputBorder(),
-              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+              labelStyle: TextStyle(color: VsCodeColors.foregroundDim),
+              border: const OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
               focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
             ),
             autofocus: true,
@@ -2189,17 +2178,17 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
             TextField(
               controller: _passwordController,
               obscureText: _obscurePassword,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: VsCodeColors.foreground),
               decoration: InputDecoration(
                 labelText: 'Mật khẩu',
-                labelStyle: const TextStyle(color: Colors.white70),
+                labelStyle: TextStyle(color: VsCodeColors.foregroundDim),
                 border: const OutlineInputBorder(),
-                enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: Colors.white70,
+                    color: VsCodeColors.foregroundDim,
                   ),
                   onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
@@ -2211,7 +2200,7 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+          child: Text('Hủy', style: TextStyle(color: VsCodeColors.foregroundDim)),
         ),
         FilledButton(
           onPressed: _submit,
@@ -2256,13 +2245,13 @@ class _ZipPasswordDialogState extends State<_ZipPasswordDialog> {
       content: TextField(
         controller: _controller,
         obscureText: true,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: VsCodeColors.foreground),
         decoration: InputDecoration(
           labelText: widget.optional ? 'Mật khẩu (tùy chọn)' : 'Mật khẩu',
-          labelStyle: const TextStyle(color: Colors.white70),
+          labelStyle: TextStyle(color: VsCodeColors.foregroundDim),
           border: const OutlineInputBorder(),
-          enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-          focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
         ),
         autofocus: true,
         onSubmitted: (_) => Navigator.pop(context, _controller.text),
@@ -2270,7 +2259,7 @@ class _ZipPasswordDialogState extends State<_ZipPasswordDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+          child: Text('Hủy', style: TextStyle(color: VsCodeColors.foregroundDim)),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _controller.text),
@@ -2321,7 +2310,7 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.lock_outline, size: 56, color: VsCodeColors.accent),
+            Icon(Icons.lock_outline, size: 56, color: VsCodeColors.accent),
             const SizedBox(height: 16),
             Text(
               p.basename(widget.zipPath),
@@ -2334,21 +2323,23 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
               isWrongPwd
                   ? 'Mật khẩu sai. Vui lòng nhập lại.'
                   : 'File nén được bảo vệ bằng mật khẩu.',
-              style: const TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim),
+              style: TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             TextField(
               controller: _controller,
               obscureText: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: VsCodeColors.foreground),
+              decoration: InputDecoration(
                 hintText: 'Mật khẩu',
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: TextStyle(color: VsCodeColors.foregroundDim),
                 filled: true,
                 fillColor: VsCodeColors.sidebar,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.border)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: VsCodeColors.accent)),
               ),
               onSubmitted: (_) {
                 provider.unlockZip(widget.tab.id, widget.zipPath, _controller.text);
@@ -2361,8 +2352,8 @@ class _ZipUnlockViewState extends State<_ZipUnlockView> {
                   child: OutlinedButton(
                     onPressed: () => provider.navigateUp(widget.tab.id),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
+                      foregroundColor: VsCodeColors.foreground,
+                      side: BorderSide(color: VsCodeColors.border),
                     ),
                     child: const Text('Hủy'),
                   ),

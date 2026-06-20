@@ -16,7 +16,7 @@ class EditorTabBar extends StatelessWidget {
 
     return Container(
       height: AppSizes.tabBarHeight,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: VsCodeColors.tabBar,
         border: Border(top: BorderSide(color: VsCodeColors.border)),
       ),
@@ -81,7 +81,7 @@ class _TabItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             border: Border(
-              right: const BorderSide(color: VsCodeColors.border),
+              right: BorderSide(color: VsCodeColors.border),
               top: BorderSide(
                 color: isActive ? VsCodeColors.accent : Colors.transparent,
                 width: 2,
@@ -98,7 +98,8 @@ class _TabItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: AppSizes.fontSmall,
-                    color: isActive ? Colors.white : VsCodeColors.foreground,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    color: isActive ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
                   ),
                 ),
               ),

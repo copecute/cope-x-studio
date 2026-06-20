@@ -46,7 +46,7 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
         future: _fieldsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const SizedBox(
+            return SizedBox(
               width: 280,
               height: 120,
               child: Center(
@@ -71,7 +71,7 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
               width: 280,
               child: Text(
                 'Không thể đọc thông tin: ${snapshot.error}',
-                style: const TextStyle(color: VsCodeColors.foregroundDim),
+                style: TextStyle(color: VsCodeColors.foregroundDim),
               ),
             );
           }
@@ -100,7 +100,7 @@ class _EntryPropertiesDialogState extends State<_EntryPropertiesDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: VsCodeColors.foregroundDim)),
+          Text(label, style: TextStyle(fontSize: 12, color: VsCodeColors.foregroundDim)),
           const SizedBox(height: 2),
           SelectableText(value, style: const TextStyle(fontSize: 14)),
         ],

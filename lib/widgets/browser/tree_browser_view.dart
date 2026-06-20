@@ -38,7 +38,7 @@ class TreeBrowserView extends StatelessWidget {
         onSecondaryTapDown: (d) => onBackgroundMenu(context, d.globalPosition),
         child: Center(
           child: loading
-              ? const Column(
+              ? Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
@@ -53,7 +53,7 @@ class TreeBrowserView extends StatelessWidget {
                     ),
                   ],
                 )
-              : const Text(
+              : Text(
                   'Thư mục trống',
                   style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 16),
                 ),

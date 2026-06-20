@@ -10,16 +10,22 @@ class CopeXStudioApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiScale = context.watch<WorkspaceProvider>().uiScale;
+    final workspace = context.watch<WorkspaceProvider>();
 
     return MaterialApp(
       title: 'Cope X Studio',
       debugShowCheckedModeBanner: false,
-      theme: buildVsCodeTheme(),
+      themeMode: workspace.themeMode,
+      theme: buildVsCodeTheme(Brightness.light),
+      darkTheme: buildVsCodeTheme(Brightness.dark),
       builder: (context, child) {
+        final brightness = Theme.of(context).brightness;
+        VsCodeColors.bind(VsCodePalette.forBrightness(brightness));
+        workspace.applySystemChromeForTheme(brightness);
+
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(uiScale),
+            textScaler: TextScaler.linear(workspace.uiScale),
           ),
           child: child ?? const SizedBox.shrink(),
         );

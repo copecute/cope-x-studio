@@ -6,6 +6,7 @@ import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
+import 'package:flutter_highlight/themes/vs.dart';
 import 'package:flutter_highlight/themes/vs2015.dart';
 import 'package:provider/provider.dart';
 
@@ -381,7 +382,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
     final wordWrap = workspace.editorWordWrap;
     return Container(
       height: 38,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: VsCodeColors.tabBar,
         border: Border(
           bottom: BorderSide(color: VsCodeColors.border, width: 1),
@@ -397,34 +398,34 @@ class _CodeEditorViewState extends State<CodeEditorView> {
             icon: const Icon(Icons.undo, size: 18),
             tooltip: 'Hoàn tác',
             onPressed: _undoStack.isNotEmpty ? _undo : null,
-            color: _undoStack.isNotEmpty ? Colors.white : VsCodeColors.foregroundDim,
+            color: _undoStack.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           IconButton(
             icon: const Icon(Icons.redo, size: 18),
             tooltip: 'Làm lại',
             onPressed: _redoStack.isNotEmpty ? _redo : null,
-            color: _redoStack.isNotEmpty ? Colors.white : VsCodeColors.foregroundDim,
+            color: _redoStack.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
-          const VerticalDivider(width: 16, indent: 8, endIndent: 8, color: VsCodeColors.border),
+          VerticalDivider(width: 16, indent: 8, endIndent: 8, color: VsCodeColors.border),
           IconButton(
             icon: const Icon(Icons.content_cut, size: 18),
             tooltip: 'Cắt',
             onPressed: hasSelection ? _cut : null,
-            color: hasSelection ? Colors.white : VsCodeColors.foregroundDim,
+            color: hasSelection ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           IconButton(
             icon: const Icon(Icons.content_copy, size: 18),
             tooltip: 'Sao chép',
             onPressed: hasSelection ? _copy : null,
-            color: hasSelection ? Colors.white : VsCodeColors.foregroundDim,
+            color: hasSelection ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           IconButton(
             icon: const Icon(Icons.content_paste, size: 18),
             tooltip: 'Dán',
             onPressed: _paste,
-            color: Colors.white,
+            color: VsCodeColors.foreground,
           ),
-          const VerticalDivider(width: 16, indent: 8, endIndent: 8, color: VsCodeColors.border),
+          VerticalDivider(width: 16, indent: 8, endIndent: 8, color: VsCodeColors.border),
           IconButton(
             icon: const Icon(Icons.search, size: 18),
             tooltip: 'Tìm kiếm & Thay thế',
@@ -436,9 +437,9 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                 }
               });
             },
-            color: _showSearch ? VsCodeColors.accent : Colors.white,
+            color: _showSearch ? VsCodeColors.accent : VsCodeColors.foreground,
           ),
-          const VerticalDivider(width: 12, indent: 8, endIndent: 8, color: VsCodeColors.border),
+          VerticalDivider(width: 12, indent: 8, endIndent: 8, color: VsCodeColors.border),
           IconButton(
             icon: Icon(
               Icons.format_list_numbered,
@@ -461,14 +462,14 @@ class _CodeEditorViewState extends State<CodeEditorView> {
             icon: const Icon(Icons.text_decrease, size: 18),
             tooltip: 'Giảm cỡ chữ',
             onPressed: fontSize > 10 ? () => workspace.adjustEditorFontSize(-1) : null,
-            color: fontSize > 10 ? Colors.white : VsCodeColors.foregroundDim,
+            color: fontSize > 10 ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           SizedBox(
             width: 28,
             child: Text(
               '${fontSize.toInt()}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 color: VsCodeColors.foreground,
                 fontFeatures: [FontFeature.tabularFigures()],
@@ -479,7 +480,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
             icon: const Icon(Icons.text_increase, size: 18),
             tooltip: 'Tăng cỡ chữ',
             onPressed: fontSize < 28 ? () => workspace.adjustEditorFontSize(1) : null,
-            color: fontSize < 28 ? Colors.white : VsCodeColors.foregroundDim,
+            color: fontSize < 28 ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
           ),
           ],
         ),
@@ -493,8 +494,8 @@ class _CodeEditorViewState extends State<CodeEditorView> {
         : '${_currentMatchIndex + 1} / ${_matches.length}';
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF252526),
+      decoration: BoxDecoration(
+        color: VsCodeColors.tabBar,
         border: Border(
           bottom: BorderSide(color: VsCodeColors.border, width: 1),
         ),
@@ -510,18 +511,18 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                   height: 32,
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    style: TextStyle(fontSize: 13, color: VsCodeColors.foreground),
                     decoration: InputDecoration(
                       hintText: 'Tìm kiếm...',
-                      hintStyle: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13),
+                      hintStyle: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                      fillColor: const Color(0xFF3C3C3C),
+                      fillColor: VsCodeColors.hover,
                       filled: true,
                       enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: VsCodeColors.border),
+                        borderSide: BorderSide(color: VsCodeColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      focusedBorder: const OutlineInputBorder(
+                      focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(color: VsCodeColors.accent),
                         borderRadius: BorderRadius.all(Radius.circular(4)),
                       ),
@@ -532,20 +533,20 @@ class _CodeEditorViewState extends State<CodeEditorView> {
               const SizedBox(width: 8),
               Text(
                 matchText,
-                style: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: 12),
+                style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 12),
               ),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.arrow_upward, size: 18),
                 tooltip: 'Trước đó',
                 onPressed: _matches.isNotEmpty ? _findPrev : null,
-                color: _matches.isNotEmpty ? Colors.white : VsCodeColors.foregroundDim,
+                color: _matches.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
               ),
               IconButton(
                 icon: const Icon(Icons.arrow_downward, size: 18),
                 tooltip: 'Tiếp theo',
                 onPressed: _matches.isNotEmpty ? _findNext : null,
-                color: _matches.isNotEmpty ? Colors.white : VsCodeColors.foregroundDim,
+                color: _matches.isNotEmpty ? VsCodeColors.foreground : VsCodeColors.foregroundDim,
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
@@ -555,7 +556,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                     _showSearch = false;
                   });
                 },
-                color: Colors.white,
+                color: VsCodeColors.foreground,
               ),
             ],
           ),
@@ -567,18 +568,18 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                   height: 32,
                   child: TextField(
                     controller: _replaceController,
-                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    style: TextStyle(fontSize: 13, color: VsCodeColors.foreground),
                     decoration: InputDecoration(
                       hintText: 'Thay thế...',
-                      hintStyle: const TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13),
+                      hintStyle: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                      fillColor: const Color(0xFF3C3C3C),
+                      fillColor: VsCodeColors.hover,
                       filled: true,
                       enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: VsCodeColors.border),
+                        borderSide: BorderSide(color: VsCodeColors.border),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      focusedBorder: const OutlineInputBorder(
+                      focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(color: VsCodeColors.accent),
                         borderRadius: BorderRadius.all(Radius.circular(4)),
                       ),
@@ -591,7 +592,7 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                 onPressed: _matches.isNotEmpty ? _replace : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: VsCodeColors.border,
-                  foregroundColor: Colors.white,
+                  foregroundColor: VsCodeColors.foreground,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                   minimumSize: const Size(0, 32),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -626,6 +627,9 @@ class _CodeEditorViewState extends State<CodeEditorView> {
     final lineCount = _controller.text.split('\n').length;
     final gutterWidth = showLineNumbers ? _gutterStyleWidth(fontSize, lineCount) : 0.0;
 
+    final syntaxStyles =
+        Theme.of(context).brightness == Brightness.dark ? vs2015Theme : vsTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -650,12 +654,12 @@ class _CodeEditorViewState extends State<CodeEditorView> {
                         top: 0,
                         bottom: 0,
                         width: _codeFieldLeftPad + gutterWidth,
-                        child: const ColoredBox(color: VsCodeColors.editorGutter),
+                        child: ColoredBox(color: VsCodeColors.editorGutter),
                       ),
                     ColoredBox(
                       color: VsCodeColors.editor,
                       child: CodeTheme(
-                        data: CodeThemeData(styles: vs2015Theme),
+                        data: CodeThemeData(styles: syntaxStyles),
                         child: SingleChildScrollView(
                           controller: _editorScrollController,
                           child: ConstrainedBox(

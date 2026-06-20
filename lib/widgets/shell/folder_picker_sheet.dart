@@ -122,7 +122,7 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
                     _currentPath,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: VsCodeColors.foregroundDim),
+                    style: TextStyle(fontSize: 13, color: VsCodeColors.foregroundDim),
                   ),
                 ),
               ],
@@ -138,7 +138,7 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
                 ? Center(
                     child: Text(
                       _error != null ? 'Không thể đọc thư mục' : 'Không có thư mục con',
-                      style: const TextStyle(color: VsCodeColors.foregroundDim),
+                      style: TextStyle(color: VsCodeColors.foregroundDim),
                     ),
                   )
                 : ListView.builder(
@@ -147,14 +147,14 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
                       final dir = folders[index];
                       final name = p.basename(dir.path);
                       return ListTile(
-                        leading: const Icon(Icons.folder, color: VsCodeColors.accent),
+                        leading: Icon(Icons.folder, color: VsCodeColors.accent),
                         title: Text(name),
                         onTap: () => _enterFolder(dir.path),
                       );
                     },
                   ),
           ),
-          const Divider(height: 1, color: VsCodeColors.border),
+          Divider(height: 1, color: VsCodeColors.border),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: FilledButton.icon(

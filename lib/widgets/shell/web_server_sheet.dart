@@ -14,7 +14,7 @@ class WebServerSheet extends StatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF252526),
+      backgroundColor: VsCodeColors.sidebar,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
@@ -95,7 +95,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
               padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.wifi_tethering, color: VsCodeColors.accent, size: 24),
+                  Icon(Icons.wifi_tethering, color: VsCodeColors.accent, size: 24),
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
@@ -114,7 +114,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Chia sẻ file qua Wi‑Fi. Thiết bị khác mở địa chỉ hoặc quét QR để truy cập.',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade400, height: 1.4),
+                style: TextStyle(fontSize: 14, color: VsCodeColors.foregroundDim, height: 1.4),
               ),
             ),
             const SizedBox(height: 12),
@@ -123,7 +123,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
               title: const Text('Thư mục chia sẻ'),
               subtitle: Text(
                 sharedRoot ?? 'Toàn bộ bộ nhớ thiết bị',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 12, color: VsCodeColors.foregroundDim),
               ),
               trailing: PopupMenuButton<String>(
                 icon: const Icon(Icons.folder_outlined),
@@ -165,8 +165,8 @@ class _WebServerSheetState extends State<WebServerSheet> {
                   style: TextStyle(
                     fontSize: 12,
                     color: security.hasWebServerPassword
-                        ? Colors.grey.shade500
-                        : Colors.orange.shade300,
+                        ? VsCodeColors.foregroundDim
+                        : Colors.orange.shade700,
                   ),
                 ),
                 trailing: const Icon(Icons.lock_outline, size: 20),
@@ -191,7 +191,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
               },
             ),
             if (running && url != null) ...[
-              const Divider(height: 1, color: VsCodeColors.border),
+              Divider(height: 1, color: VsCodeColors.border),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Center(
@@ -212,7 +212,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
               ),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                leading: const Icon(Icons.link, size: 20, color: VsCodeColors.accent),
+                leading: Icon(Icons.link, size: 20, color: VsCodeColors.accent),
                 title: SelectableText(url, style: const TextStyle(fontSize: 15)),
                 trailing: IconButton(
                   icon: const Icon(Icons.copy, size: 20),

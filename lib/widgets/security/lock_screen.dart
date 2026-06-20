@@ -60,14 +60,14 @@ class _LockScreenState extends State<LockScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.lock_outline, size: 72, color: VsCodeColors.accent),
+                  Icon(Icons.lock_outline, size: 72, color: VsCodeColors.accent),
                   const SizedBox(height: 20),
                   const Text(
                     'Cope X Studio',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Nhập mật khẩu để mở khóa',
                     style: TextStyle(color: VsCodeColors.foregroundDim),
                   ),

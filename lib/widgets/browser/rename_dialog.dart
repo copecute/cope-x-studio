@@ -1,3 +1,4 @@
+import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -13,7 +14,7 @@ class RenameDialog {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF383838),
+        backgroundColor: VsCodeColors.sidebar,
         title: Text(title, style: const TextStyle(fontSize: 18)),
         content: TextField(
           controller: controller,
