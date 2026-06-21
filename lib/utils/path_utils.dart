@@ -33,6 +33,8 @@ class PathUtils {
         return l10n.shortcutRecent;
       case '@ftp':
         return l10n.shortcutFtp;
+      case '@photos':
+        return l10n.shortcutPhotos;
       case '@apps':
         return l10n.shortcutApps;
     }

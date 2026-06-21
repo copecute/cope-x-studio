@@ -237,7 +237,10 @@
   "move": "Move",
   "shortcutHome": "Home",
   "shortcutRecent": "Recent files",
+  "shortcutAllImages": "All images",
+  "shortcutAllImagesSubtitle": "Browse all images on device",
   "shortcutFtp": "FTP",
+  "shortcutPhotos": "Photos",
   "shortcutAddFtp": "+ Add server",
   "deviceStorage": "Device storage",
   "systemApps": "System",
@@ -1173,5 +1176,9 @@
     }
   },
   "welcomeDoneTitle": "You're all set!",
-  "welcomeDoneBody": "Everything is ready. Start exploring your files."
+  "welcomeDoneBody": "Everything is ready. Start exploring your files.",
+  "restartAppTitle": "Restart App",
+  "restartAppBody": "Do you want to restart the app now to fully apply the new theme?",
+  "restartNow": "Restart now",
+  "later": "Later"
 }

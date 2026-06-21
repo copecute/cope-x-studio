@@ -501,7 +501,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcutRecent => 'Recent files';
 
   @override
+  String get shortcutAllImages => 'All images';
+
+  @override
+  String get shortcutAllImagesSubtitle => 'Browse all images on device';
+
+  @override
   String get shortcutFtp => 'FTP';
+
+  @override
+  String get shortcutPhotos => 'Photos';
 
   @override
   String get shortcutAddFtp => '+ Add server';
@@ -1685,4 +1694,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcomeDoneBody => 'Everything is ready. Start exploring your files.';
+
+  @override
+  String get restartAppTitle => 'Restart App';
+
+  @override
+  String get restartAppBody => 'Do you want to restart the app now to fully apply the new theme?';
+
+  @override
+  String get restartNow => 'Restart now';
+
+  @override
+  String get later => 'Later';
 }

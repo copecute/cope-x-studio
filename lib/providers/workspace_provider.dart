@@ -36,6 +36,7 @@ import 'package:cope_x_studio/utils/entry_progress_tracker.dart';
 import 'package:cope_x_studio/services/shell_list_service.dart';
 import 'package:cope_x_studio/services/thumbnail_service.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/services/media/media_player_handler.dart';
 import 'package:cope_x_studio/services/web_server/web_server_service.dart';
 import 'package:cope_x_studio/services/web_server/web_server_notification_service.dart';
 import 'package:cope_x_studio/l10n/l10n_scope.dart';
@@ -69,12 +70,14 @@ class WorkspaceProvider extends ChangeNotifier {
     WebServerService? webServerService,
     ShellListService? shellListService,
     AppManagerService? appManagerService,
+    MediaPlayerHandler? mediaPlayerHandler,
   })  : _fileService = fileService ?? FileService(),
         _permissionService = permissionService ?? PermissionService(),
         _archiveService = archiveService ?? ArchiveService(),
         _openWithService = openWithService ?? OpenWithService(),
         _shellListService = shellListService ?? ShellListService(),
-        _appManagerService = appManagerService ?? AppManagerService() {
+        _appManagerService = appManagerService ?? AppManagerService(),
+        _mediaPlayerHandler = mediaPlayerHandler {
     _webServerService = webServerService ??
         WebServerService(
           fileService: _fileService,
@@ -88,6 +91,7 @@ class WorkspaceProvider extends ChangeNotifier {
   final OpenWithService _openWithService;
   final ShellListService _shellListService;
   final AppManagerService _appManagerService;
+  final MediaPlayerHandler? _mediaPlayerHandler;
   late final WebServerService _webServerService;
 
   SecurityProvider? _security;
@@ -144,6 +148,25 @@ class WorkspaceProvider extends ChangeNotifier {
   int _homeLoadGeneration = 0;
   String? _internalStoragePath;
   bool get isHomeLoading => _homeEntriesLoading;
+
+  List<BrowserEntry>? _photoEntriesCache;
+  bool _photoEntriesLoading = false;
+  final Set<String> _photoAlbumRoots = {};
+  final Map<String, String> _photoAlbumCoverPaths = {};
+  List<RecentFileEntry> _photoRecentFiles = [];
+  bool _photoRecentLoading = false;
+  bool get isPhotosLoading => _photoEntriesLoading;
+  bool get isPhotoRecentLoading => _photoRecentLoading;
+  List<RecentFileEntry> get photoRecentFiles => List.unmodifiable(_photoRecentFiles);
+
+  String? photoAlbumCoverPath(String albumPath) {
+    final realPath = albumPath.startsWith('@photos/album/') ? albumPath.substring(14) : albumPath;
+    return _photoAlbumCoverPaths[realPath];
+  }
+
+  bool isPhotoAlbumPath(String path) {
+    return path.startsWith('@photos/album/');
+  }
 
   // FTP State
   final List<FtpServerConfig> _ftpServers = [];
@@ -800,7 +823,13 @@ class WorkspaceProvider extends ChangeNotifier {
 
   int _tabIndex(String tabId) => _tabs.indexWhere((t) => t.id == tabId);
 
-  AppTab _tab(String tabId) => _tabs[_tabIndex(tabId)];
+  AppTab? _tabOrNull(String tabId) {
+    final idx = _tabIndex(tabId);
+    return idx >= 0 ? _tabs[idx] : null;
+  }
+
+  AppTab _tab(String tabId) =>
+      _tabOrNull(tabId) ?? AppTab(id: tabId, currentPath: '@unknown');
 
   void _setTab(String tabId, AppTab tab) {
     final i = _tabIndex(tabId);
@@ -849,6 +878,7 @@ class WorkspaceProvider extends ChangeNotifier {
   bool supportsTreeView(AppTab tab) {
     if (tab.isZipViewer) return tab.zipArchivePath != null;
     if (tab.currentPath.startsWith('@')) return false;
+    if (isPhotoAlbumPath(tab.currentPath)) return false;
     return true;
   }
 
@@ -885,6 +915,12 @@ class WorkspaceProvider extends ChangeNotifier {
     if (tab.isZipViewer) return tab.zipInnerPath;
     return tab.currentPath;
   }
+
+  void _notifyListenersDeferred() {
+    scheduleMicrotask(() {
+      if (hasListeners) notifyListeners();
+    });
+}
 
   void _invalidateTreeCache({String? tabId}) {
     if (tabId == null) {
@@ -961,7 +997,7 @@ class WorkspaceProvider extends ChangeNotifier {
     if (_treeChildrenCache.containsKey(key) || _treeLoadingKeys.contains(key)) return;
 
     _treeLoadingKeys.add(key);
-    notifyListeners();
+    _notifyListenersDeferred();
     try {
       final children = await _fetchTreeChildren(tabId, dirPath);
       _treeChildrenCache[key] = children;
@@ -969,7 +1005,7 @@ class WorkspaceProvider extends ChangeNotifier {
       _treeChildrenCache[key] = [];
     } finally {
       _treeLoadingKeys.remove(key);
-      notifyListeners();
+      _notifyListenersDeferred();
     }
   }
 
@@ -1007,7 +1043,7 @@ class WorkspaceProvider extends ChangeNotifier {
 
     final expanded = _treeExpandedByTab.putIfAbsent(tabId, () => {});
     if (expanded.isEmpty) {
-      unawaited(syncTreeExpansion(tabId));
+      scheduleMicrotask(() => syncTreeExpansion(tabId));
       return [];
     }
 
@@ -1020,7 +1056,7 @@ class WorkspaceProvider extends ChangeNotifier {
       final loading = _treeLoadingKeys.contains(key);
 
       if (children == null && !loading) {
-        unawaited(_ensureTreeChildrenLoaded(tabId, parentPath));
+        scheduleMicrotask(() => _ensureTreeChildrenLoaded(tabId, parentPath));
         return;
       }
       if (children == null) return;
@@ -1047,6 +1083,10 @@ class WorkspaceProvider extends ChangeNotifier {
 
     final root = _treeListRoot(tab);
     walk(root, 0);
+    final q = tab.searchQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      return result.where((node) => node.entry.name.toLowerCase().contains(q)).toList();
+    }
     return result;
   }
 
@@ -1321,6 +1361,8 @@ class WorkspaceProvider extends ChangeNotifier {
     _cancelFileOperationIfActive(tabId);
     final index = _tabIndex(tabId);
     if (index == -1) return;
+    final tab = _tabs[index];
+    unawaited(_stopMediaPlaybackForTab(tab));
     _tabs.removeAt(index);
     if (_activeTabId == tabId) {
       _activeTabId = _tabs.isEmpty ? null : _tabs[index.clamp(0, _tabs.length - 1)].id;
@@ -1368,6 +1410,24 @@ class WorkspaceProvider extends ChangeNotifier {
       if (_homeEntriesCache == null) {
         await _loadHomeEntries(tabId: tabId);
       }
+    } else if (path == '@photos' || path == '@photos/recent') {
+      if (path == '@photos') {
+        if (_photoEntriesCache == null) {
+          await _loadPhotoEntries(tabId: tabId);
+        }
+        if (_photoRecentFiles.isNotEmpty) {
+          unawaited(_refreshPhotoRecentInBackground(showLoadingIfEmpty: false, tabId: tabId));
+        } else {
+          unawaited(_refreshPhotoRecentInBackground(tabId: tabId));
+        }
+      } else {
+        if (_photoRecentFiles.isNotEmpty) {
+          unawaited(_refreshPhotoRecentInBackground(showLoadingIfEmpty: false, tabId: tabId));
+        } else {
+          await _refreshPhotoRecentInBackground(tabId: tabId);
+        }
+      }
+    } else if (isPhotoAlbumPath(path)) {
     } else if (AppPathUtils.isAppsList(path)) {
       final cacheKey = AppPathUtils.isSystemList(path) ? 'system' : 'user';
       if ((_appsCache[cacheKey]?.isNotEmpty ?? false)) {
@@ -1419,8 +1479,15 @@ class WorkspaceProvider extends ChangeNotifier {
       return;
     }
 
-    if (tab.currentPath == '@ftp' || tab.currentPath == '@recent' || tab.currentPath == '@apps') {
+    if (tab.currentPath == '@ftp' || tab.currentPath == '@recent' || tab.currentPath == '@apps'
+        || tab.currentPath == '@photos' || tab.currentPath == '@photos/recent') {
       navigateTo(tabId, '@home');
+      return;
+    }
+
+    // If we're inside a photo album path, go back to the photo albums home
+    if (isPhotoAlbumPath(tab.currentPath)) {
+      navigateTo(tabId, '@photos');
       return;
     }
 
@@ -1526,7 +1593,10 @@ class WorkspaceProvider extends ChangeNotifier {
   bool isSelectable(String tabId, BrowserEntry entry) {
     final tab = _tab(tabId);
     final currentPath = tab.currentPath;
-    if (currentPath == '@home' || currentPath == '@apps' || currentPath == '@ftp') {
+    if (currentPath == '@unknown' ||
+        currentPath == '@home' ||
+        currentPath == '@apps' ||
+        currentPath == '@ftp') {
       return false;
     }
     if (entry.path == '@add_ftp_server' || entry.path == '@display') {
@@ -2073,6 +2143,12 @@ class WorkspaceProvider extends ChangeNotifier {
         isDirectory: true,
         isVirtual: true,
       ),
+      BrowserEntry(
+        name: l10n.shortcutPhotos,
+        path: '@photos',
+        isDirectory: true,
+        isVirtual: true,
+      ),
     ]);
 
     return entries;
@@ -2128,6 +2204,12 @@ class WorkspaceProvider extends ChangeNotifier {
             isDirectory: true,
             isVirtual: true,
           ),
+          BrowserEntry(
+            name: l10n.shortcutPhotos,
+            path: '@photos',
+            isDirectory: true,
+            isVirtual: true,
+          ),
         ];
       }
     } finally {
@@ -2153,6 +2235,12 @@ class WorkspaceProvider extends ChangeNotifier {
     _homeEntriesCache = null;
   }
 
+  void invalidatePhotoEntries() {
+    _photoEntriesCache = null;
+    _photoAlbumRoots.clear();
+    _photoAlbumCoverPaths.clear();
+  }
+
   String _recentSubtitle(RecentFileEntry entry) {
     final when = DateFormat('dd/MM/yyyy HH:mm').format(entry.modifiedAt);
     final dir = PathUtils.shortDisplayDir(entry.path);
@@ -2161,6 +2249,155 @@ class WorkspaceProvider extends ChangeNotifier {
 
   List<BrowserEntry> _getRecentEntries() {
     return _recentFiles
+        .map(
+          (recent) => BrowserEntry(
+            name: p.basename(recent.path),
+            path: recent.path,
+            isDirectory: false,
+            size: recent.size,
+            subtitle: _recentSubtitle(recent),
+          ),
+        )
+        .toList();
+  }
+
+  Future<List<BrowserEntry>> _buildPhotoEntries() async {
+    final l10n = L10nScope.current;
+    final volumes = await StorageRoots.discoverHomeVolumes(_permissionService);
+    final roots = volumes.map((v) => v.path).toList();
+
+    final allImages = await RecentFilesScanner.scan(
+      roots: roots,
+      showHidden: false,
+      maxResults: null,
+      imageOnly: true,
+    );
+
+    _photoRecentFiles = allImages;
+
+    final albums = <String, List<RecentFileEntry>>{};
+    for (final img in allImages) {
+      final dir = p.dirname(img.path);
+      albums.putIfAbsent(dir, () => []).add(img);
+    }
+
+    final entries = <BrowserEntry>[];
+    _photoAlbumRoots.clear();
+    _photoAlbumCoverPaths.clear();
+
+    entries.add(
+      BrowserEntry(
+        name: l10n.shortcutAllImages,
+        path: '@photos/recent',
+        isDirectory: true,
+        isVirtual: true,
+        subtitle: l10n.shortcutAllImagesSubtitle,
+      ),
+    );
+
+    final sortedAlbums = albums.entries.toList()
+      ..sort((a, b) => p.basename(a.key).toLowerCase().compareTo(p.basename(b.key).toLowerCase()));
+
+    for (final entry in sortedAlbums) {
+      final dirPath = entry.key;
+      final imagesInDir = entry.value;
+
+      _photoAlbumRoots.add(dirPath);
+      _photoAlbumCoverPaths[dirPath] = imagesInDir.first.path;
+
+      entries.add(
+        BrowserEntry(
+          name: p.basename(dirPath),
+          path: '@photos/album/$dirPath',
+          isDirectory: true,
+          isVirtual: true,
+          childrenCount: imagesInDir.length,
+          subtitle: '${imagesInDir.length} ảnh',
+        ),
+      );
+    }
+
+    return entries;
+  }
+
+
+
+  Future<void> _loadPhotoEntries({String? tabId}) async {
+    if (_photoEntriesLoading) return;
+
+    _photoEntriesLoading = true;
+    notifyListeners();
+
+    try {
+      _photoEntriesCache = await _buildPhotoEntries();
+    } catch (_) {
+      _photoEntriesCache = [
+        BrowserEntry(
+          name: L10nScope.current.shortcutAllImages,
+          path: '@photos/recent',
+          isDirectory: true,
+          isVirtual: true,
+          subtitle: L10nScope.current.shortcutAllImagesSubtitle,
+        ),
+      ];
+    } finally {
+      _photoEntriesLoading = false;
+      if (tabId != null) _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+    }
+  }
+
+  void _schedulePhotoLoad(String tabId) {
+    if (_photoEntriesCache != null) {
+      _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+      return;
+    }
+    if (_photoEntriesLoading) return;
+    _scheduleAfterFrame(() => unawaited(_loadPhotoEntries(tabId: tabId)));
+  }
+
+  List<BrowserEntry> _getPhotoEntries() {
+    return _photoEntriesCache ?? [];
+  }
+
+  Future<void> _refreshPhotoRecentInBackground({bool showLoadingIfEmpty = false, String? tabId}) async {
+    if (_photoRecentLoading) return;
+
+    _photoRecentLoading = true;
+    if (showLoadingIfEmpty && _photoRecentFiles.isEmpty) notifyListeners();
+
+    try {
+      final volumes = await StorageRoots.discoverHomeVolumes(_permissionService);
+      final roots = volumes.map((v) => v.path).toList();
+      final scanned = await RecentFilesScanner.scan(
+        roots: roots,
+        showHidden: false,
+        maxResults: null,
+        imageOnly: true,
+      );
+      _photoRecentFiles = scanned;
+    } catch (_) {
+      _photoRecentFiles = [];
+    } finally {
+      _photoRecentLoading = false;
+      if (tabId != null) _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+    }
+  }
+
+  void _schedulePhotoRecentLoad(String tabId) {
+    if (_photoRecentFiles.isNotEmpty) {
+      _setTab(tabId, _tab(tabId).bumpList());
+      notifyListeners();
+      return;
+    }
+    if (_photoRecentLoading) return;
+    _scheduleAfterFrame(() => unawaited(_refreshPhotoRecentInBackground(tabId: tabId)));
+  }
+
+  List<BrowserEntry> _getPhotoRecentEntries() {
+    return _photoRecentFiles
         .map(
           (recent) => BrowserEntry(
             name: p.basename(recent.path),
@@ -2452,6 +2689,8 @@ class WorkspaceProvider extends ChangeNotifier {
 
   List<BrowserEntry> listEntriesForTab(String tabId) {
     final tab = _tab(tabId);
+    if (tab.currentPath == '@unknown') return [];
+
     List<BrowserEntry> items;
 
     if (tab.currentPath == '@home') {
@@ -2472,6 +2711,29 @@ class WorkspaceProvider extends ChangeNotifier {
       }
     } else if (tab.currentPath == '@ftp') {
       items = _getFtpServersEntries();
+    } else if (tab.currentPath == '@photos') {
+      if (_photoEntriesCache != null) {
+        items = _getPhotoEntries();
+      } else {
+        _schedulePhotoLoad(tabId);
+        return [];
+      }
+    } else if (tab.currentPath == '@photos/recent') {
+      if (!_photoRecentLoading && _photoRecentFiles.isEmpty) {
+        _schedulePhotoRecentLoad(tabId);
+        return [];
+      }
+      items = _getPhotoRecentEntries();
+    } else if (tab.currentPath.startsWith('@photos/album/')) {
+      final dirPath = tab.currentPath.substring(14);
+      final images = _photoRecentFiles.where((f) => p.dirname(f.path) == dirPath || p.isWithin(dirPath, f.path)).toList();
+      items = images.map((f) => BrowserEntry(
+        name: p.basename(f.path),
+        path: f.path,
+        isDirectory: false,
+        size: f.size,
+        subtitle: _recentSubtitle(f),
+      )).toList();
     } else if (tab.currentPath.startsWith('@ftp/')) {
       final inner = tab.currentPath.substring(5);
       final parts = inner.split('/');
@@ -2552,6 +2814,13 @@ class WorkspaceProvider extends ChangeNotifier {
       unawaited(_loadHomeEntries(tabId: tabId));
       return;
     }
+    if (tab.currentPath == '@photos' || tab.currentPath == '@photos/recent' || tab.currentPath.startsWith('@photos/album/')) {
+      invalidatePhotoEntries();
+      unawaited(_refreshPhotoRecentInBackground(showLoadingIfEmpty: false, tabId: tabId).then((_) {
+        return _loadPhotoEntries(tabId: tabId);
+      }));
+      return;
+    }
     if (tab.currentPath == '@recent') {
       unawaited(_refreshRecentInBackground(showLoadingIfEmpty: false, tabId: tabId));
       return;
@@ -2608,8 +2877,16 @@ class WorkspaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _isMediaEditor(AppTab tab) => tab.isEditing && tab.editor?.type == EditorTabType.media;
+
+  Future<void> _stopMediaPlaybackForTab(AppTab tab) async {
+    if (!_isMediaEditor(tab)) return;
+    await _mediaPlayerHandler?.stopAll();
+  }
+
   void closeEditorInTab(String tabId) {
     final tab = _tab(tabId);
+    unawaited(_stopMediaPlaybackForTab(tab));
     final restoreZip = tab.zipArchivePath != null;
     _setTab(
       tabId,
@@ -4020,6 +4297,79 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> sharePaths(String tabId, List<String> paths) async {
+    if (paths.isEmpty) return;
+
+    final localPaths = paths.where((path) {
+      if (path.startsWith('@') || path.startsWith('zip://')) return false;
+      final type = FileSystemEntity.typeSync(path, followLinks: true);
+      return type == FileSystemEntityType.file || type == FileSystemEntityType.directory;
+    }).toList();
+    if (localPaths.isEmpty) return;
+
+    final containsDirectory = localPaths.any((path) => FileSystemEntity.isDirectorySync(path));
+    final shareAllFilesDirectly = localPaths.every((path) => FileSystemEntity.isFileSync(path));
+
+    if (!containsDirectory && shareAllFilesDirectly) {
+      await SharePlus.instance.share(ShareParams(files: localPaths.map((path) => XFile(path)).toList()));
+      return;
+    }
+
+    final cancelToken = ArchiveCancelToken();
+    final defaultName = localPaths.length == 1
+        ? '${p.basenameWithoutExtension(localPaths.first)}.zip'
+        : 'archive.zip';
+    final tempDir = await Directory.systemTemp.createTemp('cope_share_');
+    final zipPath = p.join(tempDir.path, defaultName);
+
+    _startFileOperation(
+      TabFileOperation.zip,
+      tabId,
+      label: p.basename(zipPath),
+      cancelToken: cancelToken,
+    );
+    _setBusy(true);
+    _statusMessage = L10nScope.current.logPrepareShareFromZip;
+
+    void onProgress(double progress, String? file) {
+      _setTabOperationProgress(tabId, progress.clamp(0.0, 1.0), file ?? p.basename(zipPath));
+      if (_activeTabId == tabId && file != null) {
+        final percent = (progress * 100).round();
+        _statusMessage = L10nScope.current.zipProgress(p.basename(file), percent);
+      }
+      notifyListeners();
+    }
+
+    try {
+      _log(L10nScope.current.logPrepareShareFromZip);
+      notifyListeners();
+
+      await _archiveService.zipPaths(
+        localPaths,
+        zipPath,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
+      );
+
+      await SharePlus.instance.share(ShareParams(files: [XFile(zipPath)]));
+    } catch (e) {
+      if (cancelToken.isCancelled) {
+        _log(L10nScope.current.cancelZip);
+        _statusMessage = L10nScope.current.cancelZip;
+      } else {
+        _log(L10nScope.current.logShareFileError('$e'));
+        _statusMessage = L10nScope.current.logShareFileError('$e');
+      }
+      notifyListeners();
+    } finally {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
+      _endFileOperation(tabId);
+      _setBusy(false);
+    }
+  }
+
   Future<void> handleItemTap(String tabId, BrowserEntry entry) async {
     final tab = _tab(tabId);
     if (tab.hasSelection && isSelectable(tabId, entry)) {
@@ -4219,6 +4569,8 @@ class WorkspaceProvider extends ChangeNotifier {
         path == '@ftp' ||
         path == '@recent' ||
         path == '@apps' ||
+        path == '@photos' ||
+        path == '@photos/recent' ||
         PathUtils.parentPath(path) == null;
   }
 

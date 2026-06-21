@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cope_x_studio/models/recent_file_entry.dart';
+import 'package:cope_x_studio/utils/file_type_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -13,16 +14,21 @@ class RecentFilesScanner {
   static Future<List<RecentFileEntry>> scan({
     required List<String> roots,
     required bool showHidden,
+    int? maxResults = 50,
+    bool imageOnly = false,
   }) {
     final options = _ScanOptions(
       roots: roots,
       showHidden: showHidden,
+      maxResults: maxResults,
+      imageOnly: imageOnly,
     );
     return compute(_scan, options);
   }
 
   static List<RecentFileEntry> _scan(_ScanOptions options) {
-    final tracker = _TopKTracker(maxResults);
+    final tracker = options.maxResults != null ? _TopKTracker(options.maxResults!) : null;
+    final allHits = <_Hit>[];
     final seen = <String>{};
 
     for (final root in options.roots) {
@@ -30,19 +36,28 @@ class RecentFilesScanner {
       if (!dir.existsSync()) continue;
       _walkDirectory(
         dir,
-        showHidden: options.showHidden,
+        options: options,
         tracker: tracker,
+        allHits: allHits,
         seen: seen,
       );
     }
 
-    return tracker.toEntries();
+    if (tracker != null) {
+      return tracker.toEntries();
+    } else {
+      allHits.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+      return allHits
+          .map((hit) => RecentFileEntry(path: hit.path, modifiedAt: hit.modifiedAt, size: hit.size))
+          .toList();
+    }
   }
 
   static void _walkDirectory(
     Directory root, {
-    required bool showHidden,
-    required _TopKTracker tracker,
+    required _ScanOptions options,
+    required _TopKTracker? tracker,
+    required List<_Hit> allHits,
     required Set<String> seen,
   }) {
     final stack = <Directory>[root];
@@ -58,7 +73,7 @@ class RecentFilesScanner {
 
       for (final entity in children) {
         final name = p.basename(entity.path);
-        if (!showHidden && name.startsWith('.')) continue;
+        if (!options.showHidden && name.startsWith('.')) continue;
 
         if (entity is Directory) {
           if (_shouldSkipDirectory(entity.path, name)) continue;
@@ -67,6 +82,7 @@ class RecentFilesScanner {
         }
 
         if (entity is! File) continue;
+        if (options.imageOnly && !FileTypeUtils.isImage(entity.path)) continue;
 
         final key = _dedupeKey(entity.path);
         if (seen.contains(key)) continue;
@@ -75,11 +91,20 @@ class RecentFilesScanner {
         try {
           final stat = entity.statSync();
           if (stat.type != FileSystemEntityType.file) continue;
-          tracker.consider(
-            path: entity.path,
-            modifiedAt: stat.modified,
-            size: stat.size,
-          );
+          
+          if (tracker != null) {
+            tracker.consider(
+              path: entity.path,
+              modifiedAt: stat.modified,
+              size: stat.size,
+            );
+          } else {
+            allHits.add(_Hit(
+              path: entity.path,
+              modifiedAt: stat.modified,
+              size: stat.size,
+            ));
+          }
         } catch (_) {}
       }
     }
@@ -103,10 +128,14 @@ class _ScanOptions {
   const _ScanOptions({
     required this.roots,
     required this.showHidden,
+    this.maxResults,
+    this.imageOnly = false,
   });
 
   final List<String> roots;
   final bool showHidden;
+  final int? maxResults;
+  final bool imageOnly;
 }
 
 class _TopKTracker {

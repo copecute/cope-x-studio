@@ -15,7 +15,8 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 
 class ThumbnailService {
   ThumbnailService._({PlatformBridge? platform})
-      : _platform = platform ?? PlatformBridge();
+      : _platform = platform ?? PlatformBridge(),
+        _cacheRoot = _initCacheRoot();
 
   static final ThumbnailService instance = ThumbnailService._();
 
@@ -24,6 +25,7 @@ class ThumbnailService {
   static const _maxSourceBytes = 48 * 1024 * 1024;
 
   final PlatformBridge _platform;
+  final Future<String> _cacheRoot;
   final _memoryCache = <String, Uint8List?>{};
   final _inFlight = <String, Future<Uint8List?>>{};
 
@@ -95,8 +97,8 @@ class ThumbnailService {
     int size,
   ) async {
     try {
-      final thumbFile = _thumbFile(filePath);
-      final metaFile = _metaFile(filePath);
+      final thumbFile = await _thumbFile(filePath);
+      final metaFile = await _metaFile(filePath);
       if (!thumbFile.existsSync() || !metaFile.existsSync()) return null;
 
       final meta = await metaFile.readAsString();
@@ -124,34 +126,42 @@ class ThumbnailService {
     } catch (_) {}
   }
 
-  void _deleteDiskCache(String filePath) {
+  Future<void> _deleteDiskCache(String filePath) async {
     try {
-      final thumbFile = _thumbFile(filePath);
-      final metaFile = _metaFile(filePath);
-      if (thumbFile.existsSync()) thumbFile.deleteSync();
-      if (metaFile.existsSync()) metaFile.deleteSync();
+      final thumbFile = await _thumbFile(filePath);
+      final metaFile = await _metaFile(filePath);
+      if (thumbFile.existsSync()) await thumbFile.delete();
+      if (metaFile.existsSync()) await metaFile.delete();
     } catch (_) {}
   }
 
   Future<Directory> _ensureCacheDir(String filePath) async {
-    final dir = Directory(_cacheDirFor(filePath));
+    final dir = Directory(await _cacheDirFor(filePath));
     if (!dir.existsSync()) {
       await dir.create(recursive: true);
     }
     return dir;
   }
 
-  String _cacheDirFor(String filePath) {
+  Future<String> _cacheDirFor(String filePath) async {
+    if (Platform.isAndroid) {
+      return await _cacheRoot;
+    }
     final root = _nearestStorageRoot(filePath) ?? _defaultStorageRoot();
     return p.normalize(p.join(root, _cacheRelative));
   }
 
-  File _thumbFile(String filePath) {
-    return File(p.join(_cacheDirFor(filePath), '${_hash(filePath)}.png.copethumb'));
+  static Future<String> _initCacheRoot() async {
+    final dir = await getApplicationSupportDirectory();
+    return p.normalize(p.join(dir.path, _cacheRelative));
   }
 
-  File _metaFile(String filePath) {
-    return File(p.join(_cacheDirFor(filePath), '${_hash(filePath)}.meta.copethumb'));
+  Future<File> _thumbFile(String filePath) async {
+    return File(p.join(await _cacheDirFor(filePath), '${_hash(filePath)}.png.copethumb'));
+  }
+
+  Future<File> _metaFile(String filePath) async {
+    return File(p.join(await _cacheDirFor(filePath), '${_hash(filePath)}.meta.copethumb'));
   }
 
   String _pathCacheKey(String filePath) {
@@ -203,10 +213,24 @@ class ThumbnailService {
       if (await file.length() > _maxSourceBytes) return null;
 
       final bytes = await file.readAsBytes();
+      final codecInfo = await ui.instantiateImageCodec(bytes);
+      final frameInfo = await codecInfo.getNextFrame();
+      final width = frameInfo.image.width;
+      final height = frameInfo.image.height;
+      frameInfo.image.dispose();
+      codecInfo.dispose();
+
+      int? tw, th;
+      if (width >= height) {
+        tw = _thumbMaxSize;
+      } else {
+        th = _thumbMaxSize;
+      }
+
       final codec = await ui.instantiateImageCodec(
         bytes,
-        targetWidth: _thumbMaxSize,
-        targetHeight: _thumbMaxSize,
+        targetWidth: tw,
+        targetHeight: th,
       );
       final frame = await codec.getNextFrame();
       final data = await frame.image.toByteData(format: ui.ImageByteFormat.png);
@@ -270,7 +294,7 @@ class ThumbnailService {
 
   Future<Uint8List?> _generateApkThumbnail(String path) async {
     final ext = p.extension(path).toLowerCase();
-    if (!kIsWeb && Platform.isAndroid && ext == '.apk') {
+    if (!kIsWeb && Platform.isAndroid && (ext == '.apk' || ext == '.xapk')) {
       try {
         final bytes = await _platform.getApkIconFromPath(path);
         if (bytes != null && bytes.isNotEmpty) {
@@ -288,24 +312,42 @@ class ThumbnailService {
       if (await file.length() > 80 * 1024 * 1024) return null;
 
       final archive = ZipDecoder().decodeBytes(await file.readAsBytes(), verify: false);
-      final icons = archive.files
-          .where(
-            (f) =>
-                f.isFile &&
-                f.name.contains('mipmap') &&
-                (f.name.endsWith('.png') || f.name.endsWith('.webp')),
-          )
-          .toList();
+      final files = archive.files.where((f) => f.isFile).toList();
+
+      if (path.toLowerCase().endsWith('.xapk') || path.toLowerCase().endsWith('.apks')) {
+        final nestedApk = files.firstWhere(
+          (f) => p.extension(f.name).toLowerCase() == '.apk',
+          orElse: () => ArchiveFile('', 0, []),
+        );
+        if (nestedApk.name.isNotEmpty) {
+          final tempDir = await getTemporaryDirectory();
+          final tempApk = File(p.join(tempDir.path, p.basename(nestedApk.name)));
+          await tempApk.writeAsBytes(nestedApk.content as List<int>, flush: true);
+          try {
+            final nestedThumb = await _generateApkThumbnail(tempApk.path);
+            if (nestedThumb != null && nestedThumb.isNotEmpty) {
+              return nestedThumb;
+            }
+          } finally {
+            try {
+              await tempApk.delete();
+            } catch (_) {}
+          }
+        }
+      }
+
+      final icons = files.where((f) {
+        final name = f.name.toLowerCase();
+        return (name.contains('mipmap') || name.contains('drawable') || name.contains('ic_launcher')) &&
+            (name.endsWith('.png') || name.endsWith('.webp'));
+      }).toList();
 
       if (icons.isEmpty) {
-        final drawables = archive.files
-            .where(
-              (f) =>
-                  f.isFile &&
-                  f.name.contains('res/drawable') &&
-                  (f.name.endsWith('.png') || f.name.endsWith('.webp')),
-            )
-            .toList();
+        final drawables = files.where((f) {
+          final name = f.name.toLowerCase();
+          return (name.contains('res/') || name.contains('mipmap') || name.contains('drawable')) &&
+              (name.endsWith('.png') || name.endsWith('.webp'));
+        }).toList();
         if (drawables.isEmpty) return null;
         drawables.sort((a, b) => b.name.length.compareTo(a.name.length));
         return _normalizeThumb(Uint8List.fromList(drawables.first.content as List<int>));

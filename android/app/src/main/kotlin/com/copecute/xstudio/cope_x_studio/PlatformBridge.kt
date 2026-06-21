@@ -140,6 +140,12 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
                     }
                     result.success(getAppIconBase64(packageName))
                 }
+                "restartApp" -> {
+                    activity.runOnUiThread {
+                        restartApp()
+                    }
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {
@@ -475,11 +481,13 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
         val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             pm.getPackageArchiveInfo(
                 apkPath,
-                PackageManager.PackageInfoFlags.of(PackageManager.GET_META_DATA.toLong()),
+                PackageManager.PackageInfoFlags.of(
+                    PackageManager.GET_ACTIVITIES.toLong() or PackageManager.GET_META_DATA.toLong(),
+                ),
             )
         } else {
             @Suppress("DEPRECATION")
-            pm.getPackageArchiveInfo(apkPath, PackageManager.GET_META_DATA)
+            pm.getPackageArchiveInfo(apkPath, PackageManager.GET_ACTIVITIES or PackageManager.GET_META_DATA)
         } ?: return null
 
         val appInfo = info.applicationInfo ?: return null
@@ -620,6 +628,32 @@ class PlatformBridge(private val activity: MainActivity) : MethodChannel.MethodC
 
     private fun shellEscape(path: String): String {
         return "'" + path.replace("'", "'\\''") + "'"
+    }
+
+    private fun restartApp() {
+        val pm = activity.packageManager
+        val intent = pm.getLaunchIntentForPackage(activity.packageName)
+        if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                activity,
+                123456,
+                intent,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.app.PendingIntent.FLAG_CANCEL_CURRENT
+                }
+            )
+            val alarmManager = activity.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+            alarmManager.set(
+                android.app.AlarmManager.RTC,
+                System.currentTimeMillis() + 100,
+                pendingIntent
+            )
+            System.exit(0)
+        }
     }
 
     companion object {

@@ -184,4 +184,9 @@ class PlatformBridge {
     }
     return path;
   }
+
+  Future<void> restartApp() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    await _channel.invokeMethod<void>('restartApp');
+  }
 }

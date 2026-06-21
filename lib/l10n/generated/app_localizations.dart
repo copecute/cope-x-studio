@@ -1043,11 +1043,29 @@ abstract class AppLocalizations {
   /// **'Recent files'**
   String get shortcutRecent;
 
+  /// No description provided for @shortcutAllImages.
+  ///
+  /// In en, this message translates to:
+  /// **'All images'**
+  String get shortcutAllImages;
+
+  /// No description provided for @shortcutAllImagesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse all images on device'**
+  String get shortcutAllImagesSubtitle;
+
   /// No description provided for @shortcutFtp.
   ///
   /// In en, this message translates to:
   /// **'FTP'**
   String get shortcutFtp;
+
+  /// No description provided for @shortcutPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get shortcutPhotos;
 
   /// No description provided for @shortcutAddFtp.
   ///
@@ -3094,6 +3112,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Everything is ready. Start exploring your files.'**
   String get welcomeDoneBody;
+
+  /// No description provided for @restartAppTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart App'**
+  String get restartAppTitle;
+
+  /// No description provided for @restartAppBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to restart the app now to fully apply the new theme?'**
+  String get restartAppBody;
+
+  /// No description provided for @restartNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart now'**
+  String get restartNow;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

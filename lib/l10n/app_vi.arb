@@ -193,7 +193,10 @@
   "move": "Di chuyển",
   "shortcutHome": "Trang chủ",
   "shortcutRecent": "Các tập tin gần đây",
+  "shortcutAllImages": "Tất cả hình ảnh",
+  "shortcutAllImagesSubtitle": "Duyệt toàn bộ ảnh trên thiết bị",
   "shortcutFtp": "FTP",
+  "shortcutPhotos": "Ảnh",
   "shortcutAddFtp": "+ Thêm máy chủ",
   "deviceStorage": "Bộ nhớ thiết bị",
   "systemApps": "Hệ thống",
@@ -1129,5 +1132,9 @@
     }
   },
   "welcomeDoneTitle": "Hoàn tất!",
-  "welcomeDoneBody": "Mọi thứ đã sẵn sàng. Bắt đầu khám phá file của bạn."
+  "welcomeDoneBody": "Mọi thứ đã sẵn sàng. Bắt đầu khám phá file của bạn.",
+  "restartAppTitle": "Khởi động lại ứng dụng",
+  "restartAppBody": "Bạn có muốn khởi động lại ứng dụng ngay bây giờ để áp dụng giao diện mới một cách đầy đủ không?",
+  "restartNow": "Khởi động lại ngay",
+  "later": "Để sau"
 }

@@ -18,6 +18,7 @@ class PathGuard {
     bool restrictToRoots = false,
   })  : defaultRoot = p.normalize(defaultRoot),
         knownRoots = (knownRoots ?? [defaultRoot]).map(p.normalize).toList(),
+        // ignore: prefer_initializing_formals
         restrictToRoots = restrictToRoots;
 
   final String defaultRoot;

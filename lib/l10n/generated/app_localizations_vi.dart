@@ -501,7 +501,16 @@ class AppLocalizationsVi extends AppLocalizations {
   String get shortcutRecent => 'Các tập tin gần đây';
 
   @override
+  String get shortcutAllImages => 'Tất cả hình ảnh';
+
+  @override
+  String get shortcutAllImagesSubtitle => 'Duyệt toàn bộ ảnh trên thiết bị';
+
+  @override
   String get shortcutFtp => 'FTP';
+
+  @override
+  String get shortcutPhotos => 'Ảnh';
 
   @override
   String get shortcutAddFtp => '+ Thêm máy chủ';
@@ -1685,4 +1694,16 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get welcomeDoneBody => 'Mọi thứ đã sẵn sàng. Bắt đầu khám phá file của bạn.';
+
+  @override
+  String get restartAppTitle => 'Khởi động lại ứng dụng';
+
+  @override
+  String get restartAppBody => 'Bạn có muốn khởi động lại ứng dụng ngay bây giờ để áp dụng giao diện mới một cách đầy đủ không?';
+
+  @override
+  String get restartNow => 'Khởi động lại ngay';
+
+  @override
+  String get later => 'Để sau';
 }

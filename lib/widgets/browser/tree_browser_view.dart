@@ -170,15 +170,17 @@ class _TreeRow extends StatelessWidget {
                     size: AppSizes.thumbSize,
                     color: entry.isDirectory ? VsCodeColors.accent : VsCodeColors.foregroundDim,
                   )
-                else if (FileTypeUtils.isArchive(entry.path) || FileTypeUtils.isApk(entry.path))
-                  Icon(
-                    FileTypeUtils.isApk(entry.path)
-                        ? Icons.android
-                        : Icons.folder_zip_outlined,
+                else if (FileTypeUtils.isApk(entry.path))
+                  FileThumbnail(
+                    path: entry.path,
+                    isDirectory: entry.isDirectory,
                     size: AppSizes.thumbSize,
-                    color: FileTypeUtils.isApk(entry.path)
-                        ? const Color(0xFF3DDC84)
-                        : const Color(0xFFE8B84A),
+                  )
+                else if (FileTypeUtils.isArchive(entry.path))
+                  Icon(
+                    Icons.folder_zip_outlined,
+                    size: AppSizes.thumbSize,
+                    color: const Color(0xFFE8B84A),
                   )
                 else
                   FileThumbnail(

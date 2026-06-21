@@ -10,6 +10,7 @@ import 'package:cope_x_studio/providers/security_provider.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/utils/l10n_extension.dart';
+import 'package:cope_x_studio/services/platform_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:cope_x_studio/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -101,6 +102,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text(error)),
       );
     }
+  }
+
+  Future<void> _onThemeModeChanged(AppThemeMode value) async {
+    final workspace = context.read<WorkspaceProvider>();
+    if (workspace.appThemeMode == value) return;
+
+    await workspace.setAppThemeMode(value);
+
+    if (!mounted) return;
+
+    final l10n = context.l10n;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: VsCodeColors.sidebar,
+          title: Text(l10n.restartAppTitle),
+          content: Text(l10n.restartAppBody),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                PlatformBridge().restartApp();
+              },
+              child: Text(l10n.restartNow),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _showEncodingSheet() async {
@@ -365,7 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: mode,
               groupValue: workspace.appThemeMode,
               onChanged: (value) {
-                if (value != null) workspace.setAppThemeMode(value);
+                if (value != null) unawaited(_onThemeModeChanged(value));
               },
             ),
           ),

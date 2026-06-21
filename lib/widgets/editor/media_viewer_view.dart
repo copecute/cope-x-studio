@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:cope_x_studio/models/app_tab.dart';
 import 'package:cope_x_studio/models/editor_tab.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/media/media_player_handler.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
 import 'package:cope_x_studio/utils/file_type_utils.dart';
 import 'package:cope_x_studio/utils/l10n_extension.dart';
+import 'package:cope_x_studio/models/browser_entry.dart';
+import 'package:cope_x_studio/widgets/browser/entry_properties_dialog.dart';
+import 'package:cope_x_studio/widgets/browser/rename_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -33,6 +37,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
   bool _loading = false;
   List<String> _siblings = [];
   bool _showPlaylist = false;
+  late PageController _pageController;
 
   // ── Video ──────────────────────────────────────────────────────
   VideoPlayerController? _videoController;
@@ -58,6 +63,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
           _currentFilePath,
           forcedMode: widget.tab.forcedMediaMode,
         );
+    _pageController = PageController(initialPage: _currentIndex);
     _initPlayer();
   }
 
@@ -66,6 +72,7 @@ class _MediaViewerViewState extends State<MediaViewerView>
     WidgetsBinding.instance.removeObserver(this);
     _cancelAudioSubs();
     _disposeVideo();
+    _pageController.dispose();
     // ⚠️ Do NOT stop the handler here — audio continues in background.
     super.dispose();
   }
@@ -191,7 +198,6 @@ class _MediaViewerViewState extends State<MediaViewerView>
           _currentLocalPath =
               item.extras?['localPath'] as String? ?? item.id;
         });
-        _showTrackNotification(p.basename(item.id));
       }
       if (item.duration != null) {
         setState(() => _audioDuration = item.duration!);
@@ -240,11 +246,13 @@ class _MediaViewerViewState extends State<MediaViewerView>
 
   Future<void> _switchFile(String path) async {
     if (path == _currentFilePath) return;
-    setState(() => _loading = true);
+
+    final isFtp = path.startsWith('@ftp/');
+    if (isFtp) setState(() => _loading = true);
 
     final provider = context.read<WorkspaceProvider>();
     String? localPath;
-    if (path.startsWith('@ftp/')) {
+    if (isFtp) {
       localPath = await provider.downloadFtpFileToTemp(path);
     } else {
       localPath = path;
@@ -254,10 +262,9 @@ class _MediaViewerViewState extends State<MediaViewerView>
     setState(() {
       _currentFilePath = path;
       _currentLocalPath = localPath;
-      _loading = false;
+      if (isFtp) _loading = false;
     });
     _initPlayer();
-    _showTrackNotification(p.basename(path));
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -289,39 +296,6 @@ class _MediaViewerViewState extends State<MediaViewerView>
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
-  // ══════════════════════════════════════════════════════════════
-  //  In-app track notification
-  // ══════════════════════════════════════════════════════════════
-
-  void _showTrackNotification(String name) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              _treatAsVideo()
-                  ? Icons.videocam_rounded
-                  : Icons.music_note_rounded,
-              size: 15,
-              color: VsCodeColors.accent,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(name,
-                  style: TextStyle(color: VsCodeColors.foreground, fontSize: 13),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: VsCodeColors.sidebar,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        margin: const EdgeInsets.all(12),
-      ),
-    );
-  }
 
   // ══════════════════════════════════════════════════════════════
   //  Fullscreen
@@ -371,17 +345,19 @@ class _MediaViewerViewState extends State<MediaViewerView>
               children: [
                 Expanded(
                   child: Center(
-                    child: _loading
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(color: VsCodeColors.accent),
-                              SizedBox(height: 16),
-                              Text(l10n.loadingFile,
-                                  style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13)),
-                            ],
-                          )
-                        : _buildPreview(),
+                    child: _treatAsImage()
+                        ? _buildImagePreview()
+                        : _loading
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(color: VsCodeColors.accent),
+                                  SizedBox(height: 16),
+                                  Text(l10n.loadingFile,
+                                      style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 13)),
+                                ],
+                              )
+                            : _buildPreview(),
                   ),
                 ),
                 // Playlist slide panel
@@ -473,9 +449,91 @@ class _MediaViewerViewState extends State<MediaViewerView>
                 ),
               ),
             ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: VsCodeColors.foregroundDim, size: 20),
+            color: VsCodeColors.sidebar,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: VsCodeColors.border, width: 1),
+            ),
+            onSelected: (val) async {
+              // Delay slightly to let the popup menu's route exit transition finish
+              // and prevent layout errors if this widget gets unmounted/disposed.
+              await Future.delayed(const Duration(milliseconds: 250));
+              if (!mounted) return;
+              if (val == 'details') {
+                _showProperties();
+              } else if (val == 'share') {
+                final tabId = _appTab?.id;
+                if (tabId != null) {
+                  context.read<WorkspaceProvider>().sharePaths(tabId, [_currentFilePath]);
+                }
+              } else if (val == 'rename') {
+                _renameCurrentFile();
+              } else if (val == 'delete') {
+                _deleteCurrentFile();
+              }
+            },
+            itemBuilder: (ctx) {
+              final l10n = ctx.l10n;
+              return [
+                PopupMenuItem(value: 'details', child: Row(children: [Icon(Icons.info_outline, size: 18), const SizedBox(width: 8), Text(l10n.details)])),
+                PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, size: 18), const SizedBox(width: 8), Text(l10n.share)])),
+                PopupMenuItem(value: 'rename', child: Row(children: [Icon(Icons.drive_file_rename_outline, size: 18), const SizedBox(width: 8), Text(l10n.rename)])),
+                PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 18, color: Colors.red), const SizedBox(width: 8), Text(l10n.delete, style: TextStyle(color: Colors.red))])),
+              ];
+            },
+          ),
         ],
       ),
     );
+  }
+
+  AppTab? get _appTab => context.read<WorkspaceProvider>().tabs.where((t) => t.editor?.id == widget.tab.id).firstOrNull;
+
+  void _showProperties() {
+    final entry = BrowserEntry(
+      name: p.basename(_currentFilePath),
+      path: _currentFilePath,
+      isDirectory: false,
+    );
+    final appTab = _appTab;
+    if (appTab == null) return;
+    EntryPropertiesDialog.show(context, tab: appTab, entry: entry);
+  }
+
+  Future<void> _renameCurrentFile() async {
+    final tabId = _appTab?.id;
+    if (tabId == null) return;
+    
+    final newName = await RenameDialog.show(context, initialName: p.basename(_currentFilePath));
+    if (newName != null && mounted) {
+      final provider = context.read<WorkspaceProvider>();
+      await provider.renamePath(tabId, _currentFilePath, newName);
+    }
+  }
+
+  Future<void> _deleteCurrentFile() async {
+    final tabId = _appTab?.id;
+    if (tabId == null) return;
+    
+    final pathToDelete = _currentFilePath;
+    final deletedIndex = _currentIndex;
+    await context.read<WorkspaceProvider>().deletePaths(tabId, [pathToDelete]);
+    
+    if (mounted) {
+      _siblings.remove(pathToDelete);
+      if (_siblings.isEmpty) {
+        context.read<WorkspaceProvider>().closeEditorInTab(tabId);
+      } else {
+        int nextIndex = deletedIndex;
+        if (nextIndex >= _siblings.length) {
+          nextIndex = _siblings.length - 1;
+        }
+        _switchFile(_siblings[nextIndex]);
+      }
+      setState(() {});
+    }
   }
 
   // ── Preview dispatch ────────────────────────────────────────────
@@ -496,6 +554,48 @@ class _MediaViewerViewState extends State<MediaViewerView>
     if (_treatAsAudio()) return _buildAudioPlayer();
     return Text(l10n.formatNotSupported,
         style: TextStyle(color: VsCodeColors.foreground));
+  }
+
+  Widget _buildImagePreview() {
+    return GestureDetector(
+      onVerticalDragEnd: (details) {
+        final dy = details.velocity.pixelsPerSecond.dy;
+        if (dy < -500) {
+           _showProperties();
+        } else if (dy > 500) {
+           context.read<WorkspaceProvider>().closeEditorInTab(widget.tab.id);
+        }
+      },
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: _siblings.length,
+        onPageChanged: (index) {
+          if (index >= 0 && index < _siblings.length) {
+            _switchFile(_siblings[index]);
+          }
+        },
+        itemBuilder: (context, index) {
+          final path = _siblings[index];
+          if (!path.startsWith('@ftp/')) {
+            return InteractiveViewer(
+              maxScale: 4.0,
+              child: Image.file(File(path), fit: BoxFit.contain),
+            );
+          } else {
+            if (path == _currentFilePath) {
+              if (_loading) return const Center(child: CircularProgressIndicator());
+              if (_currentLocalPath != null) {
+                return InteractiveViewer(
+                  maxScale: 4.0,
+                  child: Image.file(File(_currentLocalPath!), fit: BoxFit.contain),
+                );
+              }
+            }
+            return const Center(child: CircularProgressIndicator());
+          }
+        },
+      ),
+    );
   }
 
   // ── Video player ────────────────────────────────────────────────

@@ -9,6 +9,8 @@ import 'package:cope_x_studio/models/browser_view_mode.dart';
 import 'package:cope_x_studio/models/file_open_as.dart';
 import 'package:cope_x_studio/models/file_op_notice.dart';
 import 'package:cope_x_studio/models/ftp_server_config.dart';
+import 'package:cope_x_studio/models/recent_file_entry.dart';
+import 'package:intl/intl.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/services/file_service.dart';
 import 'package:cope_x_studio/services/shell_list_service.dart';
@@ -29,7 +31,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 class BrowserTabView extends StatelessWidget {
   const BrowserTabView({super.key, required this.tab});
@@ -374,14 +375,17 @@ class _BrowserToolbar extends StatelessWidget {
             tooltip: l10n.search,
             onPressed: () => provider.toggleShowSearch(tab.id),
           ),
-          IconButton(
-            icon: Icon(
-              _viewModeIcon(provider.browserViewMode),
-              size: AppSizes.iconMedium,
+          if (!(tab.currentPath == '@photos' || tab.currentPath == '@photos/recent' || provider.isPhotoAlbumPath(tab.currentPath)))
+            IconButton(
+              icon: Icon(
+                _viewModeIcon(provider.browserViewMode),
+                size: AppSizes.iconMedium,
+              ),
+              tooltip: provider.browserViewMode.localizedLabel(l10n),
+              onPressed: () {
+                provider.toggleViewMode();
+              },
             ),
-            tooltip: provider.browserViewMode.localizedLabel(l10n),
-            onPressed: () => provider.toggleViewMode(),
-          ),
           IconButton(
             icon: Icon(
               Icons.wifi_tethering,
@@ -627,14 +631,6 @@ class _SelectionBar extends StatelessWidget {
 
   final AppTab tab;
 
-  void _sharePaths(List<String> paths) {
-    final localPaths = paths.where((p) => !p.startsWith('@')).toList();
-    if (localPaths.isEmpty) return;
-    SharePlus.instance.share(ShareParams(
-      files: localPaths.map((p) => XFile(p)).toList(),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = context.read<WorkspaceProvider>();
@@ -692,7 +688,7 @@ class _SelectionBar extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.share, size: 20),
                     tooltip: l10n.share,
-                    onPressed: () => _sharePaths(paths),
+                    onPressed: () => provider.sharePaths(tab.id, paths),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 20),
@@ -707,6 +703,14 @@ class _SelectionBar extends StatelessWidget {
       ),
     );
   }
+}
+
+List<String> _shareableLocalPaths(List<String> paths) {
+  return paths.where((path) {
+    if (path.startsWith('@') || path.startsWith('zip://')) return false;
+    final entity = FileSystemEntity.typeSync(path, followLinks: true);
+    return entity == FileSystemEntityType.file || entity == FileSystemEntityType.directory;
+  }).toList();
 }
 
 class _FileListArea extends StatelessWidget {
@@ -936,6 +940,22 @@ class _FileListArea extends StatelessWidget {
       );
     }
 
+    if (tab.currentPath == '@photos') {
+      return _PhotosHomeView(tab: tab, entries: entries, isLoading: provider.isPhotosLoading);
+    }
+
+    if (tab.currentPath == '@photos/recent') {
+      return _PhotoRecentView(
+        tab: tab,
+        recentFiles: provider.photoRecentFiles,
+        isLoading: provider.isPhotoRecentLoading,
+      );
+    }
+
+    if (provider.isPhotoAlbumPath(liveTab.currentPath)) {
+      return _PhotoGalleryView(tab: tab, entries: entries);
+    }
+
     if (entries.isEmpty &&
         !(provider.isTreeView && provider.supportsTreeView(tab))) {
       if (accessNote != null) {
@@ -1104,6 +1124,512 @@ class _EmptyGestureArea extends StatelessWidget {
   }
 }
 
+class _PhotosHomeView extends StatelessWidget {
+  const _PhotosHomeView({
+    required this.tab,
+    required this.entries,
+    required this.isLoading,
+  });
+
+  final AppTab tab;
+  final List<BrowserEntry> entries;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<WorkspaceProvider>();
+    final l10n = context.l10n;
+    final recentEntry = entries.firstWhere(
+      (entry) => entry.path == '@photos/recent',
+      orElse: () => BrowserEntry(
+        name: l10n.shortcutAllImages,
+        path: '@photos/recent',
+        isDirectory: true,
+        isVirtual: true,
+        subtitle: l10n.shortcutAllImagesSubtitle,
+      ),
+    );
+    final albumEntries = entries.where((entry) => entry.path != '@photos/recent').toList();
+
+    if (isLoading && entries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              l10n.scanningStorage,
+              style: TextStyle(color: VsCodeColors.foregroundDim),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final recentPhotos = provider.photoRecentFiles;
+    final hasRecentPhotos = recentPhotos.isNotEmpty;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.shortcutPhotos,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Material(
+            color: VsCodeColors.tabBar,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => provider.navigateTo(tab.id, recentEntry.path),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.photo_library_outlined, size: 28, color: VsCodeColors.accent),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                recentEntry.name,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                recentEntry.subtitle ?? l10n.shortcutAllImagesSubtitle,
+                                style: TextStyle(color: VsCodeColors.foregroundDim),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: VsCodeColors.foregroundDim),
+                      ],
+                    ),
+                    if (hasRecentPhotos) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 90,
+                        child: GridView.count(
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                          children: recentPhotos
+                              .take(6)
+                              .map(
+                                                  (photo) => Builder(builder: (ctx) {
+                                                    final sel = ctx.select<WorkspaceProvider, bool>((p) => p.isSelected(tab.id, photo.path));
+                                                    return SizedBox(
+                                                      width: 90,
+                                                      child: Stack(
+                                                        children: [
+                                                          InkWell(
+                                                            borderRadius: BorderRadius.circular(6),
+                                                            onTap: () {
+                                                              if (tab.hasSelection) {
+                                                                provider.toggleSelection(tab.id, photo.path);
+                                                              } else {
+                                                                provider.openFileInTab(tab.id, photo.path);
+                                                              }
+                                                            },
+                                                            onLongPress: () {
+                                                              final box = ctx.findRenderObject() as RenderBox?;
+                                                              final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+                                                              final entry = BrowserEntry(name: p.basename(photo.path), path: photo.path, isDirectory: false);
+                                                              _showItemMenu(ctx, provider, tab, entry, pos);
+                                                            },
+                                                            onSecondaryTapDown: (d) {
+                                                              final entry = BrowserEntry(name: p.basename(photo.path), path: photo.path, isDirectory: false);
+                                                              _showItemMenu(ctx, provider, tab, entry, d.globalPosition);
+                                                            },
+                                                            child: ClipRRect(
+                                                              borderRadius: BorderRadius.circular(6),
+                                                              child: FileThumbnail(
+                                                                path: photo.path,
+                                                                isDirectory: false,
+                                                                size: 90,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (sel)
+                                                            Positioned(
+                                                              top: 6,
+                                                              right: 6,
+                                                              child: Icon(Icons.check_circle, color: VsCodeColors.accent, size: 18),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.noRecentFiles,
+                        style: TextStyle(color: VsCodeColors.foregroundDim),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Albums',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                albumEntries.isEmpty ? '' : '${albumEntries.length}',
+                style: TextStyle(color: VsCodeColors.foregroundDim),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (albumEntries.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                child: Text(
+                  l10n.emptyFolder,
+                  style: const TextStyle(fontSize: 15, color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 180,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 0.95,
+              ),
+              itemCount: albumEntries.length,
+              itemBuilder: (context, index) {
+                final entry = albumEntries[index];
+                final coverPath = provider.photoAlbumCoverPath(entry.path);
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => provider.navigateTo(tab.id, entry.path),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: VsCodeColors.tabBar,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: coverPath != null
+                                ? FileThumbnail(
+                                    path: coverPath,
+                                    isDirectory: false,
+                                    size: 140,
+                                  )
+                                : Container(
+                                    color: VsCodeColors.hover,
+                                    child: const Center(
+                                      child: Icon(Icons.photo_library_outlined, size: 36),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          entry.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          entry.childrenCount != null ? '${entry.childrenCount} ảnh' : entry.subtitle ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: VsCodeColors.foregroundDim, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoRecentView extends StatelessWidget {
+  const _PhotoRecentView({
+    required this.tab,
+    required this.recentFiles,
+    required this.isLoading,
+  });
+
+  final AppTab tab;
+  final List<RecentFileEntry> recentFiles;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (isLoading && recentFiles.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              l10n.scanningRecent,
+              style: TextStyle(color: VsCodeColors.foregroundDim),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final existingFiles = recentFiles.where((file) => File(file.path).existsSync()).toList();
+
+    if (existingFiles.isEmpty) {
+      return Center(
+        child: Text(
+          l10n.noRecentFiles,
+          style: const TextStyle(fontSize: 16),
+        ),
+      );
+    }
+
+    final locale = Localizations.localeOf(context).toString();
+    final grouped = <String, List<RecentFileEntry>>{};
+    for (final file in existingFiles) {
+      final dateKey = DateFormat('dd MMMMM yyyy', locale).format(file.modifiedAt);
+      grouped.putIfAbsent(dateKey, () => []).add(file);
+    }
+
+    final provider = context.read<WorkspaceProvider>();
+
+    return ListView(
+      padding: const EdgeInsets.all(10),
+      children: grouped.entries.map((group) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                group.key,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: group.value.map((file) {
+                return SizedBox(
+                  width: 110,
+                  child: Builder(builder: (ctx) {
+                    final sel = ctx.select<WorkspaceProvider, bool>((p) => p.isSelected(tab.id, file.path));
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
+                          children: [
+                            InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () {
+                                if (tab.hasSelection) {
+                                  provider.toggleSelection(tab.id, file.path);
+                                } else {
+                                  provider.openFileInTab(tab.id, file.path);
+                                }
+                              },
+                              onLongPress: () {
+                                final box = ctx.findRenderObject() as RenderBox?;
+                                final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+                                final entry = BrowserEntry(name: p.basename(file.path), path: file.path, isDirectory: false);
+                                _showItemMenu(ctx, provider, tab, entry, pos);
+                              },
+                              onSecondaryTapDown: (d) {
+                                final entry = BrowserEntry(name: p.basename(file.path), path: file.path, isDirectory: false);
+                                _showItemMenu(ctx, provider, tab, entry, d.globalPosition);
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: FileThumbnail(
+                                  path: file.path,
+                                  isDirectory: false,
+                                  size: 110,
+                                ),
+                              ),
+                            ),
+                            if (sel)
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Icon(Icons.check_circle, color: VsCodeColors.accent, size: 20),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          p.basename(file.path),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    );
+                  }),
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _PhotoGalleryView extends StatelessWidget {
+  const _PhotoGalleryView({
+    required this.tab,
+    required this.entries,
+  });
+
+  final AppTab tab;
+  final List<BrowserEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final imageEntries = entries.where((entry) => !entry.isDirectory && FileTypeUtils.isImage(entry.path) && File(entry.path).existsSync()).toList();
+    if (imageEntries.isEmpty) {
+      return _EmptyGestureArea(
+        tab: tab,
+        child: Center(
+          child: Text(
+            l10n.emptyFolder,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    final items = imageEntries.map((entry) {
+      final modifiedAt = File(entry.path).statSync().modified;
+      return _PhotoGalleryItem(path: entry.path, modifiedAt: modifiedAt);
+    }).toList()
+      ..sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+
+    final locale = Localizations.localeOf(context).toString();
+    final groups = <String, List<_PhotoGalleryItem>>{};
+    for (final item in items) {
+      final dateKey = DateFormat('dd MMMMM yyyy', locale).format(item.modifiedAt);
+      groups.putIfAbsent(dateKey, () => []).add(item);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(10),
+      children: groups.entries.map((group) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                group.key,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: group.value.map((item) {
+                return SizedBox(
+                  width: 110,
+                  child: Builder(builder: (ctx) {
+                    final sel = ctx.select<WorkspaceProvider, bool>((p) => p.isSelected(tab.id, item.path));
+                    return Stack(
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            if (tab.hasSelection) {
+                              context.read<WorkspaceProvider>().toggleSelection(tab.id, item.path);
+                            } else {
+                              context.read<WorkspaceProvider>().openFileInTab(tab.id, item.path);
+                            }
+                          },
+                          onLongPress: () {
+                            final box = ctx.findRenderObject() as RenderBox?;
+                            final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+                            final entry = BrowserEntry(name: p.basename(item.path), path: item.path, isDirectory: false);
+                            _showItemMenu(ctx, context.read<WorkspaceProvider>(), tab, entry, pos);
+                          },
+                          onSecondaryTapDown: (d) {
+                            final entry = BrowserEntry(name: p.basename(item.path), path: item.path, isDirectory: false);
+                            _showItemMenu(ctx, context.read<WorkspaceProvider>(), tab, entry, d.globalPosition);
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: FileThumbnail(
+                              path: item.path,
+                              isDirectory: false,
+                              size: 110,
+                            ),
+                          ),
+                        ),
+                        if (sel)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Icon(Icons.check_circle, color: VsCodeColors.accent, size: 20),
+                          ),
+                      ],
+                    );
+                  }),
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _PhotoGalleryItem {
+  const _PhotoGalleryItem({required this.path, required this.modifiedAt});
+
+  final String path;
+  final DateTime modifiedAt;
+}
+
 class _AppIconTile extends StatefulWidget {
   const _AppIconTile({required this.packageName, this.size = AppSizes.thumbSize});
 
@@ -1176,6 +1702,7 @@ IconData _getVirtualIcon(String path) {
   if (path == AppPathUtils.systemListPath) return Icons.settings_system_daydream_outlined;
   if (path == AppPathUtils.userListPath) return Icons.install_mobile_outlined;
   if (path == '@ftp') return Icons.settings_ethernet;
+  if (path == '@photos') return Icons.photo_library_outlined;
   if (path == '@display') return Icons.settings_suggest_outlined;
   if (path == '@add_ftp_server') return Icons.add_circle_outline;
   if (path.startsWith('@ftp/')) return Icons.dns_outlined;
@@ -1190,6 +1717,7 @@ Color _getVirtualIconColor(String path) {
   if (path == AppPathUtils.systemListPath) return Colors.orangeAccent;
   if (path == AppPathUtils.userListPath) return Colors.lightGreenAccent;
   if (path == '@ftp') return Colors.blueAccent;
+  if (path == '@photos') return Colors.pinkAccent;
   if (path == '@display') return Colors.grey;
   if (path == '@add_ftp_server') return VsCodeColors.accent;
   if (path.startsWith('@ftp/')) return Colors.blueAccent;
@@ -1250,6 +1778,10 @@ class _FileTile extends StatelessWidget {
       color: selected ? VsCodeColors.selection : Colors.transparent,
       child: InkWell(
         onTap: () {
+          if (tab.hasSelection && isSelectable) {
+            provider.toggleSelection(tab.id, entry.path);
+            return;
+          }
           if (entry.path == '@add_ftp_server') {
             _showFtpServerDialog(context, provider);
           } else if (entry.path == '@display') {
@@ -1508,6 +2040,10 @@ class _GridFileTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(6),
         onTap: () {
+          if (tab.hasSelection && isSelectable) {
+            provider.toggleSelection(tab.id, entry.path);
+            return;
+          }
           if (entry.path == '@add_ftp_server') {
             _showFtpServerDialog(context, provider);
           } else if (entry.path == '@display') {
@@ -1969,6 +2505,7 @@ void _showItemMenu(
   final pasteDir = tab.isZipViewer ? null : tab.currentPath;
 
   final isSelectable = provider.isSelectable(tab.id, entry);
+  final shareablePaths = _shareableLocalPaths(paths);
   final multiSelected = paths.length > 1;
   final showCompressZip = !tab.isZipViewer && (multiSelected || !isArchiveFile);
   final showExtractArchive = isArchiveFile && !multiSelected;
@@ -1995,6 +2532,8 @@ void _showItemMenu(
       _menuItem(l10n.openWithSystem, Icons.open_in_browser, () => provider.openWithSystem(path)),
     if (tab.isZipViewer && !isDir)
       _menuItem(l10n.share, Icons.share, () => provider.shareZipFile(tab.zipArchivePath!, path, password: provider.getZipPassword(tab.zipArchivePath!))),
+    if (!tab.isZipViewer && shareablePaths.isNotEmpty)
+      _menuItem(l10n.share, Icons.share, () => provider.sharePaths(tab.id, shareablePaths)),
     if (isApkFile && provider.openApkAsZip)
       _menuItem(l10n.installApk, Icons.install_mobile, () => provider.installApkFile(path)),
     if (showCompressZip)
@@ -2275,6 +2814,7 @@ class _ZipCreateDialogState extends State<_ZipCreateDialog> {
 class _ZipPasswordDialog extends StatefulWidget {
   const _ZipPasswordDialog({
     required this.title,
+    // ignore: unused_element_parameter
     this.optional = false,
   });
 

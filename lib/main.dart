@@ -39,7 +39,7 @@ Future<void> main() async {
     ),
   );
 
-  final workspace = WorkspaceProvider();
+  final workspace = WorkspaceProvider(mediaPlayerHandler: audioHandler);
   final security = SecurityProvider();
   final localeProvider = LocaleProvider();
   final onboardingProvider = OnboardingProvider();
