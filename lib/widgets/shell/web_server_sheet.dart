@@ -81,8 +81,8 @@ class _WebServerSheetState extends State<WebServerSheet> {
     final l10n = context.l10n;
     final provider = context.watch<WorkspaceProvider>();
     final security = context.watch<SecurityProvider>();
-    final running = provider.isWebServerRunning;
-    final url = provider.webServerUrl;
+    final running = context.select<WorkspaceProvider, bool>((p) => p.isWebServerRunning);
+    final url = context.select<WorkspaceProvider, String?>((p) => p.webServerUrl);
     final sharedRoot = security.webServerSharedRoot;
     final useAppPassword = security.webServerUseAppPassword;
     final canUseAppPassword = security.isLockEnabled && security.hasPassword;
@@ -191,6 +191,7 @@ class _WebServerSheetState extends State<WebServerSheet> {
                 } else {
                   await provider.stopWebServer();
                 }
+                if (mounted) setState(() {});
               },
             ),
             if (running && url != null) ...[

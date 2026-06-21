@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cope_x_studio/l10n/model_l10n.dart';
 import 'package:cope_x_studio/models/app_tab.dart';
+import 'package:cope_x_studio/models/apps_list_watch_state.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/models/browser_view_mode.dart';
 import 'package:cope_x_studio/models/file_open_as.dart';
@@ -37,7 +38,15 @@ class BrowserTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<WorkspaceProvider>();
+    final isAppsList = AppPathUtils.isAppsList(tab.currentPath);
+    if (isAppsList) {
+      context.select<WorkspaceProvider, AppsListWatchState>(
+        (p) => p.appsListWatchState(tab.id, tab.currentPath),
+      );
+    } else {
+      context.watch<WorkspaceProvider>();
+    }
+    final provider = context.read<WorkspaceProvider>();
     final l10n = context.l10n;
 
     if (!provider.storageGranted && provider.permissionChecked) {
@@ -303,6 +312,7 @@ class _BrowserToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<WorkspaceProvider>();
     final l10n = context.l10n;
+    final webServerRunning = context.select<WorkspaceProvider, bool>((p) => p.isWebServerRunning);
     final isWritable = !tab.currentPath.startsWith('@') || tab.currentPath.startsWith('@ftp/');
 
     return Container(
@@ -376,7 +386,7 @@ class _BrowserToolbar extends StatelessWidget {
             icon: Icon(
               Icons.wifi_tethering,
               size: AppSizes.iconMedium,
-              color: provider.isWebServerRunning ? VsCodeColors.accent : null,
+              color: webServerRunning ? VsCodeColors.accent : null,
             ),
             tooltip: l10n.webServer,
             onPressed: () => WebServerSheet.show(context),
@@ -706,16 +716,23 @@ class _FileListArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<WorkspaceProvider>();
+    final isAppsList = AppPathUtils.isAppsList(tab.currentPath);
+    if (isAppsList) {
+      context.select<WorkspaceProvider, AppsListWatchState>(
+        (p) => p.appsListWatchState(tab.id, tab.currentPath),
+      );
+    } else {
+      context.watch<WorkspaceProvider>();
+    }
+    final provider = context.read<WorkspaceProvider>();
     final l10n = context.l10n;
-    // ignore: unused_local_variable
-    final _ = tab.listRevision;
-    final accessNote = provider.getDirectoryAccessNote(tab.currentPath);
-    final usesShell = ShellListService.shouldUseShell(tab.currentPath, mode: provider.rootAccessMode);
+    final liveTab = provider.tabs.where((t) => t.id == tab.id).firstOrNull ?? tab;
+    final accessNote = provider.getDirectoryAccessNote(liveTab.currentPath);
+    final usesShell = ShellListService.shouldUseShell(liveTab.currentPath, mode: provider.rootAccessMode);
 
     List<BrowserEntry> entries;
     try {
-      entries = provider.listEntriesForTab(tab.id);
+      entries = provider.listEntriesForTab(liveTab.id);
     } on FileAccessException catch (e) {
       return _wrapWithAccessBanner(
         accessNote ?? (ShellListService.isRootFilesystemPath(tab.currentPath) ? l10n.accessDenied : null),
@@ -976,11 +993,22 @@ class _FileListArea extends StatelessWidget {
                       childAspectRatio: 0.83,
                     ),
                     itemCount: entries.length,
-                    itemBuilder: (context, index) => _GridFileTile(tab: tab, entry: entries[index]),
+                    itemBuilder: (context, index) => _GridFileTile(
+                      key: isAppsList ? ValueKey(entries[index].path) : null,
+                      tab: liveTab,
+                      entry: entries[index],
+                    ),
                   )
                 : ListView.builder(
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: true,
+                    cacheExtent: isAppsList ? 1200 : 250,
                     itemCount: entries.length,
-                    itemBuilder: (context, index) => _FileTile(tab: tab, entry: entries[index]),
+                    itemBuilder: (context, index) => _FileTile(
+                      key: isAppsList ? ValueKey(entries[index].path) : null,
+                      tab: liveTab,
+                      entry: entries[index],
+                    ),
                   ),
             if (isFtpLoading)
               Positioned.fill(
@@ -1087,23 +1115,48 @@ class _AppIconTile extends StatefulWidget {
 }
 
 class _AppIconTileState extends State<_AppIconTile> {
+  Uint8List? _bytes;
+  bool _loading = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<WorkspaceProvider>().ensureAppIcon(widget.packageName);
-    });
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_AppIconTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.packageName != widget.packageName) {
+      _bytes = null;
+      _loading = false;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final provider = context.read<WorkspaceProvider>();
+    final cached = provider.appIcon(widget.packageName);
+    if (cached != null) {
+      if (mounted) setState(() => _bytes = cached);
+      return;
+    }
+    if (_loading) return;
+    _loading = true;
+    final bytes = await provider.loadAppIcon(widget.packageName);
+    _loading = false;
+    if (mounted && bytes != null) {
+      setState(() => _bytes = bytes);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bytes = context.watch<WorkspaceProvider>().appIcon(widget.packageName);
-    if (bytes != null) {
+    if (_bytes != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Image.memory(
-          bytes,
+          _bytes!,
           width: widget.size,
           height: widget.size,
           fit: BoxFit.cover,
@@ -1153,18 +1206,6 @@ bool _isServerOrHomePath(String path) {
 Widget _buildLeadingIcon(WorkspaceProvider provider, BrowserEntry entry, double size) {
   if (AppPathUtils.isAppPackage(entry.path)) {
     final package = AppPathUtils.packageFromPath(entry.path);
-    if (entry.iconBytes != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Image.memory(
-          entry.iconBytes!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-        ),
-      );
-    }
     if (package != null) {
       return _AppIconTile(packageName: package, size: size);
     }
@@ -1192,15 +1233,17 @@ Widget _buildLeadingIcon(WorkspaceProvider provider, BrowserEntry entry, double 
 }
 
 class _FileTile extends StatelessWidget {
-  const _FileTile({required this.tab, required this.entry});
+  const _FileTile({super.key, required this.tab, required this.entry});
 
   final AppTab tab;
   final BrowserEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<WorkspaceProvider>();
-    final selected = provider.isSelected(tab.id, entry.path);
+    final selected = context.select<WorkspaceProvider, bool>(
+      (p) => p.isSelected(tab.id, entry.path),
+    );
+    final provider = context.read<WorkspaceProvider>();
     final isSelectable = provider.isSelectable(tab.id, entry);
 
     return Material(
@@ -1446,15 +1489,17 @@ class _FileTile extends StatelessWidget {
 }
 
 class _GridFileTile extends StatelessWidget {
-  const _GridFileTile({required this.tab, required this.entry});
+  const _GridFileTile({super.key, required this.tab, required this.entry});
 
   final AppTab tab;
   final BrowserEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<WorkspaceProvider>();
-    final selected = provider.isSelected(tab.id, entry.path);
+    final selected = context.select<WorkspaceProvider, bool>(
+      (p) => p.isSelected(tab.id, entry.path),
+    );
+    final provider = context.read<WorkspaceProvider>();
     final isSelectable = provider.isSelectable(tab.id, entry);
 
     return Material(

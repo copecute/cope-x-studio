@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:cope_x_studio/models/app_tab.dart';
+import 'package:cope_x_studio/models/apps_list_watch_state.dart';
 import 'package:cope_x_studio/models/app_theme_mode.dart';
 import 'package:cope_x_studio/models/browser_entry.dart';
 import 'package:cope_x_studio/models/browser_view_mode.dart';
@@ -165,6 +166,8 @@ class WorkspaceProvider extends ChangeNotifier {
 
   final Map<String, List<InstalledAppInfo>> _appsCache = {};
   final Map<String, Uint8List> _appIcons = {};
+  final Map<String, List<BrowserEntry>> _appsBrowserEntriesCache = {};
+  final Map<String, int> _appsBrowserEntriesRev = {};
   final Set<String> _appsLoadingKeys = {};
   final Map<String, int> _appsLoadGenerationByKey = {};
   String? _appsError;
@@ -176,6 +179,47 @@ class WorkspaceProvider extends ChangeNotifier {
   }
   String? get appsError => _appsError;
   Uint8List? appIcon(String packageName) => _appIcons[packageName];
+
+  int tabListRevision(String tabId) {
+    final idx = _tabIndex(tabId);
+    return idx >= 0 ? _tabs[idx].listRevision : 0;
+  }
+
+  int appsListCount(String listPath) {
+    if (!AppPathUtils.isAppsList(listPath)) return 0;
+    final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
+    return _appsCache[cacheKey]?.length ?? 0;
+  }
+
+  /// Rebuild token for apps list UI — excludes icon cache updates.
+  AppsListWatchState appsListWatchState(String tabId, String listPath) {
+    final idx = _tabIndex(tabId);
+    final t = idx >= 0 ? _tabs[idx] : null;
+    final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
+    return AppsListWatchState(
+      listRevision: t?.listRevision ?? 0,
+      loading: _appsLoadingKeys.contains(cacheKey),
+      error: _appsError,
+      count: _appsCache[cacheKey]?.length ?? 0,
+      searchQuery: t?.searchQuery ?? '',
+      selectionCount: t?.selectedPaths.length ?? 0,
+      showSearch: t?.showSearch ?? false,
+      hasSelection: t?.hasSelection ?? false,
+    );
+  }
+
+  Future<Uint8List?> loadAppIcon(String packageName) async {
+    final cached = _appIcons[packageName];
+    if (cached != null) return cached;
+    try {
+      final bytes = await _appManagerService.getAppIcon(packageName);
+      if (bytes != null && bytes.isNotEmpty) {
+        _appIcons[packageName] = bytes;
+        return bytes;
+      }
+    } catch (_) {}
+    return null;
+  }
   InstalledAppInfo? getAppInfo(String packageName) {
     for (final list in _appsCache.values) {
       for (final app in list) {
@@ -699,7 +743,31 @@ class WorkspaceProvider extends ChangeNotifier {
   bool get isRecentLoading => _recentLoading;
   List<String> get recentFilePaths =>
       _recentFiles.map((e) => e.path).toList(growable: false);
+  int _webServerOpGen = 0;
+
   bool get isWebServerRunning => _webServerService.isRunning;
+
+  void syncWebServerState() {
+    _notifyWebServerStateChanged();
+  }
+
+  void _notifyWebServerStateChanged() {
+    notifyListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (hasListeners) notifyListeners();
+    });
+  }
+
+  void _invalidateAppsBrowserEntries(String cacheKey) {
+    _appsBrowserEntriesCache.remove(cacheKey);
+    _appsBrowserEntriesRev.remove(cacheKey);
+  }
+
+  int _appsBrowserEntriesRevision(String cacheKey) {
+    final gen = _appsLoadGenerationByKey[cacheKey] ?? 0;
+    final count = _appsCache[cacheKey]?.length ?? 0;
+    return (gen << 16) ^ count;
+  }
   String get defaultBrowsePath => StorageRoots.defaultRoot(_permissionService);
   String? get webServerRoot => _webServerService.rootPath;
   List<String> get webServerUrls {
@@ -709,8 +777,10 @@ class WorkspaceProvider extends ChangeNotifier {
         .toList();
   }
 
-  String? get webServerUrl =>
-      NetworkUtils.buildPreferredUrl(_webServerService.addresses, WebServerService.port);
+  String? get webServerUrl {
+    if (!_webServerService.isRunning) return null;
+    return NetworkUtils.buildPreferredUrl(_webServerService.addresses, WebServerService.port);
+  }
 
   void clearLogs() {
     _logHistory.clear();
@@ -877,7 +947,17 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   Future<void> _ensureTreeChildrenLoaded(String tabId, String dirPath) async {
+    final tab = _tab(tabId);
     final key = _treeCacheKey(tabId, dirPath);
+
+    if (tab.isZipViewer && tab.zipArchivePath != null) {
+      final zipPath = tab.zipArchivePath!;
+      final zipKey = _zipListKey(zipPath, dirPath, _zipPasswords[zipPath]);
+      if (_treeChildrenCache.containsKey(key) && !_zipListCache.containsKey(zipKey)) {
+        _treeChildrenCache.remove(key);
+      }
+    }
+
     if (_treeChildrenCache.containsKey(key) || _treeLoadingKeys.contains(key)) return;
 
     _treeLoadingKeys.add(key);
@@ -1385,6 +1465,7 @@ class WorkspaceProvider extends ChangeNotifier {
       ),
     );
     _log(L10nScope.current.logViewZip(p.basename(zipPath)));
+    _invalidateTreeCache(tabId: tabId);
     notifyListeners();
 
     final l10n = L10nScope.current;
@@ -1398,6 +1479,7 @@ class WorkspaceProvider extends ChangeNotifier {
       _zipErrors[zipPath] = l10n.cannotReadPath(p.basename(zipPath));
       notifyListeners();
     }
+    _resyncTreeAfterRefresh(tabId);
   }
 
   void navigateZipInner(String tabId, String innerPath) {
@@ -1527,10 +1609,16 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   List<BrowserEntry> _getInstalledAppsEntries(String listPath) {
-    final l10n = L10nScope.current;
     final cacheKey = AppPathUtils.isSystemList(listPath) ? 'system' : 'user';
+    final rev = _appsBrowserEntriesRevision(cacheKey);
+    final cached = _appsBrowserEntriesCache[cacheKey];
+    if (cached != null && _appsBrowserEntriesRev[cacheKey] == rev) {
+      return cached;
+    }
+
+    final l10n = L10nScope.current;
     final apps = _appsCache[cacheKey] ?? [];
-    return apps
+    final entries = apps
         .map(
           (app) => BrowserEntry(
             name: app.appName,
@@ -1539,10 +1627,12 @@ class WorkspaceProvider extends ChangeNotifier {
             size: app.apkSize,
             subtitle: '${app.versionName.isNotEmpty ? 'v${app.versionName}' : 'v${app.versionCode}'} · ${_formatSize(app.apkSize)} · ${app.isSystem ? l10n.systemApp : l10n.userApp}',
             isVirtual: true,
-            iconBytes: _appIcons[app.packageName],
           ),
         )
         .toList();
+    _appsBrowserEntriesCache[cacheKey] = entries;
+    _appsBrowserEntriesRev[cacheKey] = rev;
+    return entries;
   }
 
   static String _formatSize(int size) {
@@ -1618,6 +1708,7 @@ class WorkspaceProvider extends ChangeNotifier {
       final sorted = List<InstalledAppInfo>.from(scanned)
         ..sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
       _appsCache[cacheKey] = sorted;
+      _invalidateAppsBrowserEntries(cacheKey);
       return scanned.length;
     }
 
@@ -1631,6 +1722,7 @@ class WorkspaceProvider extends ChangeNotifier {
     }
     if (added > 0) {
       existing.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
+      _invalidateAppsBrowserEntries(cacheKey);
     }
     return added;
   }
@@ -1703,10 +1795,16 @@ class WorkspaceProvider extends ChangeNotifier {
       if (added > 0) {
         final label = cacheKey == 'system' ? L10nScope.current.logAppsTypeSystem : L10nScope.current.logAppsTypeUser;
         _log(L10nScope.current.logAppsAdded(added, label));
-        unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
+        unawaited(_prefetchAppIcons(
+          apps.map((a) => a.packageName).toList(),
+          maxCount: cacheKey == 'user' ? 20 : null,
+        ));
       } else if (_appsCache[cacheKey]?.isEmpty ?? true) {
         _log(L10nScope.current.logAppsLoaded(apps.length));
-        unawaited(_prefetchAppIcons(apps.map((a) => a.packageName).toList()));
+        unawaited(_prefetchAppIcons(
+          apps.map((a) => a.packageName).toList(),
+          maxCount: cacheKey == 'user' ? 20 : null,
+        ));
       }
     } catch (e) {
       if (generation == _appsLoadGenerationByKey[cacheKey]) {
@@ -1722,30 +1820,19 @@ class WorkspaceProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _prefetchAppIcons(List<String> packages) async {
-    var changed = false;
-    for (final package in packages) {
-      if (_appIcons.containsKey(package)) continue;
-      try {
-        final bytes = await _appManagerService.getAppIcon(package);
-        if (bytes != null && bytes.isNotEmpty) {
-          _appIcons[package] = bytes;
-          changed = true;
-        }
-      } catch (_) {}
+  Future<void> _prefetchAppIcons(List<String> packages, {int? maxCount}) async {
+    var pending = packages.where((p) => !_appIcons.containsKey(p)).toList();
+    if (pending.isEmpty) return;
+    if (maxCount != null && pending.length > maxCount) {
+      pending = pending.take(maxCount).toList();
     }
-    if (changed) notifyListeners();
-  }
 
-  Future<void> ensureAppIcon(String packageName) async {
-    if (_appIcons.containsKey(packageName)) return;
-    try {
-      final bytes = await _appManagerService.getAppIcon(packageName);
-      if (bytes != null && bytes.isNotEmpty) {
-        _appIcons[packageName] = bytes;
-        notifyListeners();
-      }
-    } catch (_) {}
+    const batchSize = 8;
+    for (var i = 0; i < pending.length; i += batchSize) {
+      final batch = pending.skip(i).take(batchSize).toList();
+      await Future.wait(batch.map(loadAppIcon));
+      await Future<void>.delayed(Duration.zero);
+    }
   }
 
   Future<void> _loadShellDirectory(String tabId, String path) async {
@@ -4058,6 +4145,7 @@ class WorkspaceProvider extends ChangeNotifier {
   // ── Web Server ─────────────────────────────────────────────
 
   Future<void> startWebServer() async {
+    final op = ++_webServerOpGen;
     try {
       final sharedRoot = _security?.webServerSharedRoot;
       final restrictToRoots = sharedRoot != null && sharedRoot.isNotEmpty;
@@ -4071,6 +4159,7 @@ class WorkspaceProvider extends ChangeNotifier {
       Future<bool> Function(String password)? verifier;
       if (_security != null) {
         verifier = await _security!.buildWebServerVerifier();
+        if (op != _webServerOpGen) return;
       }
 
       final addresses = await _webServerService.start(
@@ -4079,6 +4168,10 @@ class WorkspaceProvider extends ChangeNotifier {
         restrictToRoots: restrictToRoots,
         asyncPasswordVerifier: verifier,
       );
+      if (op != _webServerOpGen) {
+        await _webServerService.stop();
+        return;
+      }
       final l10n = L10nScope.current;
       final authNote = verifier != null ? l10n.logWebServerAuthWith : '';
       final url = NetworkUtils.buildPreferredUrl(addresses, WebServerService.port);
@@ -4088,11 +4181,17 @@ class WorkspaceProvider extends ChangeNotifier {
       _log(l10n.logWebServerStarted(authNote, url ?? addresses.join(', '), scopeNote));
       if (url != null) {
         await WebServerNotificationService.instance.showRunning(url: url);
+        if (op != _webServerOpGen) {
+          await _webServerService.stop();
+          await WebServerNotificationService.instance.cancel();
+          return;
+        }
       }
-      notifyListeners();
+      _notifyWebServerStateChanged();
     } catch (e) {
+      if (op != _webServerOpGen) return;
       _log(L10nScope.current.logWebServerStartError('$e'));
-      notifyListeners();
+      _notifyWebServerStateChanged();
     }
   }
 
@@ -4103,10 +4202,14 @@ class WorkspaceProvider extends ChangeNotifier {
   }
 
   Future<void> stopWebServer() async {
-    await _webServerService.stop();
-    await WebServerNotificationService.instance.cancel();
+    _webServerOpGen++;
+    _notifyWebServerStateChanged();
+    try {
+      await _webServerService.stop();
+      await WebServerNotificationService.instance.cancel();
+    } catch (_) {}
     _log(L10nScope.current.logWebServerStopped);
-    notifyListeners();
+    _notifyWebServerStateChanged();
   }
 
   bool _isRootPath(String path) {

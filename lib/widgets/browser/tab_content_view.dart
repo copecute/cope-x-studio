@@ -16,8 +16,9 @@ class TabContentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<WorkspaceProvider>();
-    final tab = provider.activeTab;
+    final tab = context.select<WorkspaceProvider, AppTab?>(
+      (p) => p.activeTab,
+    );
 
     if (tab == null) {
       return const _NoTabPlaceholder();

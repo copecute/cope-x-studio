@@ -5,6 +5,7 @@ import 'package:cope_x_studio/models/tree_browser_node.dart';
 import 'package:cope_x_studio/providers/workspace_provider.dart';
 import 'package:cope_x_studio/theme/app_sizes.dart';
 import 'package:cope_x_studio/theme/vscode_theme.dart';
+import 'package:cope_x_studio/utils/file_type_utils.dart';
 import 'package:cope_x_studio/utils/l10n_extension.dart';
 import 'package:cope_x_studio/widgets/browser/file_thumbnail.dart';
 import 'package:flutter/material.dart';
@@ -98,9 +99,11 @@ class _TreeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final provider = context.read<WorkspaceProvider>();
     final entry = node.entry;
-    final selected = provider.isSelected(tab.id, entry.path);
+    final selected = context.select<WorkspaceProvider, bool>(
+      (p) => p.isSelected(tab.id, entry.path),
+    );
+    final provider = context.read<WorkspaceProvider>();
     final isSelectable = provider.isSelectable(tab.id, entry);
 
     Color? bg;
@@ -166,6 +169,16 @@ class _TreeRow extends StatelessWidget {
                     entry.isDirectory ? Icons.folder : Icons.insert_drive_file,
                     size: AppSizes.thumbSize,
                     color: entry.isDirectory ? VsCodeColors.accent : VsCodeColors.foregroundDim,
+                  )
+                else if (FileTypeUtils.isArchive(entry.path) || FileTypeUtils.isApk(entry.path))
+                  Icon(
+                    FileTypeUtils.isApk(entry.path)
+                        ? Icons.android
+                        : Icons.folder_zip_outlined,
+                    size: AppSizes.thumbSize,
+                    color: FileTypeUtils.isApk(entry.path)
+                        ? const Color(0xFF3DDC84)
+                        : const Color(0xFFE8B84A),
                   )
                 else
                   FileThumbnail(

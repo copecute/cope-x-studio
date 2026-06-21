@@ -103,6 +103,7 @@ class _BootstrapAppState extends State<_BootstrapApp> with WidgetsBindingObserve
       unawaited(widget.workspace.saveSessionState());
     } else if (state == AppLifecycleState.resumed) {
       widget.workspace.recheckPermissions();
+      widget.workspace.syncWebServerState();
       widget.security.onAppResumed();
     }
   }

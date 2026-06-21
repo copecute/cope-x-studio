@@ -16,6 +16,7 @@ class StatusBar extends StatelessWidget {
     final tab = provider.activeTab;
     final l10n = context.l10n;
     final message = provider.statusMessage ?? (tab?.currentPath ?? l10n.ready);
+    final webServerRunning = context.select<WorkspaceProvider, bool>((p) => p.isWebServerRunning);
 
     return Material(
       color: VsCodeColors.statusBar,
@@ -36,7 +37,7 @@ class StatusBar extends StatelessWidget {
                 ),
               ),
               const Icon(Icons.unfold_more, size: 14, color: Colors.white54),
-              if (provider.isWebServerRunning) ...[
+              if (webServerRunning) ...[
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () => WebServerSheet.show(context),

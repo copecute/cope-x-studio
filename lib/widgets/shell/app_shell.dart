@@ -66,18 +66,18 @@ class AppShell extends StatelessWidget {
           child: Scaffold(
             backgroundColor: VsCodeColors.editor,
             body: fullscreen
-                ? const Column(
+                ? Column(
                     children: [
-                      Expanded(child: TabContentView()),
-                      EditorTabBar(),
+                      const Expanded(child: TabContentView()),
+                      const EditorTabBar(),
                       StatusBar(),
                     ],
                   )
-                : const SafeArea(
+                : SafeArea(
                     child: Column(
                       children: [
-                        Expanded(child: TabContentView()),
-                        EditorTabBar(),
+                        const Expanded(child: TabContentView()),
+                        const EditorTabBar(),
                         StatusBar(),
                       ],
                     ),

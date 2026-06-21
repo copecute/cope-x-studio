@@ -81,12 +81,17 @@ class WebServerService {
   }
 
   Future<void> stop() async {
-    await _server?.close(force: true);
+    final server = _server;
+    if (server == null) return;
+    // Clear state immediately so isRunning flips false before socket close completes.
     _server = null;
     _guard = null;
     _addresses = [];
     _passwordVerifier = null;
     _asyncPasswordVerifier = null;
+    try {
+      await server.close(force: true);
+    } catch (_) {}
   }
 
   Middleware get _authMiddleware {
